@@ -9,10 +9,10 @@
 //! to ensure they run sequentially, not in parallel.
 
 use serial_test::serial;
-use wkmp_ai::config::{resolve_acoustid_api_key, is_valid_key};
-use wkmp_ai::db::settings::set_acoustid_api_key;
-use wkmp_common::config::{TomlConfig, LoggingConfig};
 use sqlx::sqlite::SqlitePoolOptions;
+use wkmp_ai::config::{is_valid_key, resolve_acoustid_api_key};
+use wkmp_ai::db::settings::set_acoustid_api_key;
+use wkmp_common::config::{LoggingConfig, TomlConfig};
 
 // ============================================================================
 // Resolution Tests (tc_u_res_001-008)
@@ -22,13 +22,15 @@ use sqlx::sqlite::SqlitePoolOptions;
 #[serial]
 async fn test_database_overrides_env_and_toml() {
     // tc_u_res_001: Database priority
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     // Setup: DB="db-key", ENV="env-key", TOML="toml-key"
     set_acoustid_api_key(&pool, "db-key".to_string())
@@ -55,13 +57,15 @@ async fn test_database_overrides_env_and_toml() {
 async fn test_env_fallback_when_database_empty() {
     // tc_u_res_002: ENV fallback
 
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     // Setup: DB=None, ENV="env-key", TOML="toml-key"
     std::env::set_var("WKMP_ACOUSTID_API_KEY", "env-key");
@@ -86,13 +90,15 @@ async fn test_toml_fallback_when_db_and_env_empty() {
     // tc_u_res_003: TOML fallback
     std::env::remove_var("WKMP_ACOUSTID_API_KEY"); // Ensure clean state
 
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     // Setup: DB=None, ENV=None, TOML="toml-key"
     // (cleanup_env already removed it)
@@ -112,13 +118,15 @@ async fn test_toml_fallback_when_db_and_env_empty() {
 #[serial]
 async fn test_error_when_no_key_found() {
     // tc_u_res_004: Error on no key
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     // Setup: DB=None, ENV=None, TOML=None
     std::env::remove_var("WKMP_ACOUSTID_API_KEY");
@@ -144,13 +152,15 @@ async fn test_error_when_no_key_found() {
 #[serial]
 async fn test_database_ignores_env() {
     // tc_u_res_005: Database ignores ENV when present
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     // Setup: DB="db-key", ENV="env-key"
     set_acoustid_api_key(&pool, "db-key".to_string())
@@ -176,13 +186,15 @@ async fn test_database_ignores_env() {
 #[serial]
 async fn test_database_ignores_toml() {
     // tc_u_res_006: Database ignores TOML when present
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     // Setup: DB="db-key", TOML="toml-key"
     set_acoustid_api_key(&pool, "db-key".to_string())
@@ -206,13 +218,15 @@ async fn test_database_ignores_toml() {
 async fn test_env_ignores_toml() {
     // tc_u_res_007: ENV ignores TOML when present
 
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     // Setup: DB=None, ENV="env-key", TOML="toml-key"
     std::env::set_var("WKMP_ACOUSTID_API_KEY", "env-key");
@@ -237,13 +251,15 @@ async fn test_multiple_sources_warning() {
     // tc_u_res_008: Multiple sources warning logged
     // Note: This test verifies behavior, not that warning is logged
     // (tracing verification would require test subscriber)
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     // Setup: DB="db-key", ENV="env-key", TOML="toml-key"
     set_acoustid_api_key(&pool, "db-key".to_string())
@@ -292,9 +308,9 @@ fn test_valid_key_accepted() {
 // Write-Back Tests (tc_u_wb_001-006)
 // ============================================================================
 
-use wkmp_ai::config::{sync_settings_to_toml, migrate_key_to_database};
-use tempfile::TempDir;
 use std::collections::HashMap;
+use tempfile::TempDir;
+use wkmp_ai::config::{migrate_key_to_database, sync_settings_to_toml};
 
 #[tokio::test]
 async fn test_sync_settings_to_toml_creates_file() {
@@ -346,26 +362,23 @@ async fn test_sync_settings_preserves_existing_fields() {
 #[tokio::test]
 async fn test_migrate_key_from_env_writes_both_db_and_toml() {
     // tc_u_wb_001, tc_u_wb_002: ENV to database + TOML write-back
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     let temp_dir = TempDir::new().unwrap();
     let toml_path = temp_dir.path().join("wkmp-ai.toml");
 
     // Migrate from ENV source
-    migrate_key_to_database(
-        "env-key-123".to_string(),
-        "environment",
-        &pool,
-        &toml_path,
-    )
-    .await
-    .unwrap();
+    migrate_key_to_database("env-key-123".to_string(), "environment", &pool, &toml_path)
+        .await
+        .unwrap();
 
     // Verify database
     let db_key = wkmp_ai::db::settings::get_acoustid_api_key(&pool)
@@ -382,26 +395,23 @@ async fn test_migrate_key_from_env_writes_both_db_and_toml() {
 #[tokio::test]
 async fn test_migrate_key_from_toml_writes_only_db() {
     // tc_u_wb_003: TOML to database (no TOML write)
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     let temp_dir = TempDir::new().unwrap();
     let toml_path = temp_dir.path().join("wkmp-ai.toml");
 
     // Migrate from TOML source (should NOT write TOML)
-    migrate_key_to_database(
-        "toml-key-123".to_string(),
-        "TOML",
-        &pool,
-        &toml_path,
-    )
-    .await
-    .unwrap();
+    migrate_key_to_database("toml-key-123".to_string(), "TOML", &pool, &toml_path)
+        .await
+        .unwrap();
 
     // Verify database
     let db_key = wkmp_ai::db::settings::get_acoustid_api_key(&pool)

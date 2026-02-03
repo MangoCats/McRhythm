@@ -2,6 +2,7 @@
 //!
 //! **[AIA-DB-010]** Audio file persistence and deduplication
 
+use crate::utils::{begin_monitored, retry_on_lock};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
@@ -16,8 +17,11 @@ use uuid::Uuid;
 /// Per SPEC017: All timing uses tick-based representation for consistency with passage timing.
 #[derive(Debug, Clone)]
 pub struct AudioFile {
+    /// Unique identifier (UUID)
     pub guid: Uuid,
+    /// File path (absolute or relative to root folder)
     pub path: String,
+    /// SHA-256 hash of file contents (for deduplication)
     pub hash: String,
 
     /// File duration in ticks (SPEC017 tick-based timing).
@@ -37,6 +41,7 @@ pub struct AudioFile {
     /// File size in bytes
     pub file_size_bytes: Option<i64>,
 
+    /// File modification timestamp
     pub modification_time: DateTime<Utc>,
 }
 
@@ -47,7 +52,7 @@ impl AudioFile {
             guid: Uuid::new_v4(),
             path,
             hash,
-            duration_ticks: None,  // REQ-F-003: Changed from `duration: None`
+            duration_ticks: None, // REQ-F-003: Changed from `duration: None`
             format: None,
             sample_rate: None,
             channels: None,
@@ -99,6 +104,123 @@ pub async fn save_file(pool: &SqlitePool, file: &AudioFile) -> Result<()> {
     Ok(())
 }
 
+/// Save multiple audio files to database in a single transaction
+///
+/// **[AIA-PERF-035]** Batch database writes for improved throughput
+/// **[ARCH-ERRH-070]** Retry logic for transient database lock errors
+/// REQ-F-003: Updated to use duration_ticks (i64) instead of duration (f64)
+pub async fn save_files_batch(pool: &SqlitePool, files: &[AudioFile]) -> Result<usize> {
+    if files.is_empty() {
+        return Ok(0);
+    }
+
+    // Get max lock wait time from settings (default 5000ms)
+    let max_wait_ms: i64 = sqlx::query_scalar(
+        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'",
+    )
+    .fetch_optional(pool)
+    .await?
+    .unwrap_or(5000);
+
+    // **[PLAN031 Task 2.3]** Batch insert files in chunks to avoid huge SQL statements
+    // SQLite has a limit on the number of parameters (default: 999)
+    // With 9 parameters per file, we can do ~100 files per batch safely
+    const BATCH_CHUNK_SIZE: usize = 100;
+
+    // Wrap transaction in retry logic
+    retry_on_lock(
+        "batch file save",
+        max_wait_ms as u64,
+        || async {
+            let mut tx = begin_monitored(pool, "files::batch_save").await.map_err(|e| wkmp_common::Error::from(e))?;
+            let mut total_saved = 0;
+
+            // Process files in chunks
+            for chunk in files.chunks(BATCH_CHUNK_SIZE) {
+                if chunk.is_empty() {
+                    continue;
+                }
+
+                tracing::debug!(
+                    chunk_size = chunk.len(),
+                    "Batch inserting file chunk"
+                );
+
+                // Build multi-row INSERT statement
+                let values_clause = chunk
+                    .iter()
+                    .map(|_| "(?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                let insert_sql = format!(
+                    r#"
+                    INSERT INTO files (guid, path, hash, duration_ticks, format, sample_rate, channels, file_size_bytes, modification_time, created_at, updated_at)
+                    VALUES {}
+                    ON CONFLICT(path) DO UPDATE SET
+                        hash = excluded.hash,
+                        duration_ticks = excluded.duration_ticks,
+                        format = excluded.format,
+                        sample_rate = excluded.sample_rate,
+                        channels = excluded.channels,
+                        file_size_bytes = excluded.file_size_bytes,
+                        modification_time = excluded.modification_time,
+                        updated_at = CURRENT_TIMESTAMP
+                    "#,
+                    values_clause
+                );
+
+                let mut query = sqlx::query(&insert_sql);
+
+                // Bind all parameters
+                for file in chunk {
+                    query = query
+                        .bind(file.guid.to_string())
+                        .bind(&file.path)
+                        .bind(&file.hash)
+                        .bind(file.duration_ticks)
+                        .bind(&file.format)
+                        .bind(file.sample_rate)
+                        .bind(file.channels)
+                        .bind(file.file_size_bytes)
+                        .bind(file.modification_time.to_rfc3339());
+                }
+
+                // Execute batch insert
+                match query.execute(&mut **tx.inner_mut()).await {
+                    Ok(result) => {
+                        let rows = result.rows_affected() as usize;
+                        total_saved += rows;
+                        tracing::debug!(
+                            rows_affected = rows,
+                            chunk_size = chunk.len(),
+                            "Chunk batch insert complete"
+                        );
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            error = ?e,
+                            chunk_size = chunk.len(),
+                            "Batch insert failed for chunk, transaction will roll back"
+                        );
+                        return Err(wkmp_common::Error::Database(e));
+                    }
+                }
+            }
+
+            tx.commit().await.map_err(|e| wkmp_common::Error::from(e))?;
+            tracing::info!(
+                total_saved,
+                total_files = files.len(),
+                "Batch file save complete"
+            );
+            Ok(total_saved)
+        }
+    )
+    .await
+    .map_err(|e| anyhow::Error::msg(e.to_string()))
+}
+
 /// Load audio file by path
 /// REQ-F-003: Updated to use duration_ticks (i64) instead of duration (f64)
 pub async fn load_file_by_path(pool: &SqlitePool, path: &str) -> Result<Option<AudioFile>> {
@@ -119,14 +241,14 @@ pub async fn load_file_by_path(pool: &SqlitePool, path: &str) -> Result<Option<A
             let guid = Uuid::parse_str(&guid_str)?;
 
             let mod_time_str: String = row.get("modification_time");
-            let modification_time = DateTime::parse_from_rfc3339(&mod_time_str)?
-                .with_timezone(&Utc);
+            let modification_time =
+                DateTime::parse_from_rfc3339(&mod_time_str)?.with_timezone(&Utc);
 
             Ok(Some(AudioFile {
                 guid,
                 path: row.get("path"),
                 hash: row.get("hash"),
-                duration_ticks: row.get("duration_ticks"),  // REQ-F-003: Changed from duration
+                duration_ticks: row.get("duration_ticks"), // REQ-F-003: Changed from duration
                 format: row.get("format"),
                 sample_rate: row.get("sample_rate"),
                 channels: row.get("channels"),
@@ -159,14 +281,14 @@ pub async fn load_file_by_hash(pool: &SqlitePool, hash: &str) -> Result<Option<A
             let guid = Uuid::parse_str(&guid_str)?;
 
             let mod_time_str: String = row.get("modification_time");
-            let modification_time = DateTime::parse_from_rfc3339(&mod_time_str)?
-                .with_timezone(&Utc);
+            let modification_time =
+                DateTime::parse_from_rfc3339(&mod_time_str)?.with_timezone(&Utc);
 
             Ok(Some(AudioFile {
                 guid,
                 path: row.get("path"),
                 hash: row.get("hash"),
-                duration_ticks: row.get("duration_ticks"),  // REQ-F-003: Changed from duration
+                duration_ticks: row.get("duration_ticks"), // REQ-F-003: Changed from duration
                 format: row.get("format"),
                 sample_rate: row.get("sample_rate"),
                 channels: row.get("channels"),
@@ -205,14 +327,13 @@ pub async fn load_all_files(pool: &SqlitePool) -> Result<Vec<AudioFile>> {
         let guid = Uuid::parse_str(&guid_str)?;
 
         let mod_time_str: String = row.get("modification_time");
-        let modification_time = DateTime::parse_from_rfc3339(&mod_time_str)?
-            .with_timezone(&Utc);
+        let modification_time = DateTime::parse_from_rfc3339(&mod_time_str)?.with_timezone(&Utc);
 
         files.push(AudioFile {
             guid,
             path: row.get("path"),
             hash: row.get("hash"),
-            duration_ticks: row.get("duration_ticks"),  // REQ-F-003: Changed from duration
+            duration_ticks: row.get("duration_ticks"), // REQ-F-003: Changed from duration
             format: row.get("format"),
             sample_rate: row.get("sample_rate"),
             channels: row.get("channels"),
@@ -226,7 +347,11 @@ pub async fn load_all_files(pool: &SqlitePool) -> Result<Vec<AudioFile>> {
 
 /// Update file duration
 /// REQ-F-003: Changed parameter from f64 seconds to i64 ticks
-pub async fn update_file_duration(pool: &SqlitePool, file_id: Uuid, duration_ticks: i64) -> Result<()> {
+pub async fn update_file_duration(
+    pool: &SqlitePool,
+    file_id: Uuid,
+    duration_ticks: i64,
+) -> Result<()> {
     sqlx::query(
         r#"
         UPDATE files
@@ -234,7 +359,7 @@ pub async fn update_file_duration(pool: &SqlitePool, file_id: Uuid, duration_tic
         WHERE guid = ?
         "#,
     )
-    .bind(duration_ticks)  // REQ-F-003: Changed from duration (f64) to duration_ticks (i64)
+    .bind(duration_ticks) // REQ-F-003: Changed from duration (f64) to duration_ticks (i64)
     .bind(file_id.to_string())
     .execute(pool)
     .await?;
@@ -253,8 +378,13 @@ mod tests {
             .expect("Failed to create in-memory database");
 
         // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-        wkmp_common::db::init::create_files_table(&pool).await.unwrap();
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .unwrap();
+        wkmp_common::db::init::create_files_table(&pool)
+            .await
+            .unwrap();
 
         let file = AudioFile::new(
             "test/music/track01.mp3".to_string(),
@@ -280,8 +410,13 @@ mod tests {
             .expect("Failed to create in-memory database");
 
         // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-        wkmp_common::db::init::create_files_table(&pool).await.unwrap();
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .unwrap();
+        wkmp_common::db::init::create_files_table(&pool)
+            .await
+            .unwrap();
 
         let file = AudioFile::new(
             "test/music/track01.mp3".to_string(),

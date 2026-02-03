@@ -2,7 +2,7 @@
 
 **Purpose:** Track archived documents and provide retrieval commands
 **Maintained by:** /archive and /archive-plan workflows (automated)
-**Last Updated:** 2025-11-05
+**Last Updated:** 2025-11-12
 
 ---
 
@@ -12,8 +12,8 @@ This index tracks documents that have been archived to the `archive` git branch 
 
 **Current Status:**
 - **Active Documents:** All visible in working tree
-- **Archived Documents:** 48 (PLAN021 + wkmp-ai_static_serving + wkmp-ai_path_escaping + SSE_troubleshooting + SPEC_event_driven + SPEC_import_progress + DRY_analysis + DRY_implementation + PROJ001 + PLAN020 + SPEC024_tech_debt + SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
-- **Context Reduction:** Significant (~65,273 lines total: 7,543 from PLAN021 + 159 from wkmp-ai_static_serving + 178 from wkmp-ai_path_escaping + 258 from SSE_troubleshooting + 1,179 from SPEC_event_driven + 478 from SPEC_import_progress + 742 from DRY_analysis + 334 from DRY_implementation + 3,301 from PROJ001 + 5,120 from PLAN020 + 837 from SPEC024_tech_debt + 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
+- **Archived Documents:** 52 (PLAN023_wkmp_ai_recode + PLAN025_spec032_wkmp_ai_update + PLAN024_wkmp_ai_recode + SPEC032_alignment_analysis + PLAN021 + wkmp-ai_static_serving + wkmp-ai_path_escaping + SSE_troubleshooting + SPEC_event_driven + SPEC_import_progress + DRY_analysis + DRY_implementation + PROJ001 + PLAN020 + SPEC024_tech_debt + SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
+- **Context Reduction:** Significant (~96,764 lines total: 7,800 from PLAN023_wkmp_ai_recode + 8,263 from PLAN025_spec032_wkmp_ai_update + 11,142 from PLAN024_wkmp_ai_recode + 4,286 from SPEC032_alignment_analysis + 7,543 from PLAN021 + 159 from wkmp-ai_static_serving + 178 from wkmp-ai_path_escaping + 258 from SSE_troubleshooting + 1,179 from SPEC_event_driven + 478 from SPEC_import_progress + 742 from DRY_analysis + 334 from DRY_implementation + 3,301 from PROJ001 + 5,120 from PLAN020 + 837 from SPEC024_tech_debt + 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
 
 ---
 
@@ -65,6 +65,161 @@ git checkout dev  # Return to working branch
 <!-- Entries organized by category, reverse chronological within each category -->
 
 ### Archived Plan Documents
+
+#### PLAN023: WKMP-AI Ground-Up Recode (2025-11-12)
+
+Archived WKMP-AI ground-up recode implementation plan folder from wip/PLAN023_wkmp_ai_recode/
+
+**Contents:** 24 files, 7,800 lines
+- 00_PLAN_SUMMARY.md - Executive summary
+- 01_specification_issues.md - Specification issues analysis
+- 02_test_specifications/ (4 files: test_index.md, traceability_matrix.md, 2 test cases)
+- requirements_index.md, scope_statement.md, dependencies_map.md
+- CRITICAL_RESOLUTIONS.md, CRITICAL_SPEC017_VIOLATION.md
+- DATABASE_MIGRATION_FIX.md, ENHANCEMENTS_SUMMARY.md
+- IMPLEMENTATION_PROGRESS.md, REMAINING_TECHNICAL_DEBT.md
+- SESSION_3_SUMMARY.md, SESSION_4_COMPLETE.md, SESSION_4_SUMMARY.md, SESSION_SUMMARY.md
+- TECHNICAL_DEBT_FINAL.md, TECHNICAL_DEBT_REVIEW.md, TEST_COVERAGE_SUMMARY.md
+- WAVEFORM_COMPLETE.md, WAVEFORM_IMPLEMENTATION_PLAN.md
+
+**Reason:** Historical plan - Superseded by PLAN024 and PLAN025 (more comprehensive recode approaches)
+
+**Restoration:**
+```bash
+# Restore complete folder
+git checkout archive -- wip/PLAN023_wkmp_ai_recode/
+
+# Or view archive branch
+git checkout archive
+cd wip/PLAN023_wkmp_ai_recode/
+# Browse files normally
+git checkout ai-trial2  # Return to working branch
+```
+
+**Retrieval (individual files):**
+```bash
+# View plan summary
+git show archive:wip/PLAN023_wkmp_ai_recode/00_PLAN_SUMMARY.md
+
+# View specification issues
+git show archive:wip/PLAN023_wkmp_ai_recode/01_specification_issues.md
+
+# List all files in folder
+git ls-tree -r archive -- wip/PLAN023_wkmp_ai_recode/
+```
+
+---
+
+#### PLAN025: SPEC032 wkmp-ai Update (2025-11-12)
+
+Archived SPEC032 wkmp-ai implementation update plan folder from wip/PLAN025_spec032_wkmp_ai_update/
+
+**Contents:** 16+ files, 8,263 lines
+- 00_PLAN_SUMMARY.md (450 lines) - Executive summary
+- 01_specification_issues.md - 8 issues identified (0 CRITICAL, 2 HIGH, 4 MEDIUM, 2 LOW)
+- 02_test_specifications/ (test_index.md, traceability_matrix.md)
+- requirements_index.md (250 lines) - 12 requirements cataloged
+- scope_statement.md - Scope definition
+- PLAN025_integration_session[2-6].md - 6 integration sessions
+- PLAN025_phase1_design.md, phase2_summary.md, phase4_summary.md
+- PLAN025_session_summary.md - Overall session summary
+- SPEC032_ALIGNMENT_REVIEW_FINDINGS.md - Alignment review
+- SPEC032_IMPLEMENTATION_UPDATE.md - Implementation update
+- SPEC032_wkmp-ai_refinement_specification.md - Refinement specification
+
+**Reason:** Plan ready for implementation - Phases 1-3 complete (Week 1 Deliverable). Segmentation-first, evidence-based architecture plan created per /plan workflow.
+
+**Key Deliverables:**
+- 12 requirements analyzed (2 P0 Critical, 6 P1 High, 4 P2 Medium)
+- 8 specification issues identified and resolved
+- 32 tests defined with 100% requirement coverage
+- Test-first, specification-driven planning complete
+- Architecture: Segment → Match → Fingerprint → Identify
+
+**Restoration:**
+```bash
+# Restore complete folder
+git checkout archive -- wip/PLAN025_spec032_wkmp_ai_update/
+
+# Or view archive branch
+git checkout archive
+cd wip/PLAN025_spec032_wkmp_ai_update/
+# Browse files normally
+git checkout ai-trial2  # Return to working branch
+```
+
+**Retrieval (individual files):**
+```bash
+# View plan summary
+git show archive:wip/PLAN025_spec032_wkmp_ai_update/00_PLAN_SUMMARY.md
+
+# View specification issues
+git show archive:wip/PLAN025_spec032_wkmp_ai_update/01_specification_issues.md
+
+# List all files in folder
+git ls-tree -r archive -- wip/PLAN025_spec032_wkmp_ai_update/
+```
+
+---
+
+#### PLAN024: WKMP-AI Audio Import System Recode (2025-11-12)
+
+Archived complete WKMP-AI recode implementation plan folder from wip/PLAN024_wkmp_ai_recode/
+
+**Contents:** 18 files, 11,142 lines
+- 00_PLAN_SUMMARY.md (376 lines) - Executive summary
+- 01_specification_issues.md (826 lines) - 37 issues identified (7 CRITICAL resolved)
+- 02_specification_amendments.md (1,450 lines) - SSOT for all resolutions
+- 03_acceptance_tests.md (1,773 lines) - Test specifications
+- 04_approach_selection.md (756 lines) - Implementation approach
+- 05_implementation_breakdown.md (409 lines) - Breakdown details
+- 06_effort_and_schedule.md (317 lines) - Effort estimates (12-14 weeks)
+- 07_risk_assessment.md (833 lines) - Risk analysis
+- 08_final_plan_approval.md (678 lines) - Plan approval
+- 09_file_level_tracking_analysis.md (981 lines) - File tracking analysis
+- 10_amendment_8_summary.md (356 lines) - Amendment 8 summary
+- 11_amendment_9_summary.md (581 lines) - Amendment 9 summary
+- 11_plan_review_findings.md (556 lines) - Plan review
+- APPROVAL_RECORD.md (228 lines) - Approval record
+- IMPLEMENTATION_START.md (158 lines) - Implementation start marker
+- dependencies_map.md (387 lines) - Dependencies
+- requirements_index.md (193 lines) - 77 requirements cataloged
+- scope_statement.md (284 lines) - Scope definition
+
+**Reason:** Plan completed - Phases 1-3 complete (Week 1 Deliverable). Systematic implementation plan for 3-tier hybrid fusion architecture created per /plan workflow.
+
+**Key Deliverables:**
+- 77 requirements analyzed (72 original + 5 amendments)
+- 7/7 CRITICAL specification issues resolved
+- 100% requirement → test coverage achieved
+- Test-first, specification-driven planning complete
+- Ready for implementation (awaiting stakeholder approval)
+
+**Restoration:**
+```bash
+# Restore complete folder
+git checkout archive -- wip/PLAN024_wkmp_ai_recode/
+
+# Or view archive branch
+git checkout archive
+cd wip/PLAN024_wkmp_ai_recode/
+# Browse files normally
+git checkout ai-trial2  # Return to working branch
+```
+
+**Retrieval (individual files):**
+```bash
+# View plan summary
+git show archive:wip/PLAN024_wkmp_ai_recode/00_PLAN_SUMMARY.md
+
+# View specification issues
+git show archive:wip/PLAN024_wkmp_ai_recode/01_specification_issues.md
+
+# List all files in folder
+git ls-tree -r archive -- wip/PLAN024_wkmp_ai_recode/
+```
+
+---
 
 #### PLAN021: Technical Debt Remediation (2025-11-05)
 
@@ -209,6 +364,7 @@ git ls-tree -r archive -- wip/PLAN020_event_driven_playback/
 
 | Filename | Reason | Date | Retrieval Command |
 |----------|--------|------|-------------------|
+| SPEC032_alignment_analysis/ | SPEC032 alignment analysis complete (4,286 lines) - Ready for decision; Recommends Approach 2 (Incremental Integration) | 2025-11-12 | `git checkout archive && cd wip/SPEC032_alignment_analysis` |
 | wkmp-ai_static_serving_fix.md | wkmp-ai static file serving fix complete - All static files served correctly | 2025-11-04 | `git show archive:wip/wkmp-ai_static_serving_fix.md` |
 | wkmp-ai_path_escaping_fix.md | wkmp-ai path escaping fix complete - Windows backslash paths working | 2025-11-04 | `git show archive:wip/wkmp-ai_path_escaping_fix.md` |
 | SSE_troubleshooting.md | SSE troubleshooting complete - Connection issues resolved | 2025-11-04 | `git show archive:wip/SSE_troubleshooting.md` |

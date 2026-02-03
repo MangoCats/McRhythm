@@ -4,12 +4,12 @@
 //!
 //! Provides multi-tier configuration resolution with Database → ENV → TOML priority.
 
-use wkmp_common::{Error, Result};
-use wkmp_common::config::TomlConfig;
 use sqlx::{Pool, Sqlite};
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{info, warn};
+use wkmp_common::config::TomlConfig;
+use wkmp_common::{Error, Result};
 
 /// Resolve AcoustID API key from 3-tier configuration
 ///
@@ -77,12 +77,15 @@ pub async fn resolve_acoustid_api_key(
     }
 
     // No valid key found
-    Err(Error::Config("AcoustID API key not configured. Please configure using one of:\n\
+    Err(Error::Config(
+        "AcoustID API key not configured. Please configure using one of:\n\
          1. Web UI: http://localhost:5723/settings\n\
          2. Environment: WKMP_ACOUSTID_API_KEY=your-key-here\n\
          3. TOML config: ~/.config/wkmp/wkmp-ai.toml (acoustid_api_key = \"your-key\")\n\
          \n\
-         Obtain API key at: https://acoustid.org/api-key".to_string()))
+         Obtain API key at: https://acoustid.org/api-key"
+            .to_string(),
+    ))
 }
 
 /// Validate API key (non-empty, non-whitespace)
@@ -109,8 +112,7 @@ pub async fn sync_settings_to_toml(
     let mut config = if toml_path.exists() {
         let content = std::fs::read_to_string(toml_path)
             .map_err(|e| Error::Config(format!("Read TOML failed: {}", e)))?;
-        toml::from_str(&content)
-            .map_err(|e| Error::Config(format!("Parse TOML failed: {}", e)))?
+        toml::from_str(&content).map_err(|e| Error::Config(format!("Parse TOML failed: {}", e)))?
     } else {
         TomlConfig {
             root_folder: None,

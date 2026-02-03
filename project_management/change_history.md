@@ -6,6 +6,37 @@
 
 ---
 
+## 2026-02-03 08:37:09 -0500 | Hash: c41175d9f8cd40a0a86e8fbfadcd4e9e8b45ed97
+
+**Album Matching: Duration Filter Widening + Artist-Relaxed Fallback Search**
+
+Implements two strategies to fix albums rejected during edition filtering:
+
+**Strategy B — Duration Filter Widening:**
+- `MIN_DURATION_RATIO` changed from 85% to 80% in constants.rs
+- Allows borderline editions like Guardians of the Galaxy (84.95% ratio)
+- filtering.rs now imports constants instead of local values
+
+**Strategy A — Artist-Relaxed Fallback Search:**
+- New `album_only_search()` method in musicbrainz_client.rs (~90 lines)
+- Searches MusicBrainz by album title only, bypassing artist constraint
+- Addresses mismatches like "Disney" vs "Lin-Manuel Miranda" (Moana)
+- Triggers when: no match, last track error >60s, or name_score <0.60
+- Deduplicates against primary editions before orchestration
+- Uses fallback if better name_score (prioritizes name accuracy)
+
+**New constants in constants.rs:**
+- `MIN_DURATION_RATIO: f64 = 0.80`
+- `MAX_DURATION_RATIO: f64 = 1.25`
+- `FALLBACK_SEARCH_LIMIT: usize = 25`
+
+**Regression test (200 albums):** 0 regressions, 3 fixes
+- NativeAmericanFluteLullabies: 93.8% → 100% (fallback)
+- LiveAtTheAncienneBelgique: newly matched
+- TheGreatestShowman: newly matched
+
+---
+
 ## Instructions
 
 This file is automatically maintained by the `/commit` workflow. Each commit appends:
@@ -21,7 +52,126 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-11-05 20:49:39 -0500
+### 2025-11-12 20:55:45 -0500 | Hash: 43fc541ebd9f48ddd42cde4b0950e812fb5cd976
+
+**Archive PLAN023 WKMP-AI Recode Plan**
+
+Archived historical PLAN023 WKMP-AI ground-up recode plan (24 files, 7,800 lines) to archive branch and updated archive index.
+
+**Changes:**
+- Removed wip/PLAN023_wkmp_ai_recode/ directory (git rm -r)
+  - 24 plan files including summary, issues, tests, resolutions, session summaries, technical debt analysis
+  - Implementation progress, waveform implementation, database migration fixes
+  - Critical SPEC017 violation documentation and resolutions
+- Updated workflows/REG002_archive_index.md
+  - Added PLAN023 entry with detailed retrieval commands
+  - Updated archived document count: 51 → 52
+  - Updated context reduction: 88,964 → 96,764 lines
+
+**Plan Summary:**
+- Status: Ready for Implementation Review
+- Created: 2025-01-08
+- Specification Source: wip/SPEC_wkmp_ai_recode.md
+
+**Archival Rationale:**
+Historical plan superseded by PLAN024 and PLAN025 (more comprehensive recode approaches). Preserved in archive for reference.
+
+---
+
+### 2025-11-12 20:34:16 -0500 | Hash: 02ca248109632e71285c8b18c125a02b306f8294
+
+**Archive PLAN025 SPEC032 wkmp-ai Update**
+
+Archived PLAN025 SPEC032 wkmp-ai implementation update plan (16+ files, 8,263 lines) to archive branch and updated archive index.
+
+**Changes:**
+- Removed wip/PLAN025_spec032_wkmp_ai_update/ directory (git rm -r)
+  - 00_PLAN_SUMMARY.md (450 lines) - Executive summary
+  - 01_specification_issues.md - 8 issues (0 CRITICAL, 2 HIGH, 4 MEDIUM, 2 LOW)
+  - 02_test_specifications/ (test_index.md, traceability_matrix.md)
+  - requirements_index.md (250 lines) - 12 requirements
+  - scope_statement.md - Scope definition
+  - Session summaries, phase summaries, SPEC032 documents
+- Updated workflows/REG002_archive_index.md
+  - Added PLAN025 entry with detailed retrieval commands
+  - Updated archived document count: 50 → 51
+  - Updated context reduction: 80,701 → 88,964 lines
+
+**Plan Summary:**
+- Objective: Segmentation-first, evidence-based architecture for wkmp-ai
+- Status: Phases 1-3 complete (Week 1 Deliverable)
+- Requirements: 12 total (2 P0 Critical, 6 P1 High, 4 P2 Medium)
+- Coverage: 32 tests, 100% requirement-to-test traceability
+- Architecture: Segment → Match → Fingerprint → Identify (reordered pipeline)
+
+**Archival Rationale:**
+Planning complete. Implementation ready. Historical plan preserved in archive branch for reference during development.
+
+---
+
+### 2025-11-12 20:20:52 -0500 | Hash: a3956e0ef02716e05ef99b1a252585162b3de8ca
+
+**Archive PLAN024 WKMP-AI Recode Plan**
+
+Archived completed PLAN024 WKMP-AI audio import system recode plan (18 files, 11,142 lines) to archive branch and updated archive index.
+
+**Changes:**
+- Removed wip/PLAN024_wkmp_ai_recode/ directory (git rm -r)
+  - 18 plan documents including summary, issues, amendments, tests, approach, breakdown, schedule, risks, approval
+  - Complete /plan workflow output with 77 requirements analyzed
+  - 7/7 CRITICAL specification issues resolved
+  - 100% requirement → test coverage achieved
+- Updated workflows/REG002_archive_index.md
+  - Added PLAN024 entry with detailed retrieval commands
+  - Updated archived document count: 49 → 50
+  - Updated context reduction: 69,559 → 80,701 lines
+
+**Plan Summary:**
+- Objective: Create systematic implementation plan for 3-tier hybrid fusion architecture
+- Status: Phases 1-3 complete (Week 1 Deliverable)
+- Requirements: 77 total (72 original + 5 amendments)
+- Coverage: 100% requirement-to-test traceability
+- Approach: Test-first, specification-driven planning
+- Implementation: 12-14 week estimate (ground-up recode, no legacy code copying)
+
+**Archival Rationale:**
+Planning phase complete. Implementation awaits stakeholder approval. Historical plan preserved in archive branch for reference during implementation.
+
+---
+
+### 2025-11-12 20:14:51 -0500 | Hash: 8c99b938c3a855ce6c0e7d04c068536dee5c518b
+
+**Archive SPEC032 Alignment Analysis**
+
+Archived completed SPEC032 alignment analysis (4,286 lines across 4 files) to archive branch and updated archive index.
+
+**Changes:**
+- Removed wip/SPEC032_alignment_analysis/ directory (git rm -r)
+  - 00_ANALYSIS_SUMMARY.md (268 lines) - Executive summary and navigation
+  - 01_changes_required.md (2,605 lines) - 10 change categories with detailed specs
+  - 02_implementation_approaches.md (501 lines) - Risk-based approach comparison
+  - 03_essentia_integration_spec.md (912 lines) - Essentia integration details
+- Removed wip/technical_debt_report.md (obsolete duplicate)
+- Updated workflows/REG002_archive_index.md
+  - Added SPEC032_alignment_analysis/ entry with retrieval command
+  - Updated archived document count: 48 → 49
+  - Updated context reduction: 65,273 → 69,559 lines
+  - Updated last modified date to 2025-11-12
+
+**Analysis Summary:**
+- Analysis Date: 2025-11-09 (8-Phase Multi-Agent /think workflow)
+- Status: Complete - Ready for Decision
+- Recommendation: Approach 2 (Incremental Integration) with Low residual risk
+- Scope: Align SPEC032 with SPEC_wkmp_ai_recode (3-tier hybrid fusion engine, multi-source data fusion, quality framework)
+- Implementation Approach: 5 staged specification writing increments over 4 weeks
+- Code Implementation: Complete rewrite (SPEC030 compliance) phased over 12-14 weeks
+
+**Archival Rationale:**
+Analysis complete and documented. Decision-making and /plan execution remain with stakeholder. Historical analysis preserved in archive branch for reference.
+
+---
+
+### 2025-11-05 20:49:39 -0500 | Hash: 7684fbce30d062b1da1c91a1449b7d56f2703170
 
 **Archive PLAN021 Technical Debt Remediation**
 
@@ -609,7 +759,7 @@ Committed comprehensive planning and analysis documents for two major initiative
 **Complete PLAN004 audio ingest implementation plan with full test specifications**
 
 **Overview:**
-Created comprehensive implementation plan for wkmp-ai Audio Ingest microservice following /plan workflow. Extracted 23 requirements from SPEC024, resolved 4 critical specification gaps, and completed all 95 acceptance tests across 10 test specification files achieving 100% P0/P1 requirement coverage.
+Created comprehensive implementation plan for wkmp-ai Audio Ingest microservice following /plan workflow. Extracted 23 requirements from SPEC032, resolved 4 critical specification gaps, and completed all 95 acceptance tests across 10 test specification files achieving 100% P0/P1 requirement coverage.
 
 **Phase 1 - Requirements Extraction:**
 - requirements_index.md: 23 requirements (17 P0, 5 P1, 1 P3)
@@ -636,7 +786,7 @@ Created comprehensive implementation plan for wkmp-ai Audio Ingest microservice 
 - traceability_matrix.md: Maps all 23 requirements to tests
 
 **New Specifications:**
-- SPEC024: Audio Ingest Architecture (475 lines) - 7-state workflow, component design
+- SPEC032: Audio Ingest Architecture (475 lines) - 7-state workflow, component design
 - SPEC025: Amplitude Analysis (520 lines) - RMS envelope, lead-in/out detection
 - IMPL008: Audio Ingest API (210 lines) - HTTP endpoints, SSE events
 - IMPL009: Amplitude Analyzer Implementation (407 lines) - A-weighting, RMS calculation

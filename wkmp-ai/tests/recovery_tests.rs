@@ -23,13 +23,15 @@ async fn test_database_deletion_recovers_from_toml() {
 
     // Step 1: Set key via migration (simulates UI save that writes DB + TOML)
     let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
-    let pool = SqlitePoolOptions::new()
-        .connect(&db_url)
+    let pool = SqlitePoolOptions::new().connect(&db_url).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     migrate_key_to_database(
         "test-key-recovery".to_string(),
@@ -56,19 +58,23 @@ async fn test_database_deletion_recovers_from_toml() {
 
     // Step 3: Recreate database (simulates restart)
     let db_url2 = format!("sqlite:{}?mode=rwc", db_path.display());
-    let pool2 = SqlitePoolOptions::new()
-        .connect(&db_url2)
+    let pool2 = SqlitePoolOptions::new().connect(&db_url2).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool2)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool2).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool2).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool2)
+        .await
+        .unwrap();
 
     // Step 4: Load TOML config and resolve key
     let toml_content = std::fs::read_to_string(&toml_path).unwrap();
     let toml_config: TomlConfig = toml::from_str(&toml_content).unwrap();
 
-    let resolved_key = resolve_acoustid_api_key(&pool2, &toml_config).await.unwrap();
+    let resolved_key = resolve_acoustid_api_key(&pool2, &toml_config)
+        .await
+        .unwrap();
     assert_eq!(resolved_key, "test-key-recovery");
 
     // Step 5: Verify key migrated back to database
@@ -98,13 +104,15 @@ async fn test_database_deletion_no_toml_fails() {
 
     // Create fresh database with no key
     let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
-    let pool = SqlitePoolOptions::new()
-        .connect(&db_url)
+    let pool = SqlitePoolOptions::new().connect(&db_url).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     // No TOML file exists
     assert!(!toml_path.exists());
@@ -141,13 +149,15 @@ async fn test_toml_write_back_survives_database_deletion() {
 
     // Step 1: Configure key via database
     let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
-    let pool = SqlitePoolOptions::new()
-        .connect(&db_url)
+    let pool = SqlitePoolOptions::new().connect(&db_url).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     wkmp_ai::db::settings::set_acoustid_api_key(&pool, "durable-key".to_string())
         .await

@@ -1,0 +1,61 @@
+//! UI Routes - HTML pages for wkmp-ai web interface
+//!
+//! **[AIA-UI-010]** Web UI with HTML/CSS/JS (vanilla ES6+, no frameworks)
+//! **[AIA-UI-030]** Return navigation to wkmp-ui on completion
+//!
+//! # Structure
+//! This module contains all UI page handlers for the wkmp-ai import wizard:
+//!
+//! - **Static Assets** (`static_assets`): CSS/JS file serving
+//! - **Root Page** (`root`): Import wizard landing page
+//! - **Import Progress** (`import_progress`): Real-time import progress with SSE
+//! - **Segment Editor** (`segment_editor`): Manual passage boundary adjustment
+//! - **Import Complete** (`import_complete`): Completion summary with return link
+//! - **Settings Page** (`settings`): Configuration interface
+
+use crate::AppState;
+use axum::{routing::get, Router};
+
+// Module declarations
+mod file_report;
+mod import_complete;
+mod import_progress;
+mod root;
+mod segment_editor;
+mod settings;
+mod static_assets; // PLAN027: File classification report
+
+// Re-export handler functions for router assembly
+use file_report::file_report_page;
+use import_complete::import_complete_page;
+use import_progress::import_progress_page;
+use root::root_page;
+use segment_editor::segment_editor_page;
+use settings::settings_page;
+use static_assets::{
+    serve_file_report_js, // PLAN027
+    serve_import_progress_js,
+    serve_settings_css,
+    serve_settings_js,
+    serve_wkmp_sse_js,
+    serve_wkmp_ui_css,
+}; // PLAN027
+
+/// Build UI routes
+pub fn ui_routes() -> Router<AppState> {
+    Router::new()
+        // Page routes
+        .route("/", get(root_page))
+        .route("/import-progress", get(import_progress_page))
+        .route("/file-report", get(file_report_page)) // PLAN027
+        .route("/segment-editor", get(segment_editor_page))
+        .route("/import-complete", get(import_complete_page))
+        .route("/settings", get(settings_page))
+        // Static assets
+        .route("/static/wkmp-sse.js", get(serve_wkmp_sse_js))
+        .route("/static/wkmp-ui.css", get(serve_wkmp_ui_css))
+        .route("/static/import-progress.js", get(serve_import_progress_js))
+        .route("/static/file-report.js", get(serve_file_report_js)) // PLAN027
+        .route("/static/settings.css", get(serve_settings_css))
+        .route("/static/settings.js", get(serve_settings_js))
+}

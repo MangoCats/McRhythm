@@ -37,6 +37,10 @@ pub enum ApiError {
     /// Generic error
     #[error(transparent)]
     Other(#[from] anyhow::Error),
+
+    /// wkmp-common error
+    #[error("Common error: {0}")]
+    Common(#[from] wkmp_common::Error),
 }
 
 impl IntoResponse for ApiError {
@@ -45,11 +49,7 @@ impl IntoResponse for ApiError {
             ApiError::NotFound(msg) => (StatusCode::NOT_FOUND, "NOT_FOUND", msg),
             ApiError::BadRequest(msg) => (StatusCode::BAD_REQUEST, "BAD_REQUEST", msg),
             ApiError::Conflict(msg) => (StatusCode::CONFLICT, "CONFLICT", msg),
-            ApiError::Internal(msg) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "INTERNAL_ERROR",
-                msg,
-            ),
+            ApiError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", msg),
             ApiError::Io(ref err) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "IO_ERROR",
@@ -58,6 +58,11 @@ impl IntoResponse for ApiError {
             ApiError::Other(ref err) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "INTERNAL_ERROR",
+                err.to_string(),
+            ),
+            ApiError::Common(ref err) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "COMMON_ERROR",
                 err.to_string(),
             ),
         };

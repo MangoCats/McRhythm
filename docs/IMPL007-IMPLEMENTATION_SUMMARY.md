@@ -338,7 +338,7 @@ there is no reactor running, must be called from the context of a Tokio 1.x runt
 ## Verification Checklist
 
 ### Functional Requirements ✅ All Met
-- ✅ All 5 modules start successfully with no config files (tested wkmp-ap)
+- ✅ All 6 modules start successfully with no config files (tested wkmp-ap)
 - ✅ Root folder created automatically at default location
 - ✅ Database created automatically with default schema
 - ✅ Warning logged (not error) for missing config files

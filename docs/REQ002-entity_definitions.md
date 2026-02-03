@@ -87,7 +87,108 @@ Defines core entity terminology used throughout WKMP documentation. Part of [req
 
 **[REQ-DEF-035]** All playable audio in WKMP must have a passage definition, either persistent (database-stored) or ephemeral (transiently-created).
 
-## Entity Relationships
+## 2.0 Entity Relationship Overview
+
+### Relationship Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Audio File                              │
+│  - file_path (string)                                           │
+│  - duration_ms (integer)                                        │
+│  - segmentation_strategy (enum)                                 │
+└───────────────┬─────────────────────────────────────────────────┘
+                │
+                │ 1:N (contains)
+                │
+                v
+┌─────────────────────────────────────────────────────────────────┐
+│                         Passage                                 │
+│  - passage_id (UUID)                                            │
+│  - start_ms, end_ms (integer)                                   │
+│  - lead_in_ms, lead_out_ms (integer)                            │
+│  - musical_flavor (JSON)                                        │
+└───────────────┬─────────────────────────────────────────────────┘
+                │
+                │ N:M (passage-song join)
+                │
+                v
+┌─────────────────────────────────────────────────────────────────┐
+│                          Song                                   │
+│  - song_id (UUID)                                               │
+│  - base_probability (0.0-1.0)                                   │
+└───────────────┬─────────────────────────────────────────────────┘
+                │
+                │ N:1 (references)
+                │
+                v
+┌─────────────────────────────────────────────────────────────────┐
+│                      Recording                                  │
+│  - recording_mbid (UUID - MusicBrainz)                          │
+│  - recording_title (string)                                     │
+│  - duration_ms (integer - canonical)                            │
+│  - acousticbrainz_data (JSON - source of musical_flavor)        │
+└─────────────────────────────────────────────────────────────────┘
+                │
+                │ N:M (credits)
+                │
+                v
+┌─────────────────────────────────────────────────────────────────┐
+│                         Artist                                  │
+│  - artist_mbid (UUID - MusicBrainz)                             │
+│  - artist_name (string)                                         │
+│  - artist_sort_name (string)                                    │
+└─────────────────────────────────────────────────────────────────┘
+
+                │
+                │ N:M (work_credits)
+                │
+                v
+┌─────────────────────────────────────────────────────────────────┐
+│                          Work                                   │
+│  - work_mbid (UUID - MusicBrainz)                               │
+│  - work_title (string)                                          │
+│  - work_type (string - composition, song, etc.)                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Cross-System Usage
+
+| Entity | Used By | Purpose |
+|--------|---------|---------|
+| Passage | wkmp-ap | Playback queue, crossfading |
+| Passage | wkmp-pd | Selection algorithm (flavor matching) |
+| Song | wkmp-pd | Cooldown tracking (14-day song cooldown) |
+| Artist | wkmp-pd | Cooldown tracking (30-minute artist cooldown) |
+| Work | wkmp-pd | Cooldown tracking (2-day work cooldown) |
+| Recording | wkmp-ai | Metadata source, AcousticBrainz integration |
+| Recording | Musical Flavor | Distance calculation (see [SPEC003](SPEC003-musical_flavor.md)) |
+
+### Key Relationships
+
+**1:N (Audio File → Passages)**
+- Single-file albums: 1 audio file → 10-20 passages (one per track)
+- Multi-file albums: 20 audio files → 20 passages (one per file)
+
+**N:M (Passages ↔ Songs)**
+- Most passages: 1 passage → 1 song (typical case)
+- Medleys: 1 passage → 2+ songs (multiple recordings in one playable segment)
+- Live albums: 2+ passages → 1 song (same song performed twice)
+
+**N:1 (Songs → Recording)**
+- Multiple songs (across different passages/albums) reference same Recording MBID
+
+**N:M (Recordings ↔ Artists)**
+- Feature credits: 1 recording → 3 artists (main + 2 featured)
+- Compilations: 1 artist → 200 recordings
+
+**N:M (Recordings ↔ Works)**
+- Covers: 3 recordings → 1 work (original + 2 cover versions)
+- Medleys: 1 recording → 4 works (medley contains 4 compositions)
+
+---
+
+## Entity Relationships (Formal Specifications)
 
 - **[ENT-REL-010]** Track references Recording
 - **[ENT-REL-020]** Recording may represent Work

@@ -86,8 +86,9 @@ pub struct AmplitudeProfile {
     /// Lead-out duration in seconds
     pub lead_out_duration: f64,
 
-    /// Quick ramp flags
+    /// Whether passage has quick ramp-up at start
     pub quick_ramp_up: bool,
+    /// Whether passage has quick ramp-down at end
     pub quick_ramp_down: bool,
 }
 

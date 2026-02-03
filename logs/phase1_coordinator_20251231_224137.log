@@ -1,0 +1,43 @@
+[2025-12-31 22:41:37] [INFO] === Phase 1: Quality Floor Parallel Experiments ===
+[2025-12-31 22:41:37] [INFO] Project root: C:\Users\Mango Cat\Dev\McRhythm
+[2025-12-31 22:41:37] [INFO] Starting parallel experiment execution...
+[2025-12-31 22:41:37] [INFO] Experiments to run: 3
+[2025-12-31 22:41:37] [INFO] Launching experiment: exp1a - No Negative Floor (0.0)
+[2025-12-31 22:41:37] [INFO] Waiting 90 seconds before launching next experiment...
+[2025-12-31 22:43:07] [INFO] Launching experiment: exp1b - Reduced Negative Floor (-0.3)
+[2025-12-31 22:43:07] [INFO] Waiting 90 seconds before launching next experiment...
+[2025-12-31 22:44:37] [INFO] Launching experiment: exp1c - Middle Ground Floor (-0.5)
+[2025-12-31 22:44:37] [INFO] All experiments launched. Waiting for completion...
+[2025-12-31 22:44:47] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:44:57] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:45:07] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:45:17] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:45:27] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:45:37] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:45:47] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:45:57] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:46:07] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:46:17] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:46:27] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:46:37] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:46:47] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:46:57] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:47:07] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:47:17] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:47:27] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:47:37] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:47:47] [INFO] Progress: 2/3 completed, 3 running
+[2025-12-31 22:47:57] [INFO] Progress: 3/3 completed, 0 running
+[2025-12-31 22:47:57] [INFO] All experiments completed. Collecting results...
+[2025-12-31 22:47:57] [INFO] [OK] exp1a (No Negative Floor (0.0)): FAILED
+[2025-12-31 22:47:57] [INFO] [OK] exp1b (Reduced Negative Floor (-0.3)): FAILED
+[2025-12-31 22:47:57] [INFO] [OK] exp1c (Middle Ground Floor (-0.5)): FAILED
+[2025-12-31 22:47:57] [INFO] Experiment summary saved to am\phase1_experiment_summary.json
+[2025-12-31 22:47:57] [INFO] === Analyzing Results ===
+[2025-12-31 22:47:57] [INFO] Loading baseline from: am\run29f_comparison_results_with_stage4_only_refinement.json
+[2025-12-31 22:47:58] [INFO] Comparing experiments to baseline...
+[2025-12-31 22:47:58] [WARN] WARNING: Results file not found for exp1a: am\exp1a_results.json
+[2025-12-31 22:47:58] [WARN] WARNING: Results file not found for exp1b: am\exp1b_results.json
+[2025-12-31 22:47:58] [WARN] WARNING: Results file not found for exp1c: am\exp1c_results.json
+[2025-12-31 22:47:58] [INFO] === Phase 1 Decision ===
+[2025-12-31 22:47:58] [ERROR] ERROR: No valid experiment results to compare

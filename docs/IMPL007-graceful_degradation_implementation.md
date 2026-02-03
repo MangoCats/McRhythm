@@ -27,12 +27,13 @@ Implement graceful degradation throughout WKMP's microservices architecture to e
 - Log informational messages for automatic initialization
 - Include file paths in all log messages
 
-**[IMPL-GD-030]** Maintain consistent behavior across all 5 modules (MANDATORY):
+**[IMPL-GD-030]** Maintain consistent behavior across all 6 modules (MANDATORY):
 - wkmp-ui (User Interface) - MUST use RootFolderResolver/RootFolderInitializer
 - wkmp-ap (Audio Player) - MUST use RootFolderResolver/RootFolderInitializer
 - wkmp-pd (Program Director) - MUST use RootFolderResolver/RootFolderInitializer
 - wkmp-ai (Audio Ingest) - MUST use RootFolderResolver/RootFolderInitializer
 - wkmp-le (Lyric Editor) - MUST use RootFolderResolver/RootFolderInitializer
+- wkmp-dr (Database Review) - MUST use RootFolderResolver/RootFolderInitializer
 
 > **ENFORCEMENT:** Per [REQ-NF-037], ALL modules must use the wkmp_common::config utilities. NO module may implement custom root folder resolution or hardcode database paths.
 
@@ -173,158 +174,25 @@ impl CompiledDefaults {
 
 **Requirements:** [REQ-NF-035], [ARCH-INIT-005]
 
-```rust
-use std::path::PathBuf;
-use std::env;
-use super::defaults::CompiledDefaults;
-use super::toml_loader::TomlConfig;
+**Implementation:** See [IMPL003:700-807 § Zero-Config Startup Pattern](IMPL003-project_structure.md#zero-config-startup-pattern) for complete implementation code template.
 
-pub struct RootFolderResolver {
-    /// Module name (for log messages and config file paths)
-    module_name: String,
-}
+**Graceful Degradation Features:**
+- Missing config file → Falls back to environment variable or compiled default (no error)
+- Missing environment variable → Falls back to TOML or compiled default (no error)
+- Missing CLI argument → Proceeds to next tier (no error)
+- Invalid CLI argument → Returns clear error with usage guidance
 
-impl RootFolderResolver {
-    pub fn new(module_name: &str) -> Self {
-        Self {
-            module_name: module_name.to_string(),
-        }
-    }
-
-    /// Resolve root folder using 4-tier priority [REQ-NF-035]
-    pub fn resolve(&self) -> Result<PathBuf, ConfigError> {
-        // Priority 1: Command-line argument
-        if let Some(path) = self.from_cli_args()? {
-            log::info!("Root folder: {} (from command-line argument)", path.display());
-            return Ok(path);
-        }
-
-        // Priority 2: Environment variable
-        if let Some(path) = self.from_env_var()? {
-            log::info!("Root folder: {} (from environment variable)", path.display());
-            return Ok(path);
-        }
-
-        // Priority 3: TOML config file
-        match self.from_toml_file()? {
-            Some(path) => {
-                log::info!("Root folder: {} (from config file)", path.display());
-                return Ok(path);
-            }
-            None => {
-                // Config file missing - this is expected and OK [REQ-NF-031]
-                log::warn!(
-                    "Config file not found at {}, using default configuration",
-                    self.config_file_path().display()
-                );
-            }
-        }
-
-        // Priority 4: Compiled default [REQ-NF-032]
-        let defaults = CompiledDefaults::for_current_platform();
-        log::info!("Root folder: {} (compiled default)", defaults.root_folder.display());
-        Ok(defaults.root_folder)
-    }
-
-    /// Try to get root folder from --root-folder or --root CLI argument
-    fn from_cli_args(&self) -> Result<Option<PathBuf>, ConfigError> {
-        let args: Vec<String> = env::args().collect();
-
-        for i in 0..args.len() {
-            if args[i] == "--root-folder" || args[i] == "--root" {
-                if i + 1 < args.len() {
-                    return Ok(Some(PathBuf::from(&args[i + 1])));
-                } else {
-                    return Err(ConfigError::InvalidArgument(
-                        format!("{} requires a path argument", args[i])
-                    ));
-                }
-            }
-
-            // Also support --root-folder=/path/to/folder syntax
-            if let Some(path) = args[i].strip_prefix("--root-folder=") {
-                return Ok(Some(PathBuf::from(path)));
-            }
-            if let Some(path) = args[i].strip_prefix("--root=") {
-                return Ok(Some(PathBuf::from(path)));
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Try to get root folder from WKMP_ROOT_FOLDER or WKMP_ROOT env var
-    fn from_env_var(&self) -> Result<Option<PathBuf>, ConfigError> {
-        if let Ok(path) = env::var("WKMP_ROOT_FOLDER") {
-            return Ok(Some(PathBuf::from(path)));
-        }
-
-        if let Ok(path) = env::var("WKMP_ROOT") {
-            return Ok(Some(PathBuf::from(path)));
-        }
-
-        Ok(None)
-    }
-
-    /// Try to get root folder from TOML config file
-    /// Returns None if file doesn't exist (not an error per [REQ-NF-031])
-    fn from_toml_file(&self) -> Result<Option<PathBuf>, ConfigError> {
-        let config_path = self.config_file_path();
-
-        if !config_path.exists() {
-            return Ok(None);  // Missing file is OK [REQ-NF-031]
-        }
-
-        let toml_config = TomlConfig::load(&config_path)?;
-        Ok(toml_config.root_folder)
-    }
-
-    /// Get platform-specific config file path
-    fn config_file_path(&self) -> PathBuf {
-        #[cfg(target_os = "linux")]
-        {
-            let home = env::var("HOME").expect("HOME not set");
-            PathBuf::from(home)
-                .join(".config/wkmp")
-                .join(format!("{}.toml", self.module_name))
-        }
-
-        #[cfg(target_os = "macos")]
-        {
-            let home = env::var("HOME").expect("HOME not set");
-            PathBuf::from(home)
-                .join("Library/Application Support/WKMP")
-                .join(format!("{}.toml", self.module_name))
-        }
-
-        #[cfg(target_os = "windows")]
-        {
-            let appdata = env::var("APPDATA").expect("APPDATA not set");
-            PathBuf::from(appdata)
-                .join("WKMP")
-                .join(format!("{}.toml", self.module_name))
-        }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ConfigError {
-    #[error("Invalid command-line argument: {0}")]
-    InvalidArgument(String),
-
-    #[error("Failed to load TOML config: {0}")]
-    TomlLoadError(String),
-
-    #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
-}
-```
+**4-Tier Priority:**
+1. CLI argument (`--root-folder` or `--root`)
+2. Environment variable (`WKMP_ROOT_FOLDER` or `WKMP_ROOT`)
+3. TOML config file (`~/.config/wkmp/<module>.toml`)
+4. Compiled default (`~/Music` or `%USERPROFILE%\Music`)
 
 **Testing:**
-- Unit tests for each priority level
+- Unit tests for each priority level (see IMPL003)
 - Integration tests with various combinations
-- Test missing config file (should not error)
-- Test invalid CLI args (should error)
+- Test missing config file (should NOT error, use default)
+- Test invalid CLI args (should error with clear message)
 
 #### 1.4. Implement TOML Config Loader
 
@@ -501,7 +369,7 @@ pub fn write_toml_config(config: &TomlConfig, target_path: &Path) -> Result<()> 
 - Sets directory permissions to 0700 (user-only) on Unix systems
 - Sets file permissions to 0600 (user-only read/write) on Unix systems
 - Returns error if directory creation fails (caller decides how to handle)
-- All 5 modules benefit automatically (DRY principle)
+- All 6 modules benefit automatically (DRY principle)
 
 **Testing:**
 - Test directory creation when `~/.config/wkmp/` missing
@@ -723,7 +591,7 @@ pub fn open_or_create_database(db_path: &Path) -> SqliteResult<Connection> {
 
 **Duration:** 2 weeks (all modules in parallel)
 **Dependencies:** Phase 1, Phase 2
-**Deliverables:** All 5 modules implement graceful degradation
+**Deliverables:** All 6 modules implement graceful degradation
 
 #### 3.1. Audio Player (wkmp-ap)
 
@@ -1034,7 +902,7 @@ fn test_multiple_module_concurrent_init() {
 
 6. **Concurrent Module Startup**
    - [ ] Clean environment
-   - [ ] Start all 5 modules simultaneously
+   - [ ] Start all 6 modules simultaneously
    - [ ] Verify: All modules start successfully
    - [ ] Verify: Single database created
    - [ ] Verify: No database corruption
@@ -1135,7 +1003,7 @@ fn test_multiple_module_concurrent_init() {
 
 ### Functional Requirements
 
-- [ ] All 5 modules start successfully with no config files present
+- [ ] All 6 modules start successfully with no config files present
 - [ ] Root folder created automatically at default location
 - [ ] Database created automatically with default schema
 - [ ] Warning logged (not error) for missing config files

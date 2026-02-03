@@ -1,31 +1,46 @@
 //! Audio file scanner
 //!
 //! **[AIA-COMP-010]** Recursive audio file discovery with format validation
+//! **[AIA-PERF-030]** Two-phase parallel scanning (sequential traversal + parallel verification)
+//! **[AIA-CLASSIFY-010]** File classification during scanning (PLAN027)
 //!
 //! Per [IMPL013](../../docs/IMPL013-file_scanner.md)
 
+use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 use thiserror::Error;
 use walkdir::{DirEntry, WalkDir};
+
+// **[AIA-CLASSIFY-020]** Audio format extensions (per REQ-PI-020)
+const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "ogg", "m4a", "aac", "opus", "wav"];
+
+// **[AIA-CLASSIFY-020]** Image format extensions (per REQ-ART-020)
+const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif"];
 
 /// Audio file scanner errors
 #[derive(Debug, Error)]
 pub enum ScanError {
+    /// Specified path does not exist
     #[error("Path not found: {0}")]
     PathNotFound(PathBuf),
 
+    /// Path exists but is not a directory
     #[error("Not a directory: {0}")]
     NotADirectory(PathBuf),
 
+    /// Cannot access file
     #[error("File access error {0}: {1}")]
     FileAccessError(PathBuf, String),
 
+    /// Permission denied when accessing path
     #[error("Permission denied: {0}")]
     PermissionDenied(PathBuf),
 
+    /// General I/O error
     #[error("I/O error: {0}")]
     IoError(String),
 }
@@ -33,9 +48,13 @@ pub enum ScanError {
 /// Scan result with statistics
 #[derive(Debug, Clone)]
 pub struct ScanResult {
+    /// List of audio file paths found
     pub files: Vec<PathBuf>,
+    /// Total size of all files in bytes
     pub total_size: u64,
+    /// Count of files by audio format (extension)
     pub by_format: HashMap<String, usize>,
+    /// Scan errors encountered
     pub errors: Vec<String>,
 }
 
@@ -46,6 +65,9 @@ pub struct FileScanner {
 }
 
 impl FileScanner {
+    /// Create new file scanner with default ignore patterns
+    ///
+    /// Ignores system files like .DS_Store, Thumbs.db, .git, etc.
     pub fn new() -> Self {
         Self {
             ignore_patterns: vec![
@@ -59,8 +81,22 @@ impl FileScanner {
         }
     }
 
-    /// Scan directory for audio files
-    pub fn scan(&self, root_path: &Path) -> Result<Vec<PathBuf>, ScanError> {
+    /// Scan directory for audio files with progress callback
+    ///
+    /// **[AIA-PERF-030]** Two-phase parallel implementation:
+    /// - Phase 1: Sequential directory traversal with symlink detection
+    /// - Phase 2: Parallel magic byte verification (3-6x speedup on SSD)
+    ///
+    /// **Progress Callback:** Called periodically during Phase 1 with current count.
+    /// Called at least once per 100 files discovered.
+    pub fn scan_with_progress<F>(
+        &self,
+        root_path: &Path,
+        progress_callback: &mut F,
+    ) -> Result<Vec<PathBuf>, ScanError>
+    where
+        F: FnMut(usize),
+    {
         if !root_path.exists() {
             return Err(ScanError::PathNotFound(root_path.to_path_buf()));
         }
@@ -69,8 +105,11 @@ impl FileScanner {
             return Err(ScanError::NotADirectory(root_path.to_path_buf()));
         }
 
-        let mut audio_files = Vec::new();
+        // Phase 1: Sequential directory traversal + symlink detection
+        // This must be sequential because symlink_visited is mutable
+        let mut candidate_files = Vec::new();
         let mut symlink_visited = HashSet::new();
+        const PROGRESS_INTERVAL: usize = 100;
 
         let walker = WalkDir::new(root_path)
             .follow_links(false) // Don't follow symlinks automatically
@@ -81,10 +120,14 @@ impl FileScanner {
         for entry in walker {
             match entry {
                 Ok(entry) => {
-                    if entry.file_type().is_file()
-                        && self.is_audio_file(entry.path())? {
-                            audio_files.push(entry.path().to_path_buf());
+                    if entry.file_type().is_file() {
+                        candidate_files.push(entry.path().to_path_buf());
+
+                        // Call progress callback every 100 files
+                        if candidate_files.len() % PROGRESS_INTERVAL == 0 {
+                            progress_callback(candidate_files.len());
                         }
+                    }
                 }
                 Err(e) => {
                     tracing::warn!("Error accessing entry: {}", e);
@@ -93,12 +136,59 @@ impl FileScanner {
             }
         }
 
+        // Final progress update with total count
+        progress_callback(candidate_files.len());
+
+        tracing::debug!(
+            "Phase 1 complete: {} candidate files discovered",
+            candidate_files.len()
+        );
+
+        // Phase 2: Parallel magic byte verification
+        // Each thread reads different file independently (thread-safe I/O)
+        let audio_files: Vec<PathBuf> = candidate_files
+            .par_iter()
+            .filter_map(|path| match self.is_audio_file(path) {
+                Ok(true) => Some(path.clone()),
+                Ok(false) => None,
+                Err(e) => {
+                    tracing::warn!("Error verifying {}: {}", path.display(), e);
+                    None
+                }
+            })
+            .collect();
+
+        tracing::debug!(
+            "Phase 2 complete: {} audio files verified from {} candidates",
+            audio_files.len(),
+            candidate_files.len()
+        );
+
         Ok(audio_files)
     }
 
-    /// Scan with statistics
-    pub fn scan_with_stats(&self, root_path: &Path) -> Result<ScanResult, ScanError> {
-        let files = self.scan(root_path)?;
+    /// Scan directory for audio files (legacy - no progress callback)
+    ///
+    /// **[AIA-PERF-030]** Two-phase parallel implementation:
+    /// - Phase 1: Sequential directory traversal with symlink detection
+    /// - Phase 2: Parallel magic byte verification (3-6x speedup on SSD)
+    pub fn scan(&self, root_path: &Path) -> Result<Vec<PathBuf>, ScanError> {
+        self.scan_with_progress(root_path, &mut |_| {})
+    }
+
+    /// Scan with statistics and progress callback
+    ///
+    /// **Progress Callback:** Called periodically during Phase 1 (file discovery)
+    /// with current file count. Called at least once per 100 files discovered.
+    pub fn scan_with_stats_and_progress<F>(
+        &self,
+        root_path: &Path,
+        mut progress_callback: F,
+    ) -> Result<ScanResult, ScanError>
+    where
+        F: FnMut(usize),
+    {
+        let files = self.scan_with_progress(root_path, &mut progress_callback)?;
 
         let mut total_size = 0u64;
         let mut by_format = HashMap::new();
@@ -124,6 +214,11 @@ impl FileScanner {
             by_format,
             errors,
         })
+    }
+
+    /// Scan with statistics (legacy - no progress callback)
+    pub fn scan_with_stats(&self, root_path: &Path) -> Result<ScanResult, ScanError> {
+        self.scan_with_stats_and_progress(root_path, |_| {})
     }
 
     /// Check if entry should be processed
@@ -214,6 +309,52 @@ impl FileScanner {
         Ok(is_audio)
     }
 
+    /// **[AIA-CLASSIFY-040]** Verify if file is audio using magic bytes
+    fn verify_audio_magic_bytes(&self, path: &Path) -> Result<bool, ScanError> {
+        self.verify_magic_bytes(path)
+    }
+
+    /// **[AIA-CLASSIFY-040]** Verify if file is image using magic bytes
+    fn verify_image_magic_bytes(&self, path: &Path) -> Result<bool, ScanError> {
+        let mut file = File::open(path)
+            .map_err(|e| ScanError::FileAccessError(path.to_path_buf(), e.to_string()))?;
+
+        let mut buffer = [0u8; 12]; // Read first 12 bytes
+        let bytes_read = file
+            .read(&mut buffer)
+            .map_err(|e| ScanError::FileAccessError(path.to_path_buf(), e.to_string()))?;
+
+        if bytes_read < 2 {
+            return Ok(false); // Too small to be image
+        }
+
+        let is_image = match &buffer[..bytes_read.min(12)] {
+            // JPEG
+            [0xFF, 0xD8, 0xFF, ..] => true,
+
+            // PNG
+            [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, ..] => true,
+
+            // GIF
+            [b'G', b'I', b'F', b'8', b'7', b'a', ..] | [b'G', b'I', b'F', b'8', b'9', b'a', ..] => {
+                true
+            }
+
+            // BMP
+            [b'B', b'M', ..] => true,
+
+            // WebP
+            [b'R', b'I', b'F', b'F', _, _, _, _, b'W', b'E', b'B', b'P'] => true,
+
+            // TIFF (little-endian and big-endian)
+            [0x49, 0x49, 0x2A, 0x00, ..] | [0x4D, 0x4D, 0x00, 0x2A, ..] => true,
+
+            _ => false,
+        };
+
+        Ok(is_image)
+    }
+
     /// Get file size
     pub fn get_file_size(&self, path: &Path) -> Result<u64, ScanError> {
         let metadata = std::fs::metadata(path)
@@ -252,6 +393,250 @@ impl FileScanner {
         }
 
         Ok(())
+    }
+
+    // ========================================
+    // File Classification Methods (PLAN027)
+    // **[AIA-CLASSIFY-010]** Classify all files during scan
+    // ========================================
+
+    /// **[AIA-CLASSIFY-010]** Scan and classify ALL files with progress callback
+    ///
+    /// Returns FileClassification with all files categorized into audio/image/other.
+    /// **[AIA-CLASSIFY-040]** Performs magic byte verification to confirm file types.
+    ///
+    /// **Progress Callback:** Called periodically with current file counts (every 100 files)
+    /// Receives total files, audio files, image files, and other files counts
+    pub fn scan_and_classify_with_progress<F>(
+        &self,
+        root_path: &Path,
+        progress_callback: &mut F,
+    ) -> Result<crate::models::FileClassification, ScanError>
+    where
+        F: FnMut(usize, usize, usize, usize), // (total, audio, image, other)
+    {
+        use crate::models::{FileClassification, FileInfo, VerificationStatus};
+
+        if !root_path.exists() {
+            return Err(ScanError::PathNotFound(root_path.to_path_buf()));
+        }
+
+        if !root_path.is_dir() {
+            return Err(ScanError::NotADirectory(root_path.to_path_buf()));
+        }
+
+        let mut classification = FileClassification::new();
+        let mut file_count = 0usize;
+        let mut symlink_visited = HashSet::new();
+        const PROGRESS_INTERVAL: usize = 100;
+
+        let walker = WalkDir::new(root_path)
+            .follow_links(false)
+            .max_depth(self.max_depth.unwrap_or(usize::MAX))
+            .into_iter()
+            .filter_entry(|e| self.should_process_entry(e, &mut symlink_visited));
+
+        for entry in walker {
+            match entry {
+                Ok(entry) => {
+                    if entry.file_type().is_file() {
+                        let path = entry.path().to_path_buf();
+
+                        // Get file metadata
+                        match std::fs::metadata(&path) {
+                            Ok(metadata) => {
+                                let size_bytes = metadata.len();
+                                let modified_at = metadata.modified().unwrap_or(SystemTime::now());
+
+                                // **[AIA-CLASSIFY-040]** Classify by extension, then verify with magic bytes
+                                if let Some(ext) = path.extension() {
+                                    let ext_lower = ext.to_string_lossy().to_lowercase();
+
+                                    if self.is_audio_extension_classify(&ext_lower) {
+                                        tracing::trace!(
+                                            file = %path.display(),
+                                            extension = %ext_lower,
+                                            "Extension classified as audio, verifying with magic bytes"
+                                        );
+
+                                        // Extension says audio - verify with magic bytes
+                                        let verification_status = match self
+                                            .verify_audio_magic_bytes(&path)
+                                        {
+                                            Ok(true) => {
+                                                tracing::trace!(
+                                                    file = %path.display(),
+                                                    "Magic bytes CONFIRMED audio"
+                                                );
+                                                VerificationStatus::Confirmed
+                                            }
+                                            Ok(false) => {
+                                                tracing::trace!(
+                                                    file = %path.display(),
+                                                    "Magic bytes DENIED audio (misleading extension)"
+                                                );
+                                                VerificationStatus::Denied
+                                            }
+                                            Err(e) => {
+                                                tracing::warn!(
+                                                    "Magic byte verification failed for {}: {}",
+                                                    path.display(),
+                                                    e
+                                                );
+                                                VerificationStatus::ExtensionOnly
+                                            }
+                                        };
+
+                                        let file_info = FileInfo::with_verification(
+                                            path.clone(),
+                                            size_bytes,
+                                            modified_at,
+                                            verification_status,
+                                        );
+                                        classification.audio_files.push(file_info);
+                                    } else if self.is_image_extension(&ext_lower) {
+                                        tracing::trace!(
+                                            file = %path.display(),
+                                            extension = %ext_lower,
+                                            "Extension classified as image, verifying with magic bytes"
+                                        );
+
+                                        // Extension says image - verify with magic bytes
+                                        let verification_status = match self
+                                            .verify_image_magic_bytes(&path)
+                                        {
+                                            Ok(true) => {
+                                                tracing::trace!(
+                                                    file = %path.display(),
+                                                    "Magic bytes CONFIRMED image"
+                                                );
+                                                VerificationStatus::Confirmed
+                                            }
+                                            Ok(false) => {
+                                                tracing::trace!(
+                                                    file = %path.display(),
+                                                    "Magic bytes DENIED image (misleading extension)"
+                                                );
+                                                VerificationStatus::Denied
+                                            }
+                                            Err(e) => {
+                                                tracing::warn!(
+                                                    "Magic byte verification failed for {}: {}",
+                                                    path.display(),
+                                                    e
+                                                );
+                                                VerificationStatus::ExtensionOnly
+                                            }
+                                        };
+
+                                        let file_info = FileInfo::with_verification(
+                                            path.clone(),
+                                            size_bytes,
+                                            modified_at,
+                                            verification_status,
+                                        );
+                                        classification.image_files.push(file_info);
+                                    } else {
+                                        tracing::trace!(
+                                            file = %path.display(),
+                                            extension = %ext_lower,
+                                            "Extension classified as other (non-audio, non-image)"
+                                        );
+
+                                        // Other extension - no verification needed
+                                        let file_info =
+                                            FileInfo::new(path.clone(), size_bytes, modified_at);
+                                        classification.other_files.push(file_info);
+                                    }
+                                } else {
+                                    tracing::trace!(
+                                        file = %path.display(),
+                                        "No extension, classified as other"
+                                    );
+
+                                    // No extension → other
+                                    let file_info =
+                                        FileInfo::new(path.clone(), size_bytes, modified_at);
+                                    classification.other_files.push(file_info);
+                                }
+
+                                file_count += 1;
+
+                                // Call progress callback every 100 files
+                                if file_count % PROGRESS_INTERVAL == 0 {
+                                    // **[AIA-CLASSIFY-040]** Update verification stats before callback
+                                    classification.update_verification_stats();
+                                    progress_callback(
+                                        file_count,
+                                        classification.audio_files.len(),
+                                        classification.image_files.len(),
+                                        classification.other_files.len(),
+                                    );
+                                }
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    "Error getting metadata for {}: {}",
+                                    path.display(),
+                                    e
+                                );
+                                // Continue scanning, don't abort
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Error accessing entry: {}", e);
+                    // Continue scanning, don't abort
+                }
+            }
+        }
+
+        // **[AIA-CLASSIFY-040]** Final verification stats update
+        classification.update_verification_stats();
+
+        // Final progress update
+        progress_callback(
+            file_count,
+            classification.audio_files.len(),
+            classification.image_files.len(),
+            classification.other_files.len(),
+        );
+
+        // Sort all categories alphabetically
+        classification.sort_all();
+
+        // Mark scan as completed
+        classification.mark_completed();
+
+        tracing::info!(
+            "File classification complete: {} audio, {} image, {} other (total {}) | {}",
+            classification.audio_files.len(),
+            classification.image_files.len(),
+            classification.other_files.len(),
+            classification.total_count(),
+            classification.verification_summary()
+        );
+
+        Ok(classification)
+    }
+
+    /// **[AIA-CLASSIFY-010]** Scan and classify ALL files (no progress callback)
+    pub fn scan_and_classify(
+        &self,
+        root_path: &Path,
+    ) -> Result<crate::models::FileClassification, ScanError> {
+        self.scan_and_classify_with_progress(root_path, &mut |_, _, _, _| {})
+    }
+
+    /// **[AIA-CLASSIFY-020]** Check if extension is audio (for classification)
+    fn is_audio_extension_classify(&self, ext: &str) -> bool {
+        AUDIO_EXTENSIONS.contains(&ext)
+    }
+
+    /// **[AIA-CLASSIFY-020]** Check if extension is image
+    fn is_image_extension(&self, ext: &str) -> bool {
+        IMAGE_EXTENSIONS.contains(&ext)
     }
 }
 

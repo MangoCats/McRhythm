@@ -31,10 +31,10 @@ mod tests {
         assert!(timestamp.timestamp() < 4_102_444_800); // 2100-01-01 00:00:00 UTC
     }
 
-    #[test]
-    fn test_now_successive_calls_advance() {
+    #[tokio::test]
+    async fn test_now_successive_calls_advance() {
         let time1 = now();
-        std::thread::sleep(Duration::from_millis(10));
+        tokio::time::sleep(Duration::from_millis(10)).await;
         let time2 = now();
         // Second call should be after first call
         assert!(time2 > time1);

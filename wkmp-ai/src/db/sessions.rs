@@ -2,53 +2,85 @@
 //!
 //! **[AIA-WF-020]** Import session state persistence
 
-use anyhow::Result;
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
+use wkmp_common::Result;
 
-use crate::models::{ImportSession, ImportState, ImportParameters, ImportProgress, ImportError};
+use crate::models::{ImportError, ImportParameters, ImportProgress, ImportSession, ImportState};
+use crate::utils::retry_on_lock;
 
 /// Save import session to database
+///
+/// **[ARCH-DB-CONN-001]** Uses retry_on_lock to handle transient database lock contention
 pub async fn save_session(pool: &SqlitePool, session: &ImportSession) -> Result<()> {
+    // Prepare all data BEFORE acquiring database connection
     let session_id = session.session_id.to_string();
-    let state = serde_json::to_string(&session.state)?;
-    let parameters = serde_json::to_string(&session.parameters)?;
-    let errors = serde_json::to_string(&session.errors)?;
+    let state = serde_json::to_string(&session.state)
+        .map_err(|e| wkmp_common::Error::Internal(format!("Failed to serialize state: {}", e)))?;
+    let parameters = serde_json::to_string(&session.parameters).map_err(|e| {
+        wkmp_common::Error::Internal(format!("Failed to serialize parameters: {}", e))
+    })?;
+    let errors = serde_json::to_string(&session.errors)
+        .map_err(|e| wkmp_common::Error::Internal(format!("Failed to serialize errors: {}", e)))?;
     let started_at = session.started_at.to_rfc3339();
     let ended_at = session.ended_at.map(|dt| dt.to_rfc3339());
+    let progress_current = session.progress.current as i64;
+    let progress_total = session.progress.total as i64;
+    let progress_percentage = session.progress.percentage;
+    let current_operation = session.progress.current_operation.clone();
+    let root_folder = session.root_folder.clone();
+    let file_classification_data =
+        serde_json::to_string(&session.file_classification).map_err(|e| {
+            wkmp_common::Error::Internal(format!("Failed to serialize file_classification: {}", e))
+        })?;
 
-    sqlx::query(
-        r#"
-        INSERT INTO import_sessions (
-            session_id, state, root_folder, parameters,
-            progress_current, progress_total, progress_percentage,
-            current_operation, errors, started_at, ended_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(session_id) DO UPDATE SET
-            state = excluded.state,
-            progress_current = excluded.progress_current,
-            progress_total = excluded.progress_total,
-            progress_percentage = excluded.progress_percentage,
-            current_operation = excluded.current_operation,
-            errors = excluded.errors,
-            ended_at = excluded.ended_at
-        "#,
+    // Get max lock wait time from settings (default 5000ms)
+    let max_wait_ms: i64 = sqlx::query_scalar(
+        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'",
     )
-    .bind(session_id)
-    .bind(state)
-    .bind(&session.root_folder)
-    .bind(parameters)
-    .bind(session.progress.current as i64)
-    .bind(session.progress.total as i64)
-    .bind(session.progress.percentage)
-    .bind(&session.progress.current_operation)
-    .bind(errors)
-    .bind(started_at)
-    .bind(ended_at)
-    .execute(pool)
-    .await?;
+    .fetch_optional(pool)
+    .await?
+    .unwrap_or(5000);
 
-    Ok(())
+    // Wrap in retry logic with unconstrained execution
+    retry_on_lock("save_session", max_wait_ms as u64, || async {
+        sqlx::query(
+            r#"
+                INSERT INTO import_sessions (
+                    session_id, state, root_folder, parameters,
+                    progress_current, progress_total, progress_percentage,
+                    current_operation, errors, started_at, ended_at, file_classification_data
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(session_id) DO UPDATE SET
+                    state = excluded.state,
+                    progress_current = excluded.progress_current,
+                    progress_total = excluded.progress_total,
+                    progress_percentage = excluded.progress_percentage,
+                    current_operation = excluded.current_operation,
+                    errors = excluded.errors,
+                    ended_at = excluded.ended_at,
+                    file_classification_data = excluded.file_classification_data
+                "#,
+        )
+        .bind(&session_id)
+        .bind(&state)
+        .bind(&root_folder)
+        .bind(&parameters)
+        .bind(progress_current)
+        .bind(progress_total)
+        .bind(progress_percentage)
+        .bind(&current_operation)
+        .bind(&errors)
+        .bind(&started_at)
+        .bind(&ended_at)
+        .bind(&file_classification_data)
+        .execute(pool)
+        .await
+        .map_err(wkmp_common::Error::Database)?;
+
+        Ok(())
+    })
+    .await
 }
 
 /// Load import session from database
@@ -59,7 +91,7 @@ pub async fn load_session(pool: &SqlitePool, session_id: Uuid) -> Result<Option<
         r#"
         SELECT session_id, state, root_folder, parameters,
                progress_current, progress_total, progress_percentage,
-               current_operation, errors, started_at, ended_at
+               current_operation, errors, started_at, ended_at, file_classification_data
         FROM import_sessions
         WHERE session_id = ?
         "#,
@@ -71,23 +103,48 @@ pub async fn load_session(pool: &SqlitePool, session_id: Uuid) -> Result<Option<
     match row {
         Some(row) => {
             let state: String = row.get("state");
-            let state: ImportState = serde_json::from_str(&state)?;
+            let state: ImportState = serde_json::from_str(&state).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize state: {}", e))
+            })?;
 
             let parameters: String = row.get("parameters");
-            let parameters: ImportParameters = serde_json::from_str(&parameters)?;
+            let parameters: ImportParameters = serde_json::from_str(&parameters).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize parameters: {}", e))
+            })?;
 
             let errors: String = row.get("errors");
-            let errors: Vec<ImportError> = serde_json::from_str(&errors)?;
+            let errors: Vec<ImportError> = serde_json::from_str(&errors).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize errors: {}", e))
+            })?;
 
             let started_at: String = row.get("started_at");
-            let started_at = chrono::DateTime::parse_from_rfc3339(&started_at)?
+            let started_at = chrono::DateTime::parse_from_rfc3339(&started_at)
+                .map_err(|e| {
+                    wkmp_common::Error::Internal(format!("Failed to parse started_at: {}", e))
+                })?
                 .with_timezone(&chrono::Utc);
 
             let ended_at: Option<String> = row.get("ended_at");
             let ended_at = ended_at
                 .map(|s| chrono::DateTime::parse_from_rfc3339(&s))
-                .transpose()?
+                .transpose()
+                .map_err(|e| {
+                    wkmp_common::Error::Internal(format!("Failed to parse ended_at: {}", e))
+                })?
                 .map(|dt| dt.with_timezone(&chrono::Utc));
+
+            // **[PLAN027]** Deserialize file_classification_data if present
+            let file_classification_data: Option<String> = row.get("file_classification_data");
+            let file_classification = if let Some(data) = file_classification_data {
+                serde_json::from_str(&data).map_err(|e| {
+                    wkmp_common::Error::Internal(format!(
+                        "Failed to deserialize file_classification: {}",
+                        e
+                    ))
+                })?
+            } else {
+                crate::models::FileClassification::new()
+            };
 
             let progress = ImportProgress {
                 current: row.get::<i64, _>("progress_current") as usize,
@@ -114,6 +171,7 @@ pub async fn load_session(pool: &SqlitePool, session_id: Uuid) -> Result<Option<
                 errors,
                 started_at,
                 ended_at,
+                file_classification, // **[PLAN027]** Persisted to DB as JSON
             }))
         }
         None => Ok(None),
@@ -145,6 +203,108 @@ pub async fn has_running_session(pool: &SqlitePool) -> Result<bool> {
     .await?;
 
     Ok(count > 0)
+}
+
+/// **[AIA-SEC-030]** Get the currently active import session (if any)
+///
+/// Returns the most recently started session that is not in a terminal state.
+/// Used to restore progress UI after page reload.
+pub async fn get_active_session(pool: &SqlitePool) -> Result<Option<ImportSession>> {
+    let row = sqlx::query(
+        r#"
+        SELECT session_id, state, root_folder, parameters,
+               progress_current, progress_total, progress_percentage,
+               current_operation, errors, started_at, ended_at, file_classification_data
+        FROM import_sessions
+        WHERE state NOT IN ('"COMPLETED"', '"CANCELLED"', '"FAILED"')
+        ORDER BY started_at DESC
+        LIMIT 1
+        "#,
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    match row {
+        Some(row) => {
+            let session_id_str: String = row.get("session_id");
+            let session_id = Uuid::parse_str(&session_id_str).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to parse session_id: {}", e))
+            })?;
+
+            let state: String = row.get("state");
+            let state: ImportState = serde_json::from_str(&state).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize state: {}", e))
+            })?;
+
+            let parameters: String = row.get("parameters");
+            let parameters: ImportParameters = serde_json::from_str(&parameters).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize parameters: {}", e))
+            })?;
+
+            let errors: String = row.get("errors");
+            let errors: Vec<ImportError> = serde_json::from_str(&errors).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize errors: {}", e))
+            })?;
+
+            let started_at: String = row.get("started_at");
+            let started_at = chrono::DateTime::parse_from_rfc3339(&started_at)
+                .map_err(|e| {
+                    wkmp_common::Error::Internal(format!("Failed to parse started_at: {}", e))
+                })?
+                .with_timezone(&chrono::Utc);
+
+            let ended_at: Option<String> = row.get("ended_at");
+            let ended_at = ended_at
+                .map(|s| chrono::DateTime::parse_from_rfc3339(&s))
+                .transpose()
+                .map_err(|e| {
+                    wkmp_common::Error::Internal(format!("Failed to parse ended_at: {}", e))
+                })?
+                .map(|dt| dt.with_timezone(&chrono::Utc));
+
+            // **[PLAN027]** Deserialize file_classification_data if present
+            let file_classification_data: Option<String> = row.get("file_classification_data");
+            let file_classification = if let Some(data) = file_classification_data {
+                serde_json::from_str(&data).map_err(|e| {
+                    wkmp_common::Error::Internal(format!(
+                        "Failed to deserialize file_classification: {}",
+                        e
+                    ))
+                })?
+            } else {
+                crate::models::FileClassification::new()
+            };
+
+            let progress = ImportProgress {
+                current: row.get::<i64, _>("progress_current") as usize,
+                total: row.get::<i64, _>("progress_total") as usize,
+                percentage: row.get("progress_percentage"),
+                current_operation: row.get("current_operation"),
+                elapsed_seconds: if let Some(end) = ended_at {
+                    (end - started_at).num_seconds() as u64
+                } else {
+                    (chrono::Utc::now() - started_at).num_seconds() as u64
+                },
+                estimated_remaining_seconds: None, // Recalculated on demand
+                // **[REQ-AIA-UI-001, REQ-AIA-UI-004]** Phase tracking not persisted to DB (runtime only)
+                phases: Vec::new(),
+                current_file: None,
+            };
+
+            Ok(Some(ImportSession {
+                session_id,
+                state,
+                root_folder: row.get("root_folder"),
+                parameters,
+                progress,
+                errors,
+                started_at,
+                ended_at,
+                file_classification, // **[PLAN027]** Persisted to DB as JSON
+            }))
+        }
+        None => Ok(None),
+    }
 }
 
 /// Cleanup stale import sessions on startup

@@ -697,6 +697,117 @@ full = ["essentia"]  # Enable for Full version
 
 ---
 
+## Zero-Config Startup Pattern
+
+**Applies To:** ALL 6 microservices
+
+**Architecture Decision:** [ADR-003-zero_configuration_strategy.md](ADR-003-zero_configuration_strategy.md)
+
+**Requirements:** [REQ-NF-030] through [REQ-NF-037] in [REQ001-requirements.md](REQ001-requirements.md)
+
+### Implementation Template
+
+Every module's `main.rs` MUST follow this pattern:
+
+```rust
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Step 0: Initialize tracing subscriber [ARCH-INIT-003]
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "module_name=debug,wkmp_common=info".into()),
+        )
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_target(true)
+                .with_file(true)
+                .with_line_number(true)
+        )
+        .init();
+
+    // **[ARCH-INIT-004]** Log build identification IMMEDIATELY after tracing init
+    // REQUIRED for all modules - provides instant startup feedback before database delays
+    info!(
+        "Starting WKMP [Module Name] (module-id) v{} [{}] built {} ({})",
+        env!("CARGO_PKG_VERSION"),
+        env!("GIT_HASH"),
+        env!("BUILD_TIMESTAMP"),
+        env!("BUILD_PROFILE")
+    );
+
+    // Step 1: Resolve root folder (4-tier priority)
+    let resolver = wkmp_common::config::RootFolderResolver::new("module-name");
+    let root_folder = resolver.resolve();
+
+    // Step 2: Create directory if missing
+    let initializer = wkmp_common::config::RootFolderInitializer::new(root_folder);
+    initializer.ensure_directory_exists()?;
+
+    // Step 3: Get database path
+    let db_path = initializer.database_path();  // root_folder/wkmp.db
+
+    // Step 4: Initialize database connection
+    let db = Database::new(&db_path).await?;
+
+    // Step 5: Continue with module-specific startup
+    // - Bind HTTP server
+    // - Initialize EventBus
+    // - Start background tasks
+    // ...
+
+    Ok(())
+}
+```
+
+### 4-Tier Priority for Root Folder Resolution
+
+The `RootFolderResolver` checks sources in this order:
+
+1. **CLI argument:** `--root-folder /custom/path` or `--root /custom/path`
+2. **Environment variable:** `WKMP_ROOT_FOLDER=/custom/path` or `WKMP_ROOT=/custom/path`
+3. **TOML config:** `~/.config/wkmp/<module-name>.toml` with `root_folder = "/custom/path"`
+4. **Compiled default:** `~/Music` (Linux/macOS), `%USERPROFILE%\Music` (Windows)
+
+See [Configuration Hierarchy](IMPL004-deployment.md#20a-configuration-hierarchy-overview) for how root folder resolution relates to other configuration layers.
+
+### Common Errors
+
+**Error:** Module hardcodes `PathBuf::from("wkmp.db")`
+
+**Fix:** Always use `RootFolderResolver` → `RootFolderInitializer` → `database_path()`
+
+**Error:** Module implements custom root folder resolution
+
+**Fix:** Remove custom code, use `wkmp_common::config` utilities
+
+### Build Metadata Environment Variables
+
+For build identification ([ARCH-INIT-004]), add to `build.rs`:
+
+```rust
+fn main() {
+    // Set GIT_HASH from git command
+    let git_hash = std::process::Command::new("git")
+        .args(&["rev-parse", "--short", "HEAD"])
+        .output()
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+
+    println!("cargo:rustc-env=GIT_HASH={}", git_hash);
+
+    // Set BUILD_TIMESTAMP
+    let timestamp = chrono::Utc::now().to_rfc3339();
+    println!("cargo:rustc-env=BUILD_TIMESTAMP={}", timestamp);
+
+    // Set BUILD_PROFILE (debug vs release)
+    let profile = std::env::var("PROFILE").unwrap_or_else(|_| "unknown".to_string());
+    println!("cargo:rustc-env=BUILD_PROFILE={}", profile);
+}
+```
+
+---
+
 ## Building the Workspace
 
 ### Build All Modules

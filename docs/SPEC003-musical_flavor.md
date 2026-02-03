@@ -10,8 +10,10 @@
 
 ## Quantitative Definition
 
+> **Entity Definitions:** See [REQ002-entity_definitions.md](REQ002-entity_definitions.md) for complete definitions of Passage, Song, and Recording entities referenced in this specification. See [§ 2.0 Entity Relationship Overview](REQ002-entity_definitions.md#20-entity-relationship-overview) for entity relationships.
+
 [MFL-DEF-020] Musical flavor is a quantitative definition of a passage's musical characteristics in many dimensions. It is derived from
-the [AcousticBrainz high level](https://acousticbrainz.org/data#highlevel-data) characterization of [recording(s)](https://musicbrainz.org/doc/Recording) 
+the [AcousticBrainz high level](https://acousticbrainz.org/data#highlevel-data) characterization of [recording(s)](https://musicbrainz.org/doc/Recording)
 contained in a [passage](REQ002-entity_definitions.md#entities).  See: [Sample AcousticBrainz highlevel json object](sample_highlevel.json).
 
 [MFL-DEF-030] These characteristic values break down into two categories:

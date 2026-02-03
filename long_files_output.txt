@@ -1,0 +1,1161 @@
+   Compiling wkmp-ai v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai)
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:498:1
+    |
+498 | pub fn set_unix_permissions_0600(_path: &Path) -> Result<()> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-common\src\lib.rs:13:9
+    |
+ 13 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:527:1
+    |
+527 | pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:14:5
+   |
+14 |     Scanning {
+   |     ^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:15:9
+   |
+15 |         potential_files_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:16:9
+   |
+16 |         is_scanning: bool,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:17:9
+   |
+17 |         audio_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:18:9
+   |
+18 |         image_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:19:9
+   |
+19 |         other_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:38:5
+   |
+38 |     Processing {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:39:9
+   |
+39 |         completed: usize,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:40:9
+   |
+40 |         started: usize,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:41:9
+   |
+41 |         total: usize,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:50:5
+   |
+50 |     FilenameMatching {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:51:9
+   |
+51 |         completed_filenames_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:54:5
+   |
+54 |     Hashing {
+   |     ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:55:9
+   |
+55 |         hashes_computed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:56:9
+   |
+56 |         matches_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:59:5
+   |
+59 |     Extracting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:60:9
+   |
+60 |         successful_extractions: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:61:9
+   |
+61 |         failures: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:64:5
+   |
+64 |     Segmenting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:65:9
+   |
+65 |         files_processed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:66:9
+   |
+66 |         potential_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:67:9
+   |
+67 |         finalized_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:68:9
+   |
+68 |         songs_identified: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:71:5
+   |
+71 |     Fingerprinting {
+   |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:72:9
+   |
+72 |         passages_fingerprinted: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:73:9
+   |
+73 |         successful_matches: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:76:5
+   |
+76 |     SongMatching {
+   |     ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:77:9
+   |
+77 |         high_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:78:9
+   |
+78 |         medium_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:79:9
+   |
+79 |         low_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:80:9
+   |
+80 |         no_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:83:5
+   |
+83 |     Recording {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:84:9
+   |
+84 |         recorded_passages: Vec<RecordedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:87:5
+   |
+87 |     Amplitude {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:88:9
+   |
+88 |         analyzed_passages: Vec<AnalyzedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:91:5
+   |
+91 |     Flavoring {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:92:9
+   |
+92 |         pre_existing: usize,
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:93:9
+   |
+93 |         acousticbrainz: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:94:9
+   |
+94 |         essentia: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:95:9
+   |
+95 |         failed: usize,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:98:5
+   |
+98 |     PassagesComplete {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:99:9
+   |
+99 |         passages_completed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+   --> wkmp-common\src\events\import_types.rs:102:5
+    |
+102 |     FilesComplete {
+    |     ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:103:9
+    |
+103 |         files_completed: usize,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:110:5
+    |
+110 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:111:5
+    |
+111 |     pub file_path: String,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:117:5
+    |
+117 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:118:5
+    |
+118 |     pub passage_length_seconds: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:119:5
+    |
+119 |     pub lead_in_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:120:5
+    |
+120 |     pub lead_out_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-common` (lib) generated 52 warnings
+warning: unused import: `ConfidenceLevel`
+  --> wkmp-ai\src\services\passage_recorder.rs:15:53
+   |
+15 | use super::passage_song_matcher::{PassageSongMatch, ConfidenceLevel};
+   |                                                     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `super::passage_segmenter::PassageBoundary`
+  --> wkmp-ai\src\services\passage_recorder.rs:16:5
+   |
+16 | use super::passage_segmenter::PassageBoundary;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Instant`
+  --> wkmp-ai\src\services\pool_manager.rs:16:27
+   |
+16 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused import: `crate::models::ImportSession`
+  --> wkmp-ai\src\services\progress_manager.rs:22:5
+   |
+22 | use crate::models::ImportSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::VecDeque`
+  --> wkmp-ai\src\services\write_queue.rs:24:5
+   |
+24 | use std::collections::VecDeque;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Extracting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:269:26
+    |
+269 |             ImportState::Extracting => "Calculating hashes and extracting basic metadata",
+    |                          ^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:270:26
+    |
+270 |             ImportState::Segmenting => "Detecting silence and passage boundaries",
+    |                          ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:271:26
+    |
+271 |             ImportState::Fingerprinting => "Generating audio fingerprints via Chromaprint",
+    |                          ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:272:26
+    |
+272 |             ImportState::Identifying => "Resolving music identity via MusicBrainz",
+    |                          ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:273:26
+    |
+273 |             ImportState::Analyzing => "Analyzing amplitude for crossfade timing",
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:274:26
+    |
+274 |             ImportState::Flavoring => "Extracting musical characteristics via Essentia",
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Extracting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:432:26
+    |
+432 |             ImportState::Extracting => format!("{}/{} extracted", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:433:26
+    |
+433 |             ImportState::Segmenting => format!("{} passages detected", self.progress_total),
+    |                          ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:434:26
+    |
+434 |             ImportState::Fingerprinting => format!("{}/{} fingerprinted", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:435:26
+    |
+435 |             ImportState::Identifying => format!("{}/{} identified", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:436:26
+    |
+436 |             ImportState::Analyzing => format!("{}/{} analyzed", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:437:26
+    |
+437 |             ImportState::Flavoring => format!("{}/{} characterized", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:569:99
+    |
+569 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Segmenting)).await {
+    |                                                                                             ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:580:99
+    |
+580 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Fingerprinting)).await {
+    |                                                                                             ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:587:99
+    |
+587 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Identifying)).await {
+    |                                                                                             ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:594:99
+    |
+594 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Analyzing)).await {
+    |                                                                                             ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:601:99
+    |
+601 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Flavoring)).await {
+    |                                                                                             ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:772:54
+    |
+772 |                         if new_state == ImportState::Segmenting && segmenting_start_time.is_none() {
+    |                                                      ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:800:101
+    |
+800 |                         if let Some(segmenting_phase) = session.progress.get_phase_mut(ImportState::Segmenting) {
+    |                                                                                                     ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:807:105
+    |
+807 |                         if let Some(fingerprinting_phase) = session.progress.get_phase_mut(ImportState::Fingerprinting) {
+    |                                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:814:102
+    |
+814 |                         if let Some(identifying_phase) = session.progress.get_phase_mut(ImportState::Identifying) {
+    |                                                                                                      ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:847:100
+    |
+847 |                         if let Some(analyzing_phase) = session.progress.get_phase_mut(ImportState::Analyzing) {
+    |                                                                                                    ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:854:100
+    |
+854 |                         if let Some(flavoring_phase) = session.progress.get_phase_mut(ImportState::Flavoring) {
+    |                                                                                                    ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1283:109
+     |
+1283 | ...                   if let Some(segmenting_phase) = session.progress.get_phase_mut(ImportState::Segmenting) {
+     |                                                                                                   ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1289:113
+     |
+1289 | ...                   if let Some(fingerprinting_phase) = session.progress.get_phase_mut(ImportState::Fingerprinting) {
+     |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1295:110
+     |
+1295 | ...                   if let Some(identifying_phase) = session.progress.get_phase_mut(ImportState::Identifying) {
+     |                                                                                                    ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1307:108
+     |
+1307 | ...                   if let Some(analyzing_phase) = session.progress.get_phase_mut(ImportState::Analyzing) {
+     |                                                                                                  ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1313:108
+     |
+1313 | ...                   if let Some(flavoring_phase) = session.progress.get_phase_mut(ImportState::Flavoring) {
+     |                                                                                                  ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Extracting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_extraction.rs:27:44
+   |
+27 |         session.transition_to(ImportState::Extracting);
+   |                                            ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:31:44
+   |
+31 |         session.transition_to(ImportState::Fingerprinting);
+   |                                            ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:35:89
+   |
+35 |         if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+   |                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:227:89
+    |
+227 |         if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:274:117
+    |
+274 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:285:125
+    |
+285 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:506:117
+    |
+506 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:514:113
+    |
+514 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:522:109
+    |
+522 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:532:105
+    |
+532 |                         if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_segmenting.rs:27:44
+   |
+27 |         session.transition_to(ImportState::Segmenting);
+   |                                            ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_analyzing.rs:27:44
+   |
+27 |         session.transition_to(ImportState::Analyzing);
+   |                                            ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_flavoring.rs:29:44
+   |
+29 |         session.transition_to(ImportState::Flavoring);
+   |                                            ^^^^^^^^^
+
+warning: unused variable: `event_bus`
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_scanning.rs:72:13
+   |
+72 |         let event_bus = self.event_bus.clone();
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_event_bus`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: use of deprecated method `workflow::pipeline::Pipeline::extract`: Use extract_with_audio() to avoid re-decoding audio
+   --> wkmp-ai\src\workflow\pipeline.rs:342:43
+    |
+342 |         let mut extraction_results = self.extract(file_path, boundary, passage_index).await?;
+    |                                           ^^^^^^^
+
+warning: enum `StateCommand` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:49:6
+   |
+49 | enum StateCommand {
+   |      ^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: multiple fields are never read
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:76:5
+    |
+ 73 | pub struct WorkflowOrchestrator {
+    |            -------------------- fields in this struct
+...
+ 76 |     file_scanner: FileScanner,
+    |     ^^^^^^^^^^^^
+ 77 |     metadata_extractor: MetadataExtractor,
+    |     ^^^^^^^^^^^^^^^^^^
+ 78 |     fingerprinter: Fingerprinter,
+    |     ^^^^^^^^^^^^^
+ 79 |     amplitude_analyzer: AmplitudeAnalyzer,
+    |     ^^^^^^^^^^^^^^^^^^
+ 80 |     mb_client: Option<MusicBrainzClient>,
+    |     ^^^^^^^^^
+...
+ 83 |     essentia_client: Option<EssentiaClient>,
+    |     ^^^^^^^^^^^^^^^
+...
+102 |     processing_thread_count: usize,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `phase_processing_plan024` and `set_worker_phase_with_passage` are never used
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:492:14
+     |
+ 105 | impl WorkflowOrchestrator {
+     | ------------------------- methods in this implementation
+...
+ 492 |     async fn phase_processing_plan024(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2471 |     async fn set_worker_phase_with_passage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `phase_extracting` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_extraction.rs:21:25
+   |
+14 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+21 |     pub(super) async fn phase_extracting(
+   |                         ^^^^^^^^^^^^^^^^
+
+warning: method `phase_fingerprinting` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:25:25
+   |
+18 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+25 |     pub(super) async fn phase_fingerprinting(
+   |                         ^^^^^^^^^^^^^^^^^^^^
+
+warning: method `phase_segmenting` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_segmenting.rs:21:25
+   |
+14 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+21 |     pub(super) async fn phase_segmenting(
+   |                         ^^^^^^^^^^^^^^^^
+
+warning: method `phase_analyzing` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_analyzing.rs:21:25
+   |
+14 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+21 |     pub(super) async fn phase_analyzing(
+   |                         ^^^^^^^^^^^^^^^
+
+warning: methods `phase_flavoring` and `get_passage_recording_mbid` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_flavoring.rs:23:25
+    |
+ 16 | impl WorkflowOrchestrator {
+    | ------------------------- methods in this implementation
+...
+ 23 |     pub(super) async fn phase_flavoring(
+    |                         ^^^^^^^^^^^^^^^
+...
+236 |     async fn get_passage_recording_mbid(&self, passage_id: &Uuid) -> Result<Option<String>> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:44:12
+   |
+43 | impl ScanningStats {
+   | ------------------ method in this implementation
+44 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:70:12
+   |
+69 | impl ProcessingStats {
+   | -------------------- method in this implementation
+70 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:85:12
+   |
+84 | impl FilenameMatchingStats {
+   | -------------------------- method in this implementation
+85 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:102:12
+    |
+101 | impl HashingStats {
+    | ----------------- method in this implementation
+102 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:119:12
+    |
+118 | impl ExtractingStats {
+    | -------------------- method in this implementation
+119 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:143:12
+    |
+142 | impl SegmentingStats {
+    | -------------------- method in this implementation
+143 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:163:12
+    |
+162 | impl FingerprintingStats {
+    | ------------------------ method in this implementation
+163 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:187:12
+    |
+186 | impl SongMatchingStats {
+    | ---------------------- method in this implementation
+187 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:207:12
+    |
+206 | impl RecordingStats {
+    | ------------------- method in this implementation
+207 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:233:12
+    |
+232 | impl AmplitudeStats {
+    | ------------------- method in this implementation
+233 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:264:12
+    |
+263 | impl FlavoringStats {
+    | ------------------- method in this implementation
+264 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:282:12
+    |
+281 | impl PassagesCompleteStats {
+    | -------------------------- method in this implementation
+282 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:297:12
+    |
+296 | impl FilesCompleteStats {
+    | ----------------------- method in this implementation
+297 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: methods `update_processing` and `update_scanning` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:439:12
+    |
+322 | impl ImportStatistics {
+    | --------------------- methods in this implementation
+...
+439 |     pub fn update_processing(&self, completed: usize, started: usize, total: usize) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+447 |     pub fn update_scanning(&self, is_scanning: bool, files_found: usize) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: methods `process_passage` and `extract` are never used
+   --> wkmp-ai\src\workflow\pipeline.rs:322:14
+    |
+ 78 | impl Pipeline {
+    | ------------- methods in this implementation
+...
+322 |     async fn process_passage(
+    |              ^^^^^^^^^^^^^^^
+...
+455 |     async fn extract(
+    |              ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:86:5
+   |
+86 |     pub audio_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> wkmp-ai\src\lib.rs:5:9
+   |
+ 5 | #![warn(missing_docs)]
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:87:5
+   |
+87 |     pub image_confirmed: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:88:5
+   |
+88 |     pub image_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:22:9
+   |
+22 |         hash: String,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:23:9
+   |
+23 |         original_file_id: Uuid,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+  --> wkmp-ai\src\services\passage_flavor_fetcher.rs:44:5
+   |
+44 |     pub fn as_str(&self) -> &'static str {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:40:9
+   |
+40 |         session: ImportSession,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:41:9
+   |
+41 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:45:9
+   |
+45 |         passages: Vec<PassageData>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:46:9
+   |
+46 |         response_tx: oneshot::Sender<Result<Vec<Uuid>>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:50:9
+   |
+50 |         file_id: Uuid,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:51:9
+   |
+51 |         status: String,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:52:9
+   |
+52 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:63:5
+   |
+63 |     pub file_id: Uuid,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:64:5
+   |
+64 |     pub start_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:65:5
+   |
+65 |     pub end_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:66:5
+   |
+66 |     pub song_id: Option<Uuid>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (lib) generated 88 warnings (run `cargo fix --lib -p wkmp-ai` to apply 5 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 23.61s
+     Running `target\debug\examples\long_file_finder.exe`
+Scanning: C:\Users\Mango Cat\Music
+Minimum duration: 30 minutes (1800 seconds)
+
+.....................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+Error reading C:\Users\Mango Cat\Music\Metallica\Hardwired… to Self‐Destruct\01 - Confusion.mp3: unsupported feature: core (probe): no suitable format reader found
+.......................................................................................................................................................................................................................................................................................
+Error reading C:\Users\Mango Cat\Music\Parsons, Alan's Project\Ammonia Avenue\Alan Parsons Project - Ammonia Avenue - 01 - Prime Time.mp3: unsupported feature: wav: unsupported wave format
+...........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+Found 207 files longer than 30 minutes:
+
+[04:04:55] C:\Users\Mango Cat\Music\John, Elton\GoodbyeYellowBrickRoad.mp3
+[02:56:39] C:\Users\Mango Cat\Music\Chemical Brothers\Surrender.mp3
+[02:47:27] C:\Users\Mango Cat\Music\Oasis\WhatsTheStoryMorningGlory.mp3
+[02:42:11] C:\Users\Mango Cat\Music\Stone Temple Pilots\Purple.mp3
+[02:41:04] C:\Users\Mango Cat\Music\Asia\GoldAsia.mp3
+[02:37:34] C:\Users\Mango Cat\Music\Chicago\OnlyTheBeginning.mp3
+[02:33:22] C:\Users\Mango Cat\Music\Who, The\WhosNext.mp3
+[02:33:20] C:\Users\Mango Cat\Music\Tears For Fears\SongsFromTheBigChair.mp3
+[02:33:20] C:\Users\Mango Cat\Music\Yankovic, Weird Al\TheEssentialWeirdAlYankovic.mp3
+[02:32:15] C:\Users\Mango Cat\Music\Santana\InvitationToIllumination.mp3
+[02:31:08] C:\Users\Mango Cat\Music\38 Special\Anthology.mp3
+[02:29:49] C:\Users\Mango Cat\Music\Duran Duran\Rio.mp3
+[02:28:45] C:\Users\Mango Cat\Music\Steppenwolf\TheABCDunhillSingles.mp3
+[02:25:54] C:\Users\Mango Cat\Music\Allman Brothers\EatAPeach.mp3
+[02:16:23] C:\Users\Mango Cat\Music\John, Elton\CaptainFantasticAndTheBrownDirtCowboy.mp3
+[02:13:44] C:\Users\Mango Cat\Music\Allman Brothers\AtFillmoreEast.mp3
+[02:13:41] C:\Users\Mango Cat\Music\Brubeck, Dave\TheBestOfTheDaveBrubeckQuartet.mp3
+[02:04:47] C:\Users\Mango Cat\Music\Howe, Steve\Anthology1.mp3
+[02:03:46] C:\Users\Mango Cat\Music\Marley, Bob and the Wailers\Exodus40.mp3
+[02:02:32] C:\Users\Mango Cat\Music\Various\Moana.mp3
+[01:59:51] C:\Users\Mango Cat\Music\Knopfler, Marc\Privateering.mp3
+[01:59:31] C:\Users\Mango Cat\Music\Paramore\Paramore.mp3
+[01:56:51] C:\Users\Mango Cat\Music\Led Zeppelin\LedZeppelin.mp3
+[01:55:54] C:\Users\Mango Cat\Music\Def Leppard\Pyromania.mp3
+[01:52:43] C:\Users\Mango Cat\Music\Massive Attack\Mezzanine.mp3
+[01:49:11] C:\Users\Mango Cat\Music\Rolling Stones\ExileOnMainStreet.mp3
+[01:40:13] C:\Users\Mango Cat\Music\Tedeschi Trucks Band\LetMeGetBy.mp3
+[01:34:36] C:\Users\Mango Cat\Music\Hooverphonic\LiveAtTheAncienneBelgique.mp3
+[01:32:27] C:\Users\Mango Cat\Music\Traffic\JohnBarleycornMustDie.mp3
+[01:29:05] C:\Users\Mango Cat\Music\Frampton, Peter\FramptonComesAlive.mp3
+[01:26:47] C:\Users\Mango Cat\Music\Bears' Den\Islands.mp3
+[01:25:35] C:\Users\Mango Cat\Music\Led Zeppelin\LedZeppelinIII.mp3
+[01:20:25] C:\Users\Mango Cat\Music\Lewis, Huey and the News\GreatestHitsHueyLewisAndTheNews.mp3
+[01:19:38] C:\Users\Mango Cat\Music\Mayall, John\AHardRoad.mp3
+[01:19:16] C:\Users\Mango Cat\Music\Marley, Bob and the Wailers\CatchAFire.mp3
+[01:17:39] C:\Users\Mango Cat\Music\Daft Punk\TronLegacyReconfigured.mp3
+[01:17:23] C:\Users\Mango Cat\Music\Costello, Elvis\TheBestOfTheFirst10Years.mp3
+[01:17:20] C:\Users\Mango Cat\Music\Dido\StillOnMyMind.mp3
+[01:17:13] C:\Users\Mango Cat\Music\Fluke\SixWheelsOnMyWagon.mp3
+[01:17:08] C:\Users\Mango Cat\Music\KISS\GreatestKiss.mp3
+[01:17:06] C:\Users\Mango Cat\Music\Rush\ExitStageLeft.mp3
+[01:16:52] C:\Users\Mango Cat\Music\Thin Lizzie\LiveAndDangerous.mp3
+[01:16:21] C:\Users\Mango Cat\Music\Clapton, Eric\LaylaAndOtherAssortedLoveSongs.mp3
+[01:15:06] C:\Users\Mango Cat\Music\Led Zeppelin\LedZeppelinII.mp3
+[01:14:59] C:\Users\Mango Cat\Music\Journey\TrialByFire.mp3
+[01:14:32] C:\Users\Mango Cat\Music\Kihn, Gregs Band\BestOfBeserkley.mp3
+[01:14:29] C:\Users\Mango Cat\Music\Ram Jam\TheVeryBestOfRamJam.mp3
+[01:14:21] C:\Users\Mango Cat\Music\Hall and Oates\TheVeryBestofDarylHallJohnOates.mp3
+[01:14:06] C:\Users\Mango Cat\Music\Pet Shop Boys\Essential.mp3
+[01:13:50] C:\Users\Mango Cat\Music\Fluke\Risotto.mp3
+[01:13:36] C:\Users\Mango Cat\Music\Daft Punk\Homework.mp3
+[01:13:09] C:\Users\Mango Cat\Music\U2\RattleAndHum.mp3
+[01:13:05] C:\Users\Mango Cat\Music\Grand Funk Railroad\CloserToHome.mp3
+[01:11:51] C:\Users\Mango Cat\Music\Rock Candy Funk Party\GrooveIsKing.mp3
+[01:11:23] C:\Users\Mango Cat\Music\Molly Hatchet\GreatestHitsMollyHatchet.mp3
+[01:10:41] C:\Users\Mango Cat\Music\Outlaws\BestOfGreenGrassAndHighTides.mp3
+[01:09:41] C:\Users\Mango Cat\Music\Various\TombRaider.mp3
+[01:07:46] C:\Users\Mango Cat\Music\Crystal Method, The\Tweekend.mp3
+[01:07:42] C:\Users\Mango Cat\Music\Pink\GreatestHitsSoFar.mp3
+[01:06:54] C:\Users\Mango Cat\Music\Fatboy Slim\WhyTryHarder.mp3
+[01:06:38] C:\Users\Mango Cat\Music\Jewel\Lullaby.mp3
+[01:05:58] C:\Users\Mango Cat\Music\Score, The\Atlas.mp3
+[01:04:51] C:\Users\Mango Cat\Music\Runga, Bic\Birds.mp3
+[01:04:35] C:\Users\Mango Cat\Music\Various\NativeAmericanFluteLullabies.mp3
+[01:04:07] C:\Users\Mango Cat\Music\Jethro Tull\Aqualung.mp3
+[01:04:06] C:\Users\Mango Cat\Music\Moby\WaitForMe.mp3
+[01:03:53] C:\Users\Mango Cat\Music\Chemical Brothers\DigYourOwnHole.mp3
+[01:03:40] C:\Users\Mango Cat\Music\John, Elton\Caribou.mp3
+[01:02:43] C:\Users\Mango Cat\Music\Imagine Dragons\NightVisions.mp3
+[01:02:22] C:\Users\Mango Cat\Music\Money, Eddie\TheBestOfEddieMoney.mp3
+[01:01:36] C:\Users\Mango Cat\Music\Bjork\BodyTalk.mp3
+[01:01:36] C:\Users\Mango Cat\Music\Robyn\BodyTalk.mp3
+[01:01:34] C:\Users\Mango Cat\Music\Rundgren, Todd\TheVeryBestOfToddRundgren.mp3
+[01:01:19] C:\Users\Mango Cat\Music\Crystal Method, The\Vegas.mp3
+[01:01:06] C:\Users\Mango Cat\Music\Ace of Base\HappyNation.mp3
+[01:00:29] C:\Users\Mango Cat\Music\Kansas\ThePreludeImplicit.mp3
+[59:58] C:\Users\Mango Cat\Music\Chemical Brothers\Further.mp3
+[59:34] C:\Users\Mango Cat\Music\Ambrosia\TheEssentialsAmbrosia.mp3
+[59:30] C:\Users\Mango Cat\Music\No Doubt\TragicKingdom.mp3
+[59:20] C:\Users\Mango Cat\Music\Brubeck, Dave\We're All Together Again For The First Time\04 - Take Five.mp3
+[59:06] C:\Users\Mango Cat\Music\Soft Cell\NonStopEroticCabaret.mp3
+[58:28] C:\Users\Mango Cat\Music\Estefan, Gloria\GreatestHits.mp3
+[56:26] C:\Users\Mango Cat\Music\Thorogood, George and The Destroyers\TheBaddestOfGeorgeThorogoodAndTheDestroyers.mp3
+[56:14] C:\Users\Mango Cat\Music\M83\Junk.mp3
+[56:12] C:\Users\Mango Cat\Music\Bjork\Vespertine.mp3
+[55:50] C:\Users\Mango Cat\Music\Blackmore's Night\BeyondTheSunset.mp3
+[55:43] C:\Users\Mango Cat\Music\Buffett, Jimmy\LifeOnTheFlipSide.mp3
+[55:29] C:\Users\Mango Cat\Music\Moby\ExtremeWays.mp3
+[55:21] C:\Users\Mango Cat\Music\Foreigner\Foreigner.mp3
+[55:15] C:\Users\Mango Cat\Music\Fluke\Oto.mp3
+[55:00] C:\Users\Mango Cat\Music\Chumbawumba\Tubthumper.mp3
+[54:53] C:\Users\Mango Cat\Music\Crosby, Stills and Nash\DaylightAgain.mp3
+[54:49] C:\Users\Mango Cat\Music\Bjork\Volta.mp3
+[54:46] C:\Users\Mango Cat\Music\Santana\Santana\11 - Soul Sacrifice (live from Woodstock).mp3
+[54:20] C:\Users\Mango Cat\Music\Guns 'n Roses\AppetiteForDestruction.mp3
+[54:13] C:\Users\Mango Cat\Music\Fish, Samantha\BlackWindHowlin.mp3
+[53:58] C:\Users\Mango Cat\Music\Rush\TestForEcho.mp3
+[53:45] C:\Users\Mango Cat\Music\BTS\Wings.mp3
+[53:30] C:\Users\Mango Cat\Music\Sneaker Pimps\BecomingX.mp3
+[53:21] C:\Users\Mango Cat\Music\Rafferty, Gerry\CityToCity.mp3
+[52:55] C:\Users\Mango Cat\Music\Various\GuardiansOfTheGalaxy.mp3
+[52:49] C:\Users\Mango Cat\Music\Zombie, Rob\BestOfRobZombie.mp3
+[52:41] C:\Users\Mango Cat\Music\Brubeck, Dave\We're All Together Again For The First Time\01 - Truth.mp3
+[52:27] C:\Users\Mango Cat\Music\Dolby, Thomas\AMapOfTheFloatingCity.mp3
+[52:16] C:\Users\Mango Cat\Music\Nova, Heather\South.mp3
+[51:07] C:\Users\Mango Cat\Music\Foreigner\DoubleVision.mp3
+[51:06] C:\Users\Mango Cat\Music\Smash Mouth\AstroLounge.mp3
+[50:46] C:\Users\Mango Cat\Music\Smash Mouth\FushYuMang.mp3
+[50:34] C:\Users\Mango Cat\Music\King Crimson\ThePowerToBelieve.mp3
+[50:29] C:\Users\Mango Cat\Music\Nova, Heather\300DaysAtSea.mp3
+[49:55] C:\Users\Mango Cat\Music\Fluke\Puppy.mp3
+[49:14] C:\Users\Mango Cat\Music\Nine Inch Nails\PrettyHateMachine.mp3
+[49:00] C:\Users\Mango Cat\Music\Fixx\BeautifulFriction.mp3
+[48:53] C:\Users\Mango Cat\Music\Buffett, Jimmy\Banana Wind\12 - False Echoes.mp3
+[48:50] C:\Users\Mango Cat\Music\Bjork\Debut.mp3
+[47:49] C:\Users\Mango Cat\Music\Foreigner\4.mp3
+[47:37] C:\Users\Mango Cat\Music\Aerosmith\Pump.mp3
+[47:14] C:\Users\Mango Cat\Music\Radiohead\KidA.mp3
+[47:11] C:\Users\Mango Cat\Music\Nova, Heather\Pearl.mp3
+[47:02] C:\Users\Mango Cat\Music\Groove Armada\WhiteLight.mp3
+[46:26] C:\Users\Mango Cat\Music\Georgia Satellites\Essentials-GeorgiaSatellites.mp3
+[45:29] C:\Users\Mango Cat\Music\Dolby, Thomas\AliensAteMyBuick.mp3
+[44:45] C:\Users\Mango Cat\Music\Alice In Chains\AliceInChainsGreatestHits.mp3
+[44:34] C:\Users\Mango Cat\Music\Steely Dan\Donald Fagen\SunkenCondos.mp3
+[43:59] C:\Users\Mango Cat\Music\Radiohead\Amnesiac.mp3
+[43:56] C:\Users\Mango Cat\Music\Police\Synchronicity.mp3
+[43:47] C:\Users\Mango Cat\Music\Metallica\Ride the Lightning\08 - The Call of Ktulu.mp3
+[43:36] C:\Users\Mango Cat\Music\Jethro Tull\Thick_as_a_Brick\(Jethro_Tull)Thick_as_a_Brick-01-Thick_as_a_Brick.mp3
+[43:35] C:\Users\Mango Cat\Music\Lady Gaga\Chromatica.mp3
+[43:21] C:\Users\Mango Cat\Music\Corea, Chick\LightAsAFeather.mp3
+[43:18] C:\Users\Mango Cat\Music\Kraftwerk\TransEuropeExpress.mp3
+[43:02] C:\Users\Mango Cat\Music\Eagles\OneOfTheseNights.mp3
+[42:45] C:\Users\Mango Cat\Music\Rolling Stones\LetItBleed.mp3
+[42:32] C:\Users\Mango Cat\Music\Eagles\TheLongRun.mp3
+[42:14] C:\Users\Mango Cat\Music\Radiohead\PabloHoney.mp3
+[42:06] C:\Users\Mango Cat\Music\Ruby Suns, The\SeaLion.mp3
+[42:05] C:\Users\Mango Cat\Music\Johnson, Jack\ToTheSea.mp3
+[42:00] C:\Users\Mango Cat\Music\Doobie Brothers\TheCaptainAndMe.mp3
+[41:54] C:\Users\Mango Cat\Music\Toto\TotoIV.mp3
+[41:42] C:\Users\Mango Cat\Music\Steely Dan\TheRoyalScam.mp3
+[41:37] C:\Users\Mango Cat\Music\Scorpions\Love At First Sting.mp3
+[41:31] C:\Users\Mango Cat\Music\Johnson, Jack\InBetweenDreams.mp3
+[41:29] C:\Users\Mango Cat\Music\Zevon, Warren\ExcitableBoy.mp3
+[41:25] C:\Users\Mango Cat\Music\Lorde\Melodrama.mp3
+[41:19] C:\Users\Mango Cat\Music\Knack, The\GetTheKnack.mp3
+[41:06] C:\Users\Mango Cat\Music\Thorpe, Billy\ChildrenOfTheSunRevisited.mp3
+[40:59] C:\Users\Mango Cat\Music\Wings\BandOnTheRun.mp3
+[40:57] C:\Users\Mango Cat\Music\McDonald, Michael\IfThatsWhatItTakes.mp3
+[40:46] C:\Users\Mango Cat\Music\Foreigner\HeadGames.mp3
+[40:42] C:\Users\Mango Cat\Music\Ocasek, Ric\Nexterday.mp3
+[40:33] C:\Users\Mango Cat\Music\Cars\Panorama.mp3
+[40:22] C:\Users\Mango Cat\Music\Various\TheGreatestShowman.mp3
+[40:18] C:\Users\Mango Cat\Music\Eagles\OnTheBorder.mp3
+[40:01] C:\Users\Mango Cat\Music\Petty, Tom and the Heartbreakers\FullMoonFever.mp3
+[39:51] C:\Users\Mango Cat\Music\Hush Sound, The\LikeVines.mp3
+[39:51] C:\Users\Mango Cat\Music\Santana\Santana IV\04 - Fillmore East.mp3
+[39:41] C:\Users\Mango Cat\Music\Beck\Hyperspace.mp3
+[39:36] C:\Users\Mango Cat\Music\Seals and Crofts\SummerBreeze.mp3
+[39:21] C:\Users\Mango Cat\Music\Hyper\WeControl.mp3
+[39:06] C:\Users\Mango Cat\Music\Portugal. the Man\Woodstock.mp3
+[38:50] C:\Users\Mango Cat\Music\Southern Pacific\SouthernPacific.mp3
+[38:41] C:\Users\Mango Cat\Music\Golden Earring\Cut.mp3
+[38:39] C:\Users\Mango Cat\Music\Bon Jovi\BonJovi.mp3
+[38:38] C:\Users\Mango Cat\Music\Doobie Brothers\TakinItToTheStreets.mp3
+[38:33] C:\Users\Mango Cat\Music\Steely Dan\Donald Fagen\TheNightfly.mp3
+[38:31] C:\Users\Mango Cat\Music\Cross, Christopher\ChristopherCross.mp3
+[38:25] C:\Users\Mango Cat\Music\Phildel\Ritual.mp3
+[38:24] C:\Users\Mango Cat\Music\Steely Dan\Gaucho.mp3
+[38:21] C:\Users\Mango Cat\Music\Cars\HeartbeatCity.mp3
+[38:21] C:\Users\Mango Cat\Music\Red Ryder\DontFightIt.mp3
+[38:20] C:\Users\Mango Cat\Music\Police\OutlandosDAmour.mp3
+[38:18] C:\Users\Mango Cat\Music\Squier, Billy\DontSayNo.mp3
+[38:14] C:\Users\Mango Cat\Music\Police\ZenyattaMondatta.mp3
+[38:12] C:\Users\Mango Cat\Music\Mellencamp, John\AmericanFool.mp3
+[38:10] C:\Users\Mango Cat\Music\Wham\MakeItBig.mp3
+[38:02] C:\Users\Mango Cat\Music\Deep Purple\MachineHead.mp3
+[38:00] C:\Users\Mango Cat\Music\Men at Work\BusinessAsUsual.mp3
+[37:57] C:\Users\Mango Cat\Music\Police\RegattaDeBlanc.mp3
+[37:51] C:\Users\Mango Cat\Music\Red Ryder\BreakingCurfew.mp3
+[37:30] C:\Users\Mango Cat\Music\Miller, Steve's Band\FlyLikeAnEagle.mp3
+[37:28] C:\Users\Mango Cat\Music\Katrina and the Waves\KatrinaAndTheWaves.mp3
+[37:25] C:\Users\Mango Cat\Music\Jackson, Michael\Thriller.mp3
+[37:11] C:\Users\Mango Cat\Music\Purim, Flora\ButterflyDreams.mp3
+[37:03] C:\Users\Mango Cat\Music\Eagles\Eagles.mp3
+[36:58] C:\Users\Mango Cat\Music\Doobie Brothers\MinuteByMinute.mp3
+[36:43] C:\Users\Mango Cat\Music\Vega, Susan\TalesFromTheRealmOfTheQueenOfPentacles.mp3
+[36:13] C:\Users\Mango Cat\Music\Stray Cats\BuildForSpeed.mp3
+[35:43] C:\Users\Mango Cat\Music\Eagles\Desperado.mp3
+[35:40] C:\Users\Mango Cat\Music\Go Gos, The\BeautyAndTheBeat.mp3
+[35:36] C:\Users\Mango Cat\Music\Foghat\FoolForTheCity.mp3
+[34:59] C:\Users\Mango Cat\Music\James Gang\Funk49.mp3
+[34:55] C:\Users\Mango Cat\Music\Z.Z. Top\ZZTopsFirstAlbum.mp3
+[34:52] C:\Users\Mango Cat\Music\Doobie Brothers\ToulouseStreet.mp3
+[34:30] C:\Users\Mango Cat\Music\Walsh, Joe\ButSerioulyFolks.mp3
+[34:25] C:\Users\Mango Cat\Music\Humpback Whales\SongsOfTheHumpbackWhale.mp3
+[34:23] C:\Users\Mango Cat\Music\Buffett, Jimmy\Don't Stop the Carnival\01 - Intro-The Legend of Norman Paperman-Kinja.mp3
+[33:48] C:\Users\Mango Cat\Music\REO Speedwagon\YouCanTuneAPianoButYouCantTunaFish.mp3
+[33:39] C:\Users\Mango Cat\Music\Steely Dan\Countdown to Ecstasy\04 - Your Gold Teeth.mp3
+[33:29] C:\Users\Mango Cat\Music\Van Halen\1984.mp3
+[33:03] C:\Users\Mango Cat\Music\Metallica\…and Justice for All\01 - Blackened.mp3
+[32:59] C:\Users\Mango Cat\Music\Santana\Lotus\01 - Mantra.mp3
+[32:52] C:\Users\Mango Cat\Music\Devo\FreedomOfChoice.mp3
+[32:46] C:\Users\Mango Cat\Music\Metallica\Master of Puppets\07 - Orion.mp3
+[31:29] C:\Users\Mango Cat\Music\Van Halen\FairWarning.mp3
+[31:10] C:\Users\Mango Cat\Music\Nova, Heather\LiveFromTheMilkyWay.mp3
+[30:40] C:\Users\Mango Cat\Music\Steely Dan\Donald Fagen\Kamakiriad\01 - Trans-Island Skyway.mp3
+[30:26] C:\Users\Mango Cat\Music\Metallica\Ride the Lightning\04 - Fade to Black.mp3

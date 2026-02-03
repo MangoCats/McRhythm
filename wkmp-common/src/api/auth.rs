@@ -34,13 +34,21 @@ use sqlx::SqlitePool;
 pub enum ApiAuthError {
     /// Timestamp outside acceptable window
     InvalidTimestamp {
+        /// Timestamp from request
         timestamp: i64,
+        /// Current server timestamp
         now: i64,
+        /// Reason for rejection (e.g., "too old", "too far in future")
         reason: String,
     },
 
     /// Hash does not match calculated value
-    InvalidHash { provided: String, calculated: String },
+    InvalidHash {
+        /// Hash provided in request
+        provided: String,
+        /// Hash calculated by server
+        calculated: String,
+    },
 
     /// Timestamp field missing from request
     MissingTimestamp,
@@ -184,7 +192,9 @@ pub async fn initialize_shared_secret(db: &SqlitePool) -> Result<i64, ApiAuthErr
 pub fn validate_timestamp(timestamp: i64) -> Result<(), ApiAuthError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .map_err(|e| ApiAuthError::DatabaseError(
+            format!("System clock before Unix epoch: {}", e)
+        ))?
         .as_millis() as i64;
 
     let diff = now - timestamp;

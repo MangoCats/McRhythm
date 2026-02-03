@@ -1,0 +1,303 @@
+[     0.003s] === Full Library Import Test Started ===
+Total files: 5737
+Album matching: true
+Cache database: C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\test_recording_cache.db (existing)
+[     0.003s] FILE_START [1/5737] 01-These_Are_Days.mp3
+[     0.004s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\01-These_Are_Days.mp3"
+[     0.004s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\01-These_Are_Days.mp3", score: 2.8, is_single_track: true }
+[    11.175s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8286289920, confidence: 0.8, timestamp: 1766624409 }
+[    11.179s] EVENT PassageStarted: passage #0
+[    11.179s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624409 }
+[    11.179s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624409 }
+[    11.179s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624409 }
+[    11.519s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624409 }
+[    11.519s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624409 }
+[    12.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624410 }
+[    12.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624410 }
+[    12.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624410 }
+[    12.087s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624410 }
+[    12.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624410 }
+[    12.090s] FILE_COMPLETE [1/5737] 01-These_Are_Days.mp3 - 1 passages in 12.09s (total_elapsed: 12.1s)
+[    12.090s] FILE_START [2/5737] 02-Eat_For_Two.mp3
+[    12.091s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624410 }
+[    12.091s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624410 }
+[    12.091s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624410 }
+[    12.091s] EVENT PassageCompleted: passage #0
+[    12.091s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\01-These_Are_Days.mp3"
+[    12.091s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\02-Eat_For_Two.mp3"
+[    12.091s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\02-Eat_For_Two.mp3", score: 2.8, is_single_track: true }
+[    22.081s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7410401280, confidence: 0.5, timestamp: 1766624420 }
+[    22.081s] EVENT PassageStarted: passage #0
+[    22.081s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624420 }
+[    22.081s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624420 }
+[    22.081s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624420 }
+[    22.394s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624420 }
+[    22.394s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624420 }
+[    22.899s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624421 }
+[    22.899s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624421 }
+[    22.899s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624421 }
+[    22.899s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624421 }
+[    22.900s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624421 }
+[    22.903s] FILE_COMPLETE [2/5737] 02-Eat_For_Two.mp3 - 1 passages in 10.81s (total_elapsed: 22.9s)
+[    22.903s] FILE_START [3/5737] 03-Candy_Everybody_Wants.mp3
+[    22.904s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624421 }
+[    22.904s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624421 }
+[    22.904s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624421 }
+[    22.904s] EVENT PassageCompleted: passage #0
+[    22.904s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\02-Eat_For_Two.mp3"
+[    22.904s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\03-Candy_Everybody_Wants.mp3"
+[    22.904s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\03-Candy_Everybody_Wants.mp3", score: 2.8, is_single_track: true }
+[    30.505s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 5635031040, confidence: 0.5, timestamp: 1766624428 }
+[    30.505s] EVENT PassageStarted: passage #0
+[    30.505s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624428 }
+[    30.505s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624428 }
+[    30.505s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624428 }
+[    30.747s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624429 }
+[    30.747s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624429 }
+[    31.134s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624429 }
+[    31.134s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624429 }
+[    31.134s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624429 }
+[    31.134s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624429 }
+[    31.134s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624429 }
+[    31.137s] FILE_COMPLETE [3/5737] 03-Candy_Everybody_Wants.mp3 - 1 passages in 8.23s (total_elapsed: 31.1s)
+[    31.137s] FILE_START [4/5737] 04-I'm_Not_The_Man.mp3
+[    31.138s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624429 }
+[    31.138s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624429 }
+[    31.138s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624429 }
+[    31.138s] EVENT PassageCompleted: passage #0
+[    31.138s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\03-Candy_Everybody_Wants.mp3"
+[    31.138s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\04-I'm_Not_The_Man.mp3"
+[    31.138s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\04-I'm_Not_The_Man.mp3", score: 2.8, is_single_track: true }
+[    39.731s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6390005760, confidence: 0.8, timestamp: 1766624437 }
+[    39.731s] EVENT PassageStarted: passage #0
+[    39.731s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624437 }
+[    39.731s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624437 }
+[    39.731s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624437 }
+[    40.006s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624438 }
+[    40.006s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624438 }
+[    40.441s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624438 }
+[    40.441s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624438 }
+[    40.441s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624438 }
+[    40.441s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624438 }
+[    40.441s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624438 }
+[    40.444s] FILE_COMPLETE [4/5737] 04-I'm_Not_The_Man.mp3 - 1 passages in 9.31s (total_elapsed: 40.4s)
+[    40.444s] FILE_START [5/5737] 05-Don't_Talk.mp3
+[    40.445s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624438 }
+[    40.445s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624438 }
+[    40.445s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624438 }
+[    40.445s] EVENT PassageCompleted: passage #0
+[    40.445s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\04-I'm_Not_The_Man.mp3"
+[    40.445s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\05-Don't_Talk.mp3"
+[    40.445s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\05-Don't_Talk.mp3", score: 2.8, is_single_track: true }
+[    52.398s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 9086976000, confidence: 0.5, timestamp: 1766624450 }
+[    52.398s] EVENT PassageStarted: passage #0
+[    52.398s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624450 }
+[    52.398s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624450 }
+[    52.398s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624450 }
+[    52.781s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624451 }
+[    52.781s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624451 }
+[    53.407s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624451 }
+[    53.407s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624451 }
+[    53.407s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624451 }
+[    53.407s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624451 }
+[    53.407s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624451 }
+[    53.411s] FILE_COMPLETE [5/5737] 05-Don't_Talk.mp3 - 1 passages in 12.97s (total_elapsed: 53.4s)
+[    53.411s] FILE_START [6/5737] 06-Hey_Jack_Kerouac.mp3
+[    53.412s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624451 }
+[    53.412s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624451 }
+[    53.412s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624451 }
+[    53.412s] EVENT PassageCompleted: passage #0
+[    53.412s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\05-Don't_Talk.mp3"
+[    53.412s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\06-Hey_Jack_Kerouac.mp3"
+[    53.412s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\06-Hey_Jack_Kerouac.mp3", score: 2.8, is_single_track: true }
+[    61.911s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6457835520, confidence: 0.5, timestamp: 1766624460 }
+[    61.911s] EVENT PassageStarted: passage #0
+[    61.911s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624460 }
+[    61.911s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624460 }
+[    61.911s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624460 }
+[    62.189s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624460 }
+[    62.189s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624460 }
+[    62.632s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624460 }
+[    62.632s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624460 }
+[    62.632s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624460 }
+[    62.632s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624460 }
+[    62.632s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624460 }
+[    62.635s] FILE_COMPLETE [6/5737] 06-Hey_Jack_Kerouac.mp3 - 1 passages in 9.22s (total_elapsed: 62.6s)
+[    62.635s] FILE_START [7/5737] 07-What's_The_Matter_Here-.mp3
+[    62.636s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624460 }
+[    62.636s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624460 }
+[    62.636s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624460 }
+[    62.636s] EVENT PassageCompleted: passage #0
+[    62.636s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\06-Hey_Jack_Kerouac.mp3"
+[    62.636s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\07-What's_The_Matter_Here-.mp3"
+[    62.636s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\07-What's_The_Matter_Here-.mp3", score: 2.8, is_single_track: true }
+[    73.375s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8204451840, confidence: 0.8, timestamp: 1766624471 }
+[    73.375s] EVENT PassageStarted: passage #0
+[    73.375s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624471 }
+[    73.375s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624471 }
+[    73.375s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624471 }
+[    73.721s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624471 }
+[    73.721s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624471 }
+[    74.284s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624472 }
+[    74.284s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624472 }
+[    74.284s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624472 }
+[    74.284s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624472 }
+[    74.284s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624472 }
+[    74.288s] FILE_COMPLETE [7/5737] 07-What's_The_Matter_Here-.mp3 - 1 passages in 11.65s (total_elapsed: 74.3s)
+[    74.288s] FILE_START [8/5737] 08-Gold_Rush_Brides.mp3
+[    74.289s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624472 }
+[    74.289s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624472 }
+[    74.289s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624472 }
+[    74.289s] EVENT PassageCompleted: passage #0
+[    74.289s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\07-What's_The_Matter_Here-.mp3"
+[    74.289s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\08-Gold_Rush_Brides.mp3"
+[    74.289s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\08-Gold_Rush_Brides.mp3", score: 2.8, is_single_track: true }
+[    83.590s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7106641920, confidence: 0.5, timestamp: 1766624481 }
+[    83.590s] EVENT PassageStarted: passage #0
+[    83.590s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624481 }
+[    83.590s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624481 }
+[    83.590s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624481 }
+[    83.885s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624482 }
+[    83.885s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624482 }
+[    84.385s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624482 }
+[    84.385s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624482 }
+[    84.385s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624482 }
+[    84.385s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624482 }
+[    84.385s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624482 }
+[    84.389s] FILE_COMPLETE [8/5737] 08-Gold_Rush_Brides.mp3 - 1 passages in 10.10s (total_elapsed: 84.4s)
+[    84.389s] FILE_START [9/5737] 09-Like_The_Weather.mp3
+[    84.390s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624482 }
+[    84.390s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624482 }
+[    84.390s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624482 }
+[    84.390s] EVENT PassageCompleted: passage #0
+[    84.390s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\08-Gold_Rush_Brides.mp3"
+[    84.390s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\09-Like_The_Weather.mp3"
+[    84.390s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\09-Like_The_Weather.mp3", score: 2.8, is_single_track: true }
+[    93.846s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7196590080, confidence: 0.5, timestamp: 1766624492 }
+[    93.846s] EVENT PassageStarted: passage #0
+[    93.846s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624492 }
+[    93.846s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624492 }
+[    93.846s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624492 }
+[    94.147s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624492 }
+[    94.147s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624492 }
+[    94.637s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624492 }
+[    94.637s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624492 }
+[    94.637s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624492 }
+[    94.637s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624492 }
+[    94.637s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624492 }
+[    94.640s] FILE_COMPLETE [9/5737] 09-Like_The_Weather.mp3 - 1 passages in 10.25s (total_elapsed: 94.6s)
+[    94.640s] FILE_START [10/5737] 10-Trouble_Me.mp3
+[    94.641s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624492 }
+[    94.641s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624492 }
+[    94.641s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624492 }
+[    94.641s] EVENT PassageCompleted: passage #0
+[    94.641s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\09-Like_The_Weather.mp3"
+[    94.641s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\10-Trouble_Me.mp3"
+[    94.641s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\10-Trouble_Me.mp3", score: 2.8, is_single_track: true }
+[   103.328s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6231490560, confidence: 0.5, timestamp: 1766624501 }
+[   103.328s] EVENT PassageStarted: passage #0
+[   103.328s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624501 }
+[   103.328s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624501 }
+[   103.328s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624501 }
+[   103.586s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624501 }
+[   103.586s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624501 }
+[   104.014s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624502 }
+[   104.014s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624502 }
+[   104.014s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624502 }
+[   104.014s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624502 }
+[   104.014s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624502 }
+[   104.017s] FILE_COMPLETE [10/5737] 10-Trouble_Me.mp3 - 1 passages in 9.38s (total_elapsed: 104.0s)
+[   104.017s] PROGRESS 10/5737 (0.2%) - 0.10 files/sec - ETA: 992.8min
+[   104.017s] FILE_START [11/5737] 11-Jezebel.mp3
+[   104.018s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624502 }
+[   104.018s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624502 }
+[   104.018s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624502 }
+[   104.018s] EVENT PassageCompleted: passage #0
+[   104.018s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\10-Trouble_Me.mp3"
+[   104.018s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\11-Jezebel.mp3"
+[   104.018s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\11-Jezebel.mp3", score: 2.8, is_single_track: true }
+[   113.747s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7449477120, confidence: 0.5, timestamp: 1766624511 }
+[   113.747s] EVENT PassageStarted: passage #0
+[   113.747s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624512 }
+[   113.747s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624512 }
+[   113.747s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624512 }
+[   114.067s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624512 }
+[   114.067s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624512 }
+[   114.573s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624512 }
+[   114.573s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624512 }
+[   114.573s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624512 }
+[   114.573s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624512 }
+[   114.573s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624512 }
+[   114.576s] FILE_COMPLETE [11/5737] 11-Jezebel.mp3 - 1 passages in 10.56s (total_elapsed: 114.6s)
+[   114.576s] FILE_START [12/5737] 12-Because_The_Night.mp3
+[   114.578s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624512 }
+[   114.578s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624512 }
+[   114.578s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624512 }
+[   114.578s] EVENT PassageCompleted: passage #0
+[   114.578s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\11-Jezebel.mp3"
+[   114.578s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\12-Because_The_Night.mp3"
+[   114.578s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\12-Because_The_Night.mp3", score: 2.8, is_single_track: true }
+[   123.861s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6305955840, confidence: 0.5, timestamp: 1766624522 }
+[   123.861s] EVENT PassageStarted: passage #0
+[   123.861s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624522 }
+[   123.861s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624522 }
+[   123.861s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624522 }
+[   124.175s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624522 }
+[   124.175s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624522 }
+[   124.618s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624522 }
+[   124.618s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624522 }
+[   124.618s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624522 }
+[   124.618s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624522 }
+[   124.618s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624522 }
+[   124.621s] FILE_COMPLETE [12/5737] 12-Because_The_Night.mp3 - 1 passages in 10.04s (total_elapsed: 124.6s)
+[   124.621s] FILE_START [13/5737] 13-Stockton_Gala_Days.mp3
+[   124.622s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624522 }
+[   124.622s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624522 }
+[   124.622s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624522 }
+[   124.622s] EVENT PassageCompleted: passage #0
+[   124.622s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\12-Because_The_Night.mp3"
+[   124.622s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\13-Stockton_Gala_Days.mp3"
+[   124.622s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\13-Stockton_Gala_Days.mp3", score: 2.8, is_single_track: true }
+[   137.026s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 9292677120, confidence: 0.5, timestamp: 1766624535 }
+[   137.026s] EVENT PassageStarted: passage #0
+[   137.026s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624535 }
+[   137.026s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624535 }
+[   137.026s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624535 }
+[   137.418s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624535 }
+[   137.418s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624535 }
+[   138.056s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624536 }
+[   138.056s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624536 }
+[   138.056s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624536 }
+[   138.056s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624536 }
+[   138.056s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624536 }
+[   138.060s] FILE_COMPLETE [13/5737] 13-Stockton_Gala_Days.mp3 - 1 passages in 13.44s (total_elapsed: 138.1s)
+[   138.060s] FILE_START [14/5737] 14-Noah's_Dove.mp3
+[   138.061s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624536 }
+[   138.061s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624536 }
+[   138.061s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624536 }
+[   138.061s] EVENT PassageCompleted: passage #0
+[   138.061s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\13-Stockton_Gala_Days.mp3"
+[   138.061s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\14-Noah's_Dove.mp3"
+[   138.061s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\14-Noah's_Dove.mp3", score: 2.8, is_single_track: true }
+[   149.421s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8682946560, confidence: 0.5, timestamp: 1766624547 }
+[   149.421s] EVENT PassageStarted: passage #0
+[   149.421s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766624547 }
+[   149.421s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766624547 }
+[   149.421s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766624547 }
+[   149.785s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766624548 }
+[   149.785s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766624548 }
+[   150.377s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766624548 }
+[   150.377s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766624548 }
+[   150.377s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766624548 }
+[   150.377s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624548 }
+[   150.377s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766624548 }
+[   150.382s] FILE_COMPLETE [14/5737] 14-Noah's_Dove.mp3 - 1 passages in 12.32s (total_elapsed: 150.4s)
+[   150.382s] FILE_START [15/5737] Anthology.mp3
+[   150.384s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766624548 }
+[   150.384s] EVENT FusionStarted { passage_index: 0, timestamp: 1766624548 }
+[   150.384s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766624548 }
+[   150.384s] EVENT PassageCompleted: passage #0
+[   150.384s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\14-Noah's_Dove.mp3"
+[   150.384s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\38 Special\\Anthology.mp3"
+[   150.384s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\38 Special\\Anthology.mp3", score: -0.5, is_single_track: false }
+[   150.384s] EVENT AlbumMatchingStarted: "C:\\Users\\Mango Cat\\Music\\38 Special\\Anthology.mp3"

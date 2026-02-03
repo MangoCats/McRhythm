@@ -1,0 +1,85 @@
+{
+  "test_name": "test_run29f_full_baseline_comparison",
+  "date": "2026-01-12",
+  "log_file": "baseline_1-12-26_test_run29f_full.log",
+  "summary_file": "baseline_1-12-26_summary.md",
+  "test_config": {
+    "albums_total": 200,
+    "debug_logging": true,
+    "instrumentation_enabled": true,
+    "database_path": ".cache/run29f_full_test.db",
+    "music_library": "C:\\Users\\Mango Cat\\Music"
+  },
+  "results": {
+    "status": "PASSED",
+    "duration_seconds": 10771.15,
+    "duration_formatted": "02:59:31",
+    "albums_matched": 186,
+    "albums_failed": 0,
+    "albums_skipped": 14,
+    "match_rate_percent": 93.0,
+    "avg_seconds_per_album": 53.86
+  },
+  "key_findings": {
+    "chicago_album_hang": {
+      "status": "RESOLVED",
+      "description": "Chicago album (39 tracks, 9454s) completed successfully in 22 seconds. No hang detected.",
+      "match_percentage": 89.7,
+      "refinement_result": "No boundaries needed adjustment"
+    },
+    "network_retry": {
+      "status": "WORKING",
+      "description": "Windows error 10054 (forcibly closed) now properly retried",
+      "evidence": "Multiple successful retries observed in logs"
+    },
+    "boundary_refinement_instrumentation": {
+      "status": "WORKING",
+      "description": "Debug logging successfully tracks refinement progress including RMS search iterations",
+      "example_album": "Rob Zombie - 20th Century Masters",
+      "example_duration": "36 seconds for 1.3M iteration RMS search"
+    },
+    "refinement_validation_issue": {
+      "status": "IDENTIFIED",
+      "description": "Refinement algorithm detects cascade patterns but validation rejects fixes",
+      "example_album": "Rob Zombie - 20th Century Masters (75% match)",
+      "impact": "Algorithm correctly identifies boundary errors but doesn't apply corrections",
+      "recommendation": "Review validation criteria for cascade pattern refinements"
+    }
+  },
+  "code_changes": [
+    {
+      "file": "wkmp-ai/src/services/musicbrainz_client.rs",
+      "lines": "247-252",
+      "description": "Added Windows error 10054 and ECONNRESET to retry detection",
+      "impact": "Improved network reliability on Windows platform"
+    },
+    {
+      "file": "wkmp-ai/src/matching/stages/boundary_refinement.rs",
+      "description": "Added comprehensive debug logging for refinement progress",
+      "impact": "Improved observability of slow refinement operations"
+    },
+    {
+      "file": "wkmp-ai/tests/eagles_overlap_test.rs",
+      "description": "Fixed compilation errors from API signature changes",
+      "impact": "Test suite now compiles successfully"
+    },
+    {
+      "file": "wkmp-ai/tests/boundary_refinement_semantically_correct_test.rs",
+      "description": "Fixed import and format string errors",
+      "impact": "Test suite now compiles successfully"
+    }
+  ],
+  "environment": {
+    "os": "Windows",
+    "build_mode": "release",
+    "rust_log_level": "wkmp_ai=debug",
+    "caching_enabled": true
+  },
+  "baseline_purpose": "Establishes stability baseline after network retry and instrumentation improvements. Confirms Chicago album no longer hangs. Identifies refinement validation issue for future optimization.",
+  "next_steps": [
+    "Investigate why Rob Zombie cascade refinement was rejected",
+    "Review validation criteria for boundary refinements",
+    "Continue monitoring Chicago album in future test runs",
+    "Consider RMS search performance optimizations"
+  ]
+}

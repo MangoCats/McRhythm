@@ -1,33 +1,51 @@
 //! Audio fingerprinting service using Chromaprint
 //!
 //! **[AIA-COMP-010]** Chromaprint fingerprint generation (Decision 3: static linking)
+//! **[AIA-PERF-040]** Thread-safe parallel fingerprinting with serialized context creation
+//!
 //! Uses chromaprint-sys-next for official Chromaprint algorithm without external binary
 
 use base64::{engine::general_purpose, Engine as _};
+use once_cell::sync::Lazy;
 use std::path::Path;
+use std::sync::Mutex;
 use symphonia::core::audio::AudioBufferRef;
 use thiserror::Error;
 
 /// Fingerprinting errors
 #[derive(Debug, Error)]
 pub enum FingerprintError {
+    /// Failed to decode audio file with Symphonia
     #[error("Failed to decode audio: {0}")]
     DecodeError(String),
 
+    /// Chromaprint library error
     #[error("Chromaprint error: {0}")]
     ChromaprintError(String),
 
+    /// Audio file too short (minimum 10 seconds required)
     #[error("Audio too short (minimum 10 seconds required)")]
     AudioTooShort,
 
+    /// I/O error (file read)
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
+    /// Audio resampling error
     #[error("Resample error: {0}")]
     ResampleError(String),
 }
 
+/// Global mutex for chromaprint context creation/destruction
+///
+/// **[AIA-PERF-040]** Serializes chromaprint_new() and chromaprint_free() calls
+/// to ensure thread safety with FFTW backend (which is not reentrant).
+/// FFmpeg/vDSP/KissFFT backends don't require this, but the mutex overhead
+/// is negligible (~1-2ms per fingerprint) compared to total processing time.
+static CHROMAPRINT_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
 /// Audio fingerprinter
+#[derive(Clone, Copy)]
 pub struct Fingerprinter {
     /// Use first N seconds for fingerprinting (default: 120 seconds)
     duration_seconds: usize,
@@ -58,6 +76,75 @@ impl Fingerprinter {
 
         // Generate fingerprint from PCM
         self.fingerprint_pcm(&pcm_data, sample_rate)
+    }
+
+    /// Generate Chromaprint fingerprint for a specific segment of an audio file
+    ///
+    /// **[REQ-FING-010]** Per-segment fingerprinting (PLAN025 Phase 3)
+    ///
+    /// # Arguments
+    /// * `audio_path` - Path to audio file
+    /// * `start_seconds` - Segment start time in seconds
+    /// * `end_seconds` - Segment end time in seconds
+    ///
+    /// # Returns
+    /// Base64-encoded fingerprint string suitable for AcoustID API
+    ///
+    /// # Errors
+    /// Returns error if:
+    /// - Audio file cannot be decoded
+    /// - Segment is too short (minimum 10 seconds)
+    /// - Segment boundaries are invalid
+    pub fn fingerprint_segment(
+        &self,
+        audio_path: &Path,
+        start_seconds: f32,
+        end_seconds: f32,
+    ) -> Result<String, FingerprintError> {
+        // Validate segment boundaries
+        if start_seconds < 0.0 || end_seconds <= start_seconds {
+            return Err(FingerprintError::DecodeError(format!(
+                "Invalid segment boundaries: {}s - {}s",
+                start_seconds, end_seconds
+            )));
+        }
+
+        let segment_duration = end_seconds - start_seconds;
+        if segment_duration < 10.0 {
+            return Err(FingerprintError::AudioTooShort);
+        }
+
+        // Decode entire audio file to PCM
+        // Note: In production, could optimize by seeking to start_seconds first
+        let (full_pcm_data, sample_rate) = self.decode_audio_full(audio_path)?;
+
+        // Calculate sample offsets for segment
+        let start_sample = (start_seconds * sample_rate as f32) as usize;
+        let end_sample = (end_seconds * sample_rate as f32) as usize;
+
+        // Validate sample offsets
+        if start_sample >= full_pcm_data.len() {
+            return Err(FingerprintError::DecodeError(format!(
+                "Segment start ({}) beyond audio duration",
+                start_seconds
+            )));
+        }
+
+        let end_sample = end_sample.min(full_pcm_data.len());
+
+        // Extract segment PCM data
+        let segment_pcm = &full_pcm_data[start_sample..end_sample];
+
+        tracing::debug!(
+            audio_path = ?audio_path,
+            start_seconds,
+            end_seconds,
+            segment_samples = segment_pcm.len(),
+            "Extracted segment PCM for fingerprinting"
+        );
+
+        // Generate fingerprint from segment PCM
+        self.fingerprint_pcm(segment_pcm, sample_rate)
     }
 
     /// Generate fingerprint from PCM data
@@ -94,11 +181,18 @@ impl Fingerprinter {
     /// Generate Chromaprint fingerprint using FFI
     ///
     /// **[REQ-FP-030]** Chromaprint fingerprinting with chromaprint-sys-next
+    /// **[AIA-PERF-040]** Thread-safe with serialized context creation
     ///
     /// # Safety
     ///
     /// Uses unsafe FFI calls to chromaprint C library. All FFI calls are wrapped
     /// with error checking and proper resource cleanup (RAII pattern).
+    ///
+    /// # Thread Safety
+    ///
+    /// Context creation/destruction is protected by CHROMAPRINT_LOCK mutex to ensure
+    /// thread safety with FFTW backend (not reentrant). This allows safe parallel
+    /// fingerprinting across multiple threads.
     fn generate_chromaprint(
         &self,
         pcm_data: &[i16],
@@ -106,12 +200,18 @@ impl Fingerprinter {
     ) -> Result<String, FingerprintError> {
         use chromaprint_sys_next::*;
 
+        // Acquire lock for context creation (thread-safe for all FFT backends)
+        // **[PLAN031 Task 1.7]** Proper error handling for lock acquisition (no unwrap)
+        let _guard = CHROMAPRINT_LOCK.lock().map_err(|e| {
+            FingerprintError::ChromaprintError(format!("Failed to acquire chromaprint lock: {}", e))
+        })?;
+
         unsafe {
             // Step 1: Allocate Chromaprint context (algorithm 1 = TEST2 = DEFAULT, required for AcoustID)
             let ctx = chromaprint_new(1);
             if ctx.is_null() {
                 return Err(FingerprintError::ChromaprintError(
-                    "Failed to create Chromaprint context".to_string()
+                    "Failed to create Chromaprint context".to_string(),
                 ));
             }
 
@@ -120,7 +220,7 @@ impl Fingerprinter {
             if ret != 1 {
                 chromaprint_free(ctx);
                 return Err(FingerprintError::ChromaprintError(
-                    "chromaprint_start failed".to_string()
+                    "chromaprint_start failed".to_string(),
                 ));
             }
 
@@ -129,7 +229,7 @@ impl Fingerprinter {
             if ret != 1 {
                 chromaprint_free(ctx);
                 return Err(FingerprintError::ChromaprintError(
-                    "chromaprint_feed failed".to_string()
+                    "chromaprint_feed failed".to_string(),
                 ));
             }
 
@@ -138,7 +238,7 @@ impl Fingerprinter {
             if ret != 1 {
                 chromaprint_free(ctx);
                 return Err(FingerprintError::ChromaprintError(
-                    "chromaprint_finish failed".to_string()
+                    "chromaprint_finish failed".to_string(),
                 ));
             }
 
@@ -148,13 +248,14 @@ impl Fingerprinter {
             if ret != 1 || fp_ptr.is_null() {
                 chromaprint_free(ctx);
                 return Err(FingerprintError::ChromaprintError(
-                    "chromaprint_get_fingerprint failed".to_string()
+                    "chromaprint_get_fingerprint failed".to_string(),
                 ));
             }
 
             // Step 6: Convert C string to Rust String
             let c_str = std::ffi::CStr::from_ptr(fp_ptr);
-            let fingerprint = c_str.to_str()
+            let fingerprint = c_str
+                .to_str()
                 .map_err(|e| {
                     chromaprint_dealloc(fp_ptr as *mut std::ffi::c_void);
                     chromaprint_free(ctx);
@@ -183,16 +284,34 @@ impl Fingerprinter {
         general_purpose::STANDARD.encode(raw_fingerprint)
     }
 
-    /// Decode audio file to mono PCM i16
+    /// Decode audio file to mono PCM i16 (first N seconds only)
     ///
     /// **[REQ-FP-010]** Audio decoding with Symphonia
     fn decode_audio(&self, audio_path: &Path) -> Result<(Vec<i16>, u32), FingerprintError> {
+        self.decode_audio_with_duration(audio_path, Some(self.duration_seconds))
+    }
+
+    /// Decode entire audio file to mono PCM i16 (no duration limit)
+    ///
+    /// **[REQ-FING-010]** Full audio decoding for per-segment fingerprinting
+    fn decode_audio_full(&self, audio_path: &Path) -> Result<(Vec<i16>, u32), FingerprintError> {
+        self.decode_audio_with_duration(audio_path, None)
+    }
+
+    /// Decode audio file to mono PCM i16 with optional duration limit
+    ///
+    /// **[REQ-FP-010]** Audio decoding with Symphonia
+    fn decode_audio_with_duration(
+        &self,
+        audio_path: &Path,
+        max_duration_seconds: Option<usize>,
+    ) -> Result<(Vec<i16>, u32), FingerprintError> {
+        use std::fs::File;
         use symphonia::core::codecs::DecoderOptions;
         use symphonia::core::formats::FormatOptions;
         use symphonia::core::io::MediaSourceStream;
         use symphonia::core::meta::MetadataOptions;
         use symphonia::core::probe::Hint;
-        use std::fs::File;
 
         // Open the audio file
         let file = File::open(audio_path)?;
@@ -207,7 +326,12 @@ impl Fingerprinter {
         }
 
         let probed = symphonia::default::get_probe()
-            .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+            .format(
+                &hint,
+                mss,
+                &FormatOptions::default(),
+                &MetadataOptions::default(),
+            )
             .map_err(|e| FingerprintError::DecodeError(format!("Format probe failed: {}", e)))?;
 
         let mut format_reader = probed.format;
@@ -225,12 +349,14 @@ impl Fingerprinter {
         // Create the decoder
         let mut decoder = symphonia::default::get_codecs()
             .make(&track.codec_params, &DecoderOptions::default())
-            .map_err(|e| FingerprintError::DecodeError(format!("Decoder creation failed: {}", e)))?;
+            .map_err(|e| {
+                FingerprintError::DecodeError(format!("Decoder creation failed: {}", e))
+            })?;
 
         let track_id = track.id; // Copy track ID to avoid borrow issues
 
         let mut samples_i16 = Vec::new();
-        let max_samples = sample_rate as usize * self.duration_seconds;
+        let max_samples = max_duration_seconds.map(|dur| sample_rate as usize * dur);
 
         // Decode packets until we have enough samples
         while let Ok(packet) = format_reader.next_packet() {
@@ -246,10 +372,12 @@ impl Fingerprinter {
                     let mono_i16 = self.convert_to_mono_i16(&decoded);
                     samples_i16.extend_from_slice(&mono_i16);
 
-                    // Stop if we have enough samples
-                    if samples_i16.len() >= max_samples {
-                        samples_i16.truncate(max_samples);
-                        break;
+                    // Stop if we have enough samples (when duration limit is set)
+                    if let Some(max) = max_samples {
+                        if samples_i16.len() >= max {
+                            samples_i16.truncate(max);
+                            break;
+                        }
                     }
                 }
                 Err(e) => {
@@ -265,7 +393,11 @@ impl Fingerprinter {
     /// Resample audio to 44.1kHz if needed
     ///
     /// **[REQ-FP-020]** Audio resampling using Rubato
-    fn resample_to_44100(&self, pcm_data: &[i16], sample_rate: u32) -> Result<(Vec<i16>, u32), FingerprintError> {
+    fn resample_to_44100(
+        &self,
+        pcm_data: &[i16],
+        sample_rate: u32,
+    ) -> Result<(Vec<i16>, u32), FingerprintError> {
         const TARGET_SAMPLE_RATE: u32 = 44100;
 
         // Skip resampling if already at target rate (optimization)
@@ -274,7 +406,8 @@ impl Fingerprinter {
         }
 
         use rubato::{
-            Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction,
+            Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType,
+            WindowFunction,
         };
 
         // Convert i16 to f32 for resampling (Rubato works with f32)
@@ -400,7 +533,10 @@ mod tests {
 
         let result = fp.fingerprint_pcm(&short_pcm, 44100);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), FingerprintError::AudioTooShort));
+        assert!(matches!(
+            result.unwrap_err(),
+            FingerprintError::AudioTooShort
+        ));
     }
 
     #[test]

@@ -289,103 +289,51 @@ This framework ensures decisions align with charter by prioritizing approaches t
 
 # Microservices Architecture
 
-WKMP consists of **6 independent HTTP-based microservices**:
+WKMP consists of 6 independent HTTP-based microservices. See [SPEC001-architecture.md § 2.1](docs/SPEC001-architecture.md#21-module-overview) for complete module details, ports, and version availability.
 
-| Module | Port | Purpose | Versions |
-|--------|------|---------|----------|
-| **Audio Player (wkmp-ap)** | 5721 | Core playback, crossfading, queue management | All |
-| **User Interface (wkmp-ui)** | 5720 | Web UI, authentication, orchestration | All |
-| **Program Director (wkmp-pd)** | 5722 | Automatic passage selection algorithm | Full, Lite |
-| **Audio Ingest (wkmp-ai)** | 5723 | Import wizard UI, file scanning, MusicBrainz identification | Full (on-demand) |
-| **Lyric Editor (wkmp-le)** | 5724 | Split-window lyric editing interface | Full (on-demand) |
-| **Database Review (wkmp-dr)** | 5725 | Read-only database inspection tool | Full |
+**Quick Reference:**
+- wkmp-ui (5720): Web UI and orchestration
+- wkmp-ap (5721): Audio playback engine
+- wkmp-pd (5722): Automatic passage selection
+- wkmp-ai (5723): Import wizard (Full version, on-demand)
+- wkmp-le (5724): Lyric editor (Full version, on-demand)
+- wkmp-dr (5725): Database review (Full version)
 
 **Communication:** HTTP REST APIs + Server-Sent Events (SSE) for real-time updates
 
 ### Zero-Configuration Startup (MANDATORY - ALL MODULES)
 
-**[REQ-NF-030] through [REQ-NF-037]** ALL six modules MUST implement zero-config startup:
-
-**Implementation Pattern (REQUIRED):**
-```rust
-#[tokio::main]
-async fn main() -> Result<()> {
-    // Step 0: Initialize tracing subscriber [ARCH-INIT-003]
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "module_name=debug,wkmp_common=info".into()),
-        )
-        .with(tracing_subscriber::fmt::layer().with_target(true).with_file(true).with_line_number(true))
-        .init();
-
-    // **[ARCH-INIT-004]** Log build identification IMMEDIATELY after tracing init
-    // REQUIRED for all modules - provides instant startup feedback before database delays
-    info!(
-        "Starting WKMP [Module Name] (module-id) v{} [{}] built {} ({})",
-        env!("CARGO_PKG_VERSION"),
-        env!("GIT_HASH"),
-        env!("BUILD_TIMESTAMP"),
-        env!("BUILD_PROFILE")
-    );
-
-    // Step 1: Resolve root folder (4-tier priority)
-    let resolver = wkmp_common::config::RootFolderResolver::new("module-name");
-    let root_folder = resolver.resolve();
-
-    // Step 2: Create directory if missing
-    let initializer = wkmp_common::config::RootFolderInitializer::new(root_folder);
-    initializer.ensure_directory_exists()?;
-
-    // Step 3: Get database path
-    let db_path = initializer.database_path();  // root_folder/wkmp.db
-    ...
-}
-```
+**[REQ-NF-030] through [REQ-NF-037]** ALL six modules MUST start without configuration files.
 
 **4-Tier Priority for Root Folder Resolution:**
-1. CLI argument: `--root-folder /custom/path` or `--root /custom/path`
-2. Environment variable: `WKMP_ROOT_FOLDER=/custom/path` or `WKMP_ROOT=/custom/path`
+1. CLI argument: `--root-folder /custom/path`
+2. Environment variable: `WKMP_ROOT_FOLDER=/custom/path`
 3. TOML config: `~/.config/wkmp/<module-name>.toml`
 4. Compiled default: `~/Music` (Linux/macOS), `%USERPROFILE%\Music` (Windows)
 
+See [ADR-003-zero_configuration_strategy.md](docs/ADR-003-zero_configuration_strategy.md) for architectural decision and implementation pattern.
+
 **Enforcement:**
-- NO module may hardcode database paths (e.g., `PathBuf::from("wkmp.db")`)
-- NO module may implement custom root folder resolution
+- NO module may hardcode database paths
 - ALL modules MUST use `wkmp_common::config` utilities
+
+**Implementation Example:** See [IMPL003-project_structure.md § Zero-Config Startup Pattern](docs/IMPL003-project_structure.md#zero-config-startup-pattern) for complete code template.
 
 ### On-Demand Microservices
 
-**[ARCH-OD-010]** wkmp-ai and wkmp-le are "on-demand" specialized tools:
-
-**Architectural Pattern:**
-- Each provides its own web UI served on dedicated port
-- User accesses via browser (not embedded in wkmp-ui)
-- wkmp-ui provides launch points (buttons/links to open in new tab)
-- Decoupled specialized UIs for complex one-time operations
+**[ARCH-OD-010]** wkmp-ai and wkmp-le are "on-demand" specialized tools with dedicated UIs.
 
 **Access Method:**
 - **wkmp-ai:** http://localhost:5723 (import wizard, file segmentation)
 - **wkmp-le:** http://localhost:5724 (lyric editor, split-window interface)
-- **wkmp-ui:** http://localhost:5720 (main playback UI, provides links to above)
+- **wkmp-ui:** http://localhost:5720 (main playback UI, provides launch buttons)
 
-**Rationale:**
-- Complex workflows benefit from dedicated UI (not cluttering main playback interface)
-- Specialized visualization tools (waveforms, lyric sync timing)
-- Infrequent use (import once, edit lyrics occasionally)
-- Independent development and deployment
-
-**User Flow Example (Import):**
-1. User opens wkmp-ui (http://localhost:5720)
-2. Clicks "Import Music" in library view
-3. wkmp-ui opens http://localhost:5723 in new browser tab
-4. User completes import workflow in wkmp-ai UI
-5. Clicks "Return to WKMP" → Back to wkmp-ui tab
+See [SPEC001-architecture.md § 2.1](docs/SPEC001-architecture.md#21-module-overview) for architectural pattern and [§ 2.2](docs/SPEC001-architecture.md#22-module-responsibilities) for detailed module responsibilities.
 
 **Version Availability:**
-- Full version: All 6 microservices (including wkmp-ai, wkmp-le, wkmp-dr)
-- Lite version: wkmp-ui shows "Import Music" disabled with "Full version required" tooltip
-- Minimal version: No import or lyric editing functionality
+- Full version: All 6 microservices
+- Lite version: "Import Music" disabled with tooltip
+- Minimal version: No import or lyric editing
 
 ---
 

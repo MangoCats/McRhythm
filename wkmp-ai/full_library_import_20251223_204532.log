@@ -1,0 +1,392 @@
+[     0.002s] === Full Library Import Test Started ===
+Total files: 20
+Album matching: true
+Cache database: c:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\test_recording_cache.db (existing)
+[     0.002s] FILE_START [1/20] Acoustic Noodling 07.wav
+[     0.002s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Acoustic Noodling 07.wav"
+[     0.002s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Acoustic Noodling 07.wav", score: 0.8, is_single_track: true }
+[     0.003s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 58220800, confidence: 0.5, timestamp: 1766540732 }
+[     0.003s] EVENT PassageStarted: passage #0
+[     0.003s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.003s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.003s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.011s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766540732 }
+[     0.011s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.012s] FILE_COMPLETE [1/20] Acoustic Noodling 07.wav - 1 passages in 0.01s (total_elapsed: 0.0s)
+[     0.012s] FILE_START [2/20] Basso.wav
+[     0.012s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.012s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.012s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.012s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.012s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.012s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.012s] EVENT PassageCompleted: passage #0
+[     0.012s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Acoustic Noodling 07.wav"
+[     0.012s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Basso.wav"
+[     0.012s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Basso.wav", score: 0.8, is_single_track: true }
+[     0.012s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 4642560, confidence: 0.5, timestamp: 1766540732 }
+[     0.012s] EVENT PassageStarted: passage #0
+[     0.012s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.012s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.012s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.013s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "failed", timestamp: 1766540732 }
+[     0.013s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.013s] FILE_COMPLETE [2/20] Basso.wav - 1 passages in 0.00s (total_elapsed: 0.0s)
+[     0.013s] FILE_START [3/20] Blow.wav
+[     0.013s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.013s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.013s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.013s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.013s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.013s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.013s] EVENT PassageCompleted: passage #0
+[     0.013s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Basso.wav"
+[     0.013s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Blow.wav"
+[     0.013s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Blow.wav", score: 0.8, is_single_track: true }
+[     0.014s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 37397120, confidence: 0.5, timestamp: 1766540732 }
+[     0.014s] EVENT PassageStarted: passage #0
+[     0.014s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.014s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.014s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.015s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "failed", timestamp: 1766540732 }
+[     0.015s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.015s] FILE_COMPLETE [3/20] Blow.wav - 1 passages in 0.00s (total_elapsed: 0.0s)
+[     0.015s] FILE_START [4/20] Bottle.wav
+[     0.015s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.015s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.015s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.015s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.015s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.016s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.016s] EVENT PassageCompleted: passage #0
+[     0.016s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Blow.wav"
+[     0.016s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Bottle.wav"
+[     0.016s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Bottle.wav", score: 0.8, is_single_track: true }
+[     0.016s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7856000, confidence: 0.5, timestamp: 1766540732 }
+[     0.016s] EVENT PassageStarted: passage #0
+[     0.016s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.016s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.016s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.021s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766540732 }
+[     0.021s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.021s] FILE_COMPLETE [4/20] Bottle.wav - 1 passages in 0.01s (total_elapsed: 0.0s)
+[     0.021s] FILE_START [5/20] Ceramic Drum 02.wav
+[     0.021s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.021s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.021s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.021s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.021s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.021s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.021s] EVENT PassageCompleted: passage #0
+[     0.021s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Bottle.wav"
+[     0.021s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Ceramic Drum 02.wav"
+[     0.021s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Ceramic Drum 02.wav", score: 0.8, is_single_track: true }
+[     0.022s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 56448000, confidence: 0.5, timestamp: 1766540732 }
+[     0.022s] EVENT PassageStarted: passage #0
+[     0.022s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.022s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.022s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.028s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766540732 }
+[     0.028s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.029s] FILE_COMPLETE [5/20] Ceramic Drum 02.wav - 1 passages in 0.01s (total_elapsed: 0.0s)
+[     0.029s] FILE_START [6/20] Cool Upright Bass clip.wav
+[     0.029s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.029s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.029s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.029s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.029s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.029s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.029s] EVENT PassageCompleted: passage #0
+[     0.029s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Ceramic Drum 02.wav"
+[     0.029s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Cool Upright Bass clip.wav"
+[     0.029s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Cool Upright Bass clip.wav", score: 0.8, is_single_track: true }
+[     0.029s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 19944320, confidence: 0.5, timestamp: 1766540732 }
+[     0.029s] EVENT PassageStarted: passage #0
+[     0.029s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.029s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.029s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.035s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766540732 }
+[     0.035s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.035s] FILE_COMPLETE [6/20] Cool Upright Bass clip.wav - 1 passages in 0.01s (total_elapsed: 0.0s)
+[     0.035s] FILE_START [7/20] Electric Slap 07 clip.wav
+[     0.035s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.035s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.035s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.035s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.035s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.035s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.035s] EVENT PassageCompleted: passage #0
+[     0.035s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Cool Upright Bass clip.wav"
+[     0.035s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Electric Slap 07 clip.wav"
+[     0.035s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Electric Slap 07 clip.wav", score: 0.8, is_single_track: true }
+[     0.036s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 61559680, confidence: 0.5, timestamp: 1766540732 }
+[     0.036s] EVENT PassageStarted: passage #0
+[     0.036s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.036s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.036s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.044s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766540732 }
+[     0.044s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.045s] FILE_COMPLETE [7/20] Electric Slap 07 clip.wav - 1 passages in 0.01s (total_elapsed: 0.0s)
+[     0.045s] FILE_START [8/20] Frog.wav
+[     0.045s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.045s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.045s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.045s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.045s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.045s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.045s] EVENT PassageCompleted: passage #0
+[     0.045s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Electric Slap 07 clip.wav"
+[     0.045s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Frog.wav"
+[     0.045s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Frog.wav", score: 0.8, is_single_track: true }
+[     0.045s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 1928960, confidence: 0.5, timestamp: 1766540732 }
+[     0.045s] EVENT PassageStarted: passage #0
+[     0.045s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.045s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.045s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.046s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "failed", timestamp: 1766540732 }
+[     0.046s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.046s] FILE_COMPLETE [8/20] Frog.wav - 1 passages in 0.00s (total_elapsed: 0.0s)
+[     0.046s] FILE_START [9/20] Funk.wav
+[     0.046s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.046s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.046s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.046s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.046s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.046s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.046s] EVENT PassageCompleted: passage #0
+[     0.046s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Frog.wav"
+[     0.046s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Funk.wav"
+[     0.046s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Funk.wav", score: 0.8, is_single_track: true }
+[     0.046s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 5222400, confidence: 0.5, timestamp: 1766540732 }
+[     0.046s] EVENT PassageStarted: passage #0
+[     0.046s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.046s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.046s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.049s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766540732 }
+[     0.049s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.049s] FILE_COMPLETE [9/20] Funk.wav - 1 passages in 0.00s (total_elapsed: 0.0s)
+[     0.049s] FILE_START [10/20] Funky Pop Bass 02 rip.wav
+[     0.049s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.049s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.049s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.049s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.049s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.049s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.049s] EVENT PassageCompleted: passage #0
+[     0.049s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Funk.wav"
+[     0.049s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Funky Pop Bass 02 rip.wav"
+[     0.049s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Funky Pop Bass 02 rip.wav", score: 0.8, is_single_track: true }
+[     0.050s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 65132160, confidence: 0.5, timestamp: 1766540732 }
+[     0.050s] EVENT PassageStarted: passage #0
+[     0.050s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.050s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.050s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.051s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "failed", timestamp: 1766540732 }
+[     0.051s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.051s] FILE_COMPLETE [10/20] Funky Pop Bass 02 rip.wav - 1 passages in 0.00s (total_elapsed: 0.0s)
+[     0.051s] PROGRESS 10/20 (50.0%) - 200.88 files/sec - ETA: 0.0min
+[     0.051s] FILE_START [11/20] Glass.wav
+[     0.052s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.052s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.052s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.052s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.052s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.052s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.052s] EVENT PassageCompleted: passage #0
+[     0.052s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Funky Pop Bass 02 rip.wav"
+[     0.052s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Glass.wav"
+[     0.052s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Glass.wav", score: 0.8, is_single_track: true }
+[     0.052s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 17781120, confidence: 0.5, timestamp: 1766540732 }
+[     0.052s] EVENT PassageStarted: passage #0
+[     0.052s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.052s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.052s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.053s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "failed", timestamp: 1766540732 }
+[     0.053s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.053s] FILE_COMPLETE [11/20] Glass.wav - 1 passages in 0.00s (total_elapsed: 0.1s)
+[     0.053s] FILE_START [12/20] Hero.wav
+[     0.053s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.053s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.053s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.053s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.053s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.053s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.053s] EVENT PassageCompleted: passage #0
+[     0.053s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Glass.wav"
+[     0.053s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Hero.wav"
+[     0.053s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Hero.wav", score: 0.8, is_single_track: true }
+[     0.054s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 29823360, confidence: 0.5, timestamp: 1766540732 }
+[     0.054s] EVENT PassageStarted: passage #0
+[     0.054s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.054s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.054s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.054s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "failed", timestamp: 1766540732 }
+[     0.054s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.055s] FILE_COMPLETE [12/20] Hero.wav - 1 passages in 0.00s (total_elapsed: 0.1s)
+[     0.055s] FILE_START [13/20] Island Reggae Drums 01 clip.wav
+[     0.055s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.055s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.055s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.055s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.055s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.055s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.055s] EVENT PassageCompleted: passage #0
+[     0.055s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Hero.wav"
+[     0.055s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Island Reggae Drums 01 clip.wav"
+[     0.055s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Island Reggae Drums 01 clip.wav", score: 0.8, is_single_track: true }
+[     0.056s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 53608960, confidence: 0.5, timestamp: 1766540732 }
+[     0.056s] EVENT PassageStarted: passage #0
+[     0.056s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.056s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.056s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.062s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766540732 }
+[     0.062s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.062s] FILE_COMPLETE [13/20] Island Reggae Drums 01 clip.wav - 1 passages in 0.01s (total_elapsed: 0.1s)
+[     0.062s] FILE_START [14/20] Latin Triangle 02c.wav
+[     0.063s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.063s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.063s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.063s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.063s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.063s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.063s] EVENT PassageCompleted: passage #0
+[     0.063s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Island Reggae Drums 01 clip.wav"
+[     0.063s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Latin Triangle 02c.wav"
+[     0.063s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Latin Triangle 02c.wav", score: 0.8, is_single_track: true }
+[     0.063s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 9096320, confidence: 0.5, timestamp: 1766540732 }
+[     0.063s] EVENT PassageStarted: passage #0
+[     0.063s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.063s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.063s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.068s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766540732 }
+[     0.068s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.068s] FILE_COMPLETE [14/20] Latin Triangle 02c.wav - 1 passages in 0.01s (total_elapsed: 0.1s)
+[     0.068s] FILE_START [15/20] Mediaval Flute 05 clip.wav
+[     0.068s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.068s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.068s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.068s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.068s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.068s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.068s] EVENT PassageCompleted: passage #0
+[     0.068s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Latin Triangle 02c.wav"
+[     0.068s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Mediaval Flute 05 clip.wav"
+[     0.068s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Mediaval Flute 05 clip.wav", score: 0.8, is_single_track: true }
+[     0.069s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 49895680, confidence: 0.5, timestamp: 1766540732 }
+[     0.069s] EVENT PassageStarted: passage #0
+[     0.069s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.069s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.069s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.075s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766540732 }
+[     0.075s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.075s] FILE_COMPLETE [15/20] Mediaval Flute 05 clip.wav - 1 passages in 0.01s (total_elapsed: 0.1s)
+[     0.075s] FILE_START [16/20] Moody Electric Piano 01 clip.wav
+[     0.075s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.075s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.075s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.075s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.075s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.075s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.075s] EVENT PassageCompleted: passage #0
+[     0.075s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Mediaval Flute 05 clip.wav"
+[     0.075s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Moody Electric Piano 01 clip.wav"
+[     0.075s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Moody Electric Piano 01 clip.wav", score: 0.8, is_single_track: true }
+[     0.077s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 86842880, confidence: 0.5, timestamp: 1766540732 }
+[     0.077s] EVENT PassageStarted: passage #0
+[     0.077s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.077s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.077s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.083s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766540732 }
+[     0.083s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.084s] FILE_COMPLETE [16/20] Moody Electric Piano 01 clip.wav - 1 passages in 0.01s (total_elapsed: 0.1s)
+[     0.084s] FILE_START [17/20] Ping.wav
+[     0.084s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.084s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.084s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.084s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.084s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.084s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.084s] EVENT PassageCompleted: passage #0
+[     0.084s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Moody Electric Piano 01 clip.wav"
+[     0.084s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Ping.wav"
+[     0.084s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Ping.wav", score: 0.8, is_single_track: true }
+[     0.085s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 10725120, confidence: 0.5, timestamp: 1766540732 }
+[     0.085s] EVENT PassageStarted: passage #0
+[     0.085s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.085s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.085s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.085s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "failed", timestamp: 1766540732 }
+[     0.085s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.085s] FILE_COMPLETE [17/20] Ping.wav - 1 passages in 0.00s (total_elapsed: 0.1s)
+[     0.085s] FILE_START [18/20] Plucky Guitar clip.wav
+[     0.085s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.085s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.085s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.085s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.085s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.085s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.085s] EVENT PassageCompleted: passage #0
+[     0.085s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Ping.wav"
+[     0.085s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Plucky Guitar clip.wav"
+[     0.085s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Plucky Guitar clip.wav", score: 0.8, is_single_track: true }
+[     0.086s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 13677440, confidence: 0.5, timestamp: 1766540732 }
+[     0.086s] EVENT PassageStarted: passage #0
+[     0.086s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.086s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.086s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.086s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "failed", timestamp: 1766540732 }
+[     0.086s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.086s] FILE_COMPLETE [18/20] Plucky Guitar clip.wav - 1 passages in 0.00s (total_elapsed: 0.1s)
+[     0.087s] FILE_START [19/20] Pop.wav
+[     0.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.087s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.087s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.087s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.087s] EVENT PassageCompleted: passage #0
+[     0.087s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Plucky Guitar clip.wav"
+[     0.087s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Pop.wav"
+[     0.087s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Pop.wav", score: 0.8, is_single_track: true }
+[     0.087s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 2496000, confidence: 0.5, timestamp: 1766540732 }
+[     0.087s] EVENT PassageStarted: passage #0
+[     0.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.089s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766540732 }
+[     0.089s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.089s] FILE_COMPLETE [19/20] Pop.wav - 1 passages in 0.00s (total_elapsed: 0.1s)
+[     0.089s] FILE_START [20/20] Purr.wav
+[     0.089s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.089s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.089s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.089s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.089s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.089s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.089s] EVENT PassageCompleted: passage #0
+[     0.089s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Pop.wav"
+[     0.089s] EVENT FileStarted: "C:/Users/Mango Cat/Music/Sounds\\Purr.wav"
+[     0.089s] EVENT SingleTrackCheckCompleted { file_path: "C:/Users/Mango Cat/Music/Sounds\\Purr.wav", score: 0.8, is_single_track: true }
+[     0.090s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 13688960, confidence: 0.5, timestamp: 1766540732 }
+[     0.090s] EVENT PassageStarted: passage #0
+[     0.090s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766540732 }
+[     0.090s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766540732 }
+[     0.090s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766540732 }
+[     0.090s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "failed", timestamp: 1766540732 }
+[     0.090s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766540732 }
+[     0.090s] FILE_COMPLETE [20/20] Purr.wav - 1 passages in 0.00s (total_elapsed: 0.1s)
+[     0.090s] PROGRESS 20/20 (100.0%) - 225.29 files/sec - ETA: 0.0min
+[     0.090s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766540732 }
+[     0.090s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766540732 }
+[     0.090s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766540732 }
+[     0.090s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.090s] EVENT FusionStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.090s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766540732 }
+[     0.090s] EVENT PassageCompleted: passage #0
+[     0.090s] EVENT FileCompleted: "C:/Users/Mango Cat/Music/Sounds\\Purr.wav"
+[     0.091s] === Import Test Completed ===
+Total duration: 0.1s
+Files processed: 20/20
+Passages created: 20
+Recording cache: 0 entries
+MBID cache: 3948 entries

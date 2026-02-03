@@ -21,7 +21,7 @@ Defines the workflow for segmenting a single audio file into multiple Passages. 
 - Step 4: Interactive segment editor (waveform display, draggable boundaries)
 - Step 5: Progress display and completion summary
 
-**See:** [Audio Ingest Architecture - UI Architecture](SPEC024-audio_ingest_architecture.md#ui-architecture)
+**See:** [Audio Ingest Architecture - UI Architecture](SPEC032-audio_ingest_architecture.md#ui-architecture)
 
 ## 1. Overview
 

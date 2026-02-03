@@ -10,6 +10,7 @@
 
 use anyhow::Result;
 use tracing::{error, info};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use wkmp_common::api::auth::load_shared_secret;
 use wkmp_common::config::{RootFolderInitializer, RootFolderResolver};
 use wkmp_dr::{build_router, AppState};
@@ -18,12 +19,13 @@ mod db;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // [ARCH-INIT-003] Initialize tracing subscriber
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive(tracing::Level::INFO.into()),
+    // [ARCH-INIT-003] Initialize tracing subscriber with file and line number information
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "wkmp_dr=info,wkmp_common=info".into()),
         )
+        .with(tracing_subscriber::fmt::layer().with_target(true).with_file(true).with_line_number(true))
         .init();
 
     // [ARCH-INIT-004] Log build identification IMMEDIATELY after tracing init

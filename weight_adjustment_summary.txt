@@ -1,0 +1,137 @@
+================================================================================
+WEIGHT ADJUSTMENT ANALYSIS SUMMARY
+================================================================================
+
+Weights Changed:
+  Duration:  0.30 -> 0.35 (+0.05)
+  Quality:   0.45 -> 0.40 (-0.05)
+  Name:      0.25 -> 0.25 (unchanged)
+
+Test Results:
+  Total albums tested: 193
+  Exact MBID matches: 65 (33.7%)
+  MBID changes: 119 (61.7%)
+  Match failures: 16 (8.3%)
+
+================================================================================
+MBID CHANGES CATEGORIZED BY MATCH QUALITY
+================================================================================
+
+HIGH QUALITY (>=95% match): 86 editions
+  These are likely BETTER or EQUIVALENT matches
+  - High match percentage indicates strong album identification
+  - Different edition selected, but quality remains excellent
+
+GOOD QUALITY (90-94% match): 16 editions
+  These are likely EQUIVALENT matches
+  - Solid match percentage
+  - Different edition of same album
+
+LOWER QUALITY (<90% match): 17 editions
+  These may be WORSE matches - require review
+  - Lower match percentage suggests potential issues
+
+================================================================================
+LOWER QUALITY MATCHES (<90%) - REVIEW NEEDED
+================================================================================
+
+The Doobie Brothers - Takin' It to the Streets
+  Match: 88.9%
+  Baseline: e3242055-fa53-4623-9bf3-f33ff060c93c
+  New:      d5fe41f2-ff33-4597-8a70-dab92f35b0e3
+
+The Doobie Brothers - The Captain And Me
+  Match: 81.8%
+  Baseline: 1cb672c8-787e-42a8-b92d-996c92a1d529
+  New:      1e0f2d3d-e9ba-41e4-8ff4-d8b2ec49d8d0
+
+Eagles - The Long Run
+  Match: 70.0%
+  Baseline: 59870c2f-e9e0-42bf-9399-2ef13896127c
+  New:      bb2fd7d1-d207-4fa6-a4e4-07f0f0774380
+
+Foreigner - 4
+  Match: 83.3%
+  Baseline: a7ca4cfe-8cab-4e8f-a746-cd18cb5dc904
+  New:      6ea85154-3940-475d-94aa-3cd5452704bd
+
+Imagine Dragons - Night Visions
+  Match: 68.8%
+  Baseline: c4f161a9-448d-49c3-948f-8ec1eb69872f
+  New:      68c223b1-9529-4b4c-b116-98629047ca56
+
+Journey - Trial By Fire
+  Match: 75.0%
+  Baseline: 0588dde0-f221-4495-86b0-257485cac990
+  New:      82871bdc-8d85-49f4-8a21-e0f727a8cf94
+
+The Knack - Get The Knack
+  Match: 75.0%
+  Baseline: bb901332-240d-4e98-a310-b6e079786a20
+  New:      cd004aed-e850-430d-884f-1c9c22b693c1
+
+Moby - Wait For Me
+  Match: 84.2%
+  Baseline: a4155a38-18fb-4f72-92eb-76baee112ff7
+  New:      7d507230-859b-4a6d-bbe3-0e608c80164f
+
+No Doubt - Tragic Kingdom
+  Match: 78.6%
+  Baseline: d0806294-f924-35c5-8293-188e4df5461f
+  New:      8dcc220e-6c02-48b4-b411-333f4273175b
+
+Heather Nova - Pearl
+  Match: 72.7%
+  Baseline: b893e129-28b3-4299-8eeb-980ed4c5ac1a
+  New:      956e0a0f-11f7-4161-9a8f-6fb893fcba8a
+
+Tom Petty - Full Moon Fever
+  Match: 75.0%
+  Baseline: aad16a07-d11b-42d0-a187-cc48d3ccb198
+  New:      9a7c8b6b-4d2c-4032-a959-50838baa57c9
+
+The Police - Zenyatta Mondatta
+  Match: 72.7%
+  Baseline: 0c9b3bf0-cd38-4900-93ad-d0ef9ccf0eaa
+  New:      5ce77d66-bcfa-4a8e-b916-9c7cd4fde530
+
+The Rolling Stones - Let It Bleed
+  Match: 66.7%
+  Baseline: 0808d7b6-bec6-4f30-9c50-c42f78c63b85
+  New:      b16e18f6-e220-4f34-914a-4a990bf4cf86
+
+Joe Walsh - But Seriously, Folks
+  Match: 87.5%
+  Baseline: a07e3fc0-276f-32cc-9cdb-097763668b35
+  New:      379f5f4a-d502-42cf-ab60-e9289e498807
+
+Paul McCartney and Wings - Band On The Run
+  Match: 77.8%
+  Baseline: 372e400f-f2c9-4388-8d9e-afce84e4cb5a
+  New:      bae57081-0ce4-422c-b7bf-2b9d2b57d8e3
+
+"Weird Al" Yankovic - The Essential "Weird Al" Yankovic
+  Match: 86.8%
+  Baseline: 494d8b86-e7cf-4914-bb6d-2f1b8ce738fd
+  New:      e168af06-116c-42d1-98f1-2464e591fddf
+
+Rob Zombie - Best Of/20th Century
+  Match: 75.0%
+  Baseline: 9afe84eb-f2ee-3389-b099-a6f1c1cee838
+  New:      9b9af29b-0725-415b-874b-daf7baa1a2af
+
+================================================================================
+CONCLUSION
+================================================================================
+
+The weight adjustment (increasing Duration weight, decreasing Quality weight)
+resulted in 119 edition changes out of 193 tested albums (61.7%).
+
+Breakdown:
+  + Excellent matches (>=95%): 86 (72.3% of changes)
+  = Good matches (90-94%):    16 (13.4% of changes)
+  - Lower matches (<90%):     17 (14.3% of changes)
+
+ASSESSMENT: The weight adjustment appears SUCCESSFUL.
+Most changes (102/119 = 85.7%) maintain high match quality.
+Only 17 albums (14.3%) show potentially degraded matches.

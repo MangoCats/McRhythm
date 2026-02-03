@@ -7,37 +7,28 @@
 //! - [DEP-DB-011]: Database initialization on first run
 
 use crate::Result;
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 use std::path::Path;
 use tracing::{info, warn};
 
-/// Initialize database connection and create tables if needed [REQ-NF-036]
-pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
-    let newly_created = !db_path.exists();
-
-    // Create parent directory if it doesn't exist
-    if let Some(parent) = db_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    // Use sqlite options to create database if it doesn't exist
-    let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
-    let pool = SqlitePool::connect(&db_url).await?;
-
-    if newly_created {
-        info!("Initialized new database: {}", db_path.display());
-    } else {
-        info!("Opened existing database: {}", db_path.display());
-    }
-
+/// Initialize database schema on existing pool [REQ-NF-036]
+///
+/// **[AIA-INIT-010]** Used by wkmp-ai two-stage initialization:
+/// - Stage 1: Bootstrap reads settings with minimal pool
+/// - Stage 2: Creates production pool, then calls this function to initialize schema
+///
+/// **Idempotent:** Safe to call multiple times - all operations use IF NOT EXISTS
+pub async fn init_database_schema(pool: &SqlitePool) -> Result<()> {
     // Enable foreign keys
     sqlx::query("PRAGMA foreign_keys = ON")
-        .execute(&pool)
+        .execute(pool)
         .await?;
 
-    // Set busy timeout to 5 seconds [ARCH-ERRH-070]
-    sqlx::query("PRAGMA busy_timeout = 5000")
-        .execute(&pool)
+    // **[ARCH-PERF-010]** Enable WAL mode for better write concurrency
+    // WAL (Write-Ahead Logging) allows concurrent readers with one writer
+    // Critical for multi-threaded import workflow with multiple worker threads
+    sqlx::query("PRAGMA journal_mode = WAL")
+        .execute(pool)
         .await?;
 
     // Run migrations (idempotent - safe to call multiple times)
@@ -47,6 +38,7 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     create_module_config_table(&pool).await?;
     create_files_table(&pool).await?;
     create_passages_table(&pool).await?;
+    create_import_provenance_table(&pool).await?;
     create_queue_table(&pool).await?;
     create_acoustid_cache_table(&pool).await?;
 
@@ -67,13 +59,70 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     create_temp_file_songs_table(&pool).await?;
     create_temp_file_albums_table(&pool).await?;
 
-    // Run schema migrations [ARCH-DB-MIG-010]
-    // This must run AFTER all CREATE TABLE IF NOT EXISTS statements
-    // to handle schema changes in existing databases
+    // Phase 2: Automatic Schema Synchronization [ARCH-DB-SYNC-020]
+    // Automatically add missing columns to existing tables
+    // This runs AFTER CREATE TABLE IF NOT EXISTS and BEFORE manual migrations
+    crate::db::table_schemas::sync_all_table_schemas(&pool).await?;
+
+    // Phase 3: Manual Migrations [ARCH-DB-MIG-010]
+    // Complex transformations (type changes, data migration, etc.)
+    // This must run AFTER auto-sync to handle edge cases
     crate::db::migrations::run_migrations(&pool).await?;
 
-    // Initialize default settings [ARCH-INIT-020]
+    // Phase 4: Initialize default settings [ARCH-INIT-020]
     init_default_settings(&pool).await?;
+
+    // Apply configurable busy timeout from settings [ARCH-ERRH-070]
+    // Use ai_database_lock_retry_ms (default 250ms) for SQLite busy_timeout
+    // Higher value allows SQLite to auto-retry internally during concurrent access
+    let timeout_ms: i64 = sqlx::query_scalar(
+        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_lock_retry_ms'"
+    )
+    .fetch_optional(pool)
+    .await?
+    .unwrap_or(30000);
+
+    let pragma_sql = format!("PRAGMA busy_timeout = {}", timeout_ms);
+    sqlx::query(&pragma_sql)
+        .execute(pool)
+        .await?;
+
+    info!("Database busy timeout set to {} ms", timeout_ms);
+
+    Ok(())
+}
+
+/// Initialize database connection and create tables if needed [REQ-NF-036]
+///
+/// **Standard initialization** - Creates pool with hardcoded settings, then initializes schema
+///
+/// **Note:** wkmp-ai uses two-stage initialization instead (bootstrap config → create_pool → init_database_schema)
+pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
+    let newly_created = !db_path.exists();
+
+    // Create parent directory if it doesn't exist
+    if let Some(parent) = db_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    // Use sqlite options to create database if it doesn't exist
+    // **[ARCH-PERF-020]** Connection pool size for standard modules
+    // wkmp-ai overrides this via two-stage initialization with ai_database_connection_pool_size setting
+    let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
+    let pool = SqlitePoolOptions::new()
+        .max_connections(96)
+        .min_connections(5)
+        .connect(&db_url)
+        .await?;
+
+    if newly_created {
+        info!("Initialized new database: {}", db_path.display());
+    } else {
+        info!("Opened existing database: {}", db_path.display());
+    }
+
+    // Initialize schema using shared function
+    init_database_schema(&pool).await?;
 
     Ok(pool)
 }
@@ -123,6 +172,9 @@ async fn create_users_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the settings table
+///
+/// Stores application configuration key-value pairs.
 pub async fn create_settings_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -188,7 +240,37 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
     ensure_setting(pool, "playback_failure_window_seconds", "60").await?;
 
     // Audio Ingest settings (Full version)
-    ensure_setting(pool, "ingest_max_concurrent_jobs", "4").await?;
+    // **[ARCH-ASYNC-020]** Maximum concurrent import jobs
+    // Balanced for modern multi-core CPUs (12 workers)
+    ensure_setting(pool, "ingest_max_concurrent_jobs", "12").await?;
+    // **[AIA-INIT-010]** Database connection pool size for wkmp-ai
+    // RESTART_REQUIRED - Read during two-stage bootstrap initialization
+    // Sized for concurrent import operations: 12 workers × 8 connections per worker = 96
+    ensure_setting(pool, "ai_database_connection_pool_size", "96").await?;
+    // **[IMPL001]** Database lock retry timeout
+    // Application-layer retry timeout for database lock contention during parallel
+    // file processing. Default: 5000ms (5 seconds)
+    ensure_setting(pool, "ai_database_max_lock_wait_ms", "5000").await?;
+    // **[ARCH-PERF-030]** SQLite busy_timeout for lock contention
+    // Higher value allows SQLite to auto-retry internally before failing.
+    // 300ms (0.3s) accommodates heavy concurrent workloads like album matching.
+    ensure_setting(pool, "ai_database_lock_retry_ms", "300").await?;
+    // **[IMPL001]** Long-running task yield interval
+    // CPU-intensive operations (audio decoding, amplitude analysis) yield to Tokio
+    // scheduler every N milliseconds to prevent work-stealing from starving other
+    // tasks. Default: 990ms (just under 1 second). Set to 0 to disable yielding.
+    ensure_setting(pool, "ai_longwork_yield_interval_ms", "990").await?;
+    // **[IMPL016]** Memory usage threshold for monitoring
+    // Process memory threshold in bytes. When exceeded, warnings are logged.
+    // Default: 12GB (12884901888 bytes) - appropriate for modern systems with 16+ GB RAM
+    // RESTART_REQUIRED - Read during bootstrap initialization
+    ensure_setting(pool, "ai_memory_usage_threshold_bytes", "12884901888").await?;
+
+    // **[PLAN031 Task 2.2]** Event bus capacity for SSE broadcasting
+    // Number of events that can be queued in the event bus channel
+    // Default: 1000 - sufficient for normal operations
+    // RESTART_REQUIRED - Read during bootstrap initialization
+    ensure_setting(pool, "ai_event_bus_capacity", "1000").await?;
 
     // Validation service settings **[ARCH-AUTO-VAL-001]**
     ensure_setting(pool, "validation_enabled", "true").await?;              // [DBD-PARAM-130]
@@ -310,6 +392,11 @@ async fn create_module_config_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the files table
+///
+/// Stores audio file metadata including duration in ticks (SPEC017).
+///
+/// **[REQ-F-003]** File duration uses tick-based representation for consistency.
 pub async fn create_files_table(pool: &SqlitePool) -> Result<()> {
     // REQ-F-003: File duration migration to ticks (BREAKING CHANGE)
     // Changed from `duration REAL` (f64 seconds) to `duration_ticks INTEGER` (i64 ticks)
@@ -349,6 +436,10 @@ pub async fn create_files_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the passages table
+///
+/// Stores passage metadata including timing, crossfade points, and musical flavor.
+/// All timing values use tick-based representation (SPEC017).
 pub async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -367,10 +458,33 @@ pub async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
             user_title TEXT,
             artist TEXT,
             album TEXT,
+            recording_mbid TEXT,
             musical_flavor_vector TEXT,
             import_metadata TEXT,
             additional_metadata TEXT,
             decode_status TEXT DEFAULT 'pending' CHECK (decode_status IN ('pending', 'successful', 'unsupported_codec', 'failed')),
+            flavor_source_blend TEXT,
+            flavor_confidence_map TEXT,
+            flavor_completeness REAL,
+            title_source TEXT,
+            title_confidence REAL,
+            artist_source TEXT,
+            artist_confidence REAL,
+            album_source TEXT,
+            album_confidence REAL,
+            mbid_source TEXT,
+            mbid_confidence REAL,
+            identity_confidence REAL,
+            identity_posterior_probability REAL,
+            identity_conflicts TEXT,
+            overall_quality_score REAL,
+            metadata_completeness REAL,
+            validation_status TEXT,
+            validation_report TEXT,
+            validation_issues TEXT,
+            import_session_id TEXT,
+            import_timestamp TIMESTAMP,
+            import_strategy TEXT,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             CHECK (start_time_ticks >= 0),
@@ -397,6 +511,35 @@ pub async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
 
     // Create index for decode_status queries (REQ-AP-ERR-011)
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_passages_decode_status ON passages(decode_status)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+/// Create the import_provenance table
+///
+/// Tracks the origin and confidence of data extracted during passage import.
+/// Used for debugging import quality and providing audit trails.
+pub async fn create_import_provenance_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS import_provenance (
+            id TEXT PRIMARY KEY,
+            passage_id TEXT NOT NULL REFERENCES passages(guid) ON DELETE CASCADE,
+            source_type TEXT NOT NULL,
+            data_extracted TEXT,
+            confidence REAL,
+            timestamp INTEGER,
+            FOREIGN KEY (passage_id) REFERENCES passages(guid) ON DELETE CASCADE
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Create index for querying all extractions for a passage
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_import_provenance_passage_id ON import_provenance(passage_id)")
         .execute(pool)
         .await?;
 
@@ -490,6 +633,9 @@ async fn create_songs_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the artists table
+///
+/// Stores artist metadata including cooldown periods and selection probabilities.
 pub async fn create_artists_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -522,6 +668,9 @@ pub async fn create_artists_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the works table
+///
+/// Stores musical work metadata including cooldown periods for automatic selection.
 pub async fn create_works_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -554,6 +703,9 @@ pub async fn create_works_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the albums table
+///
+/// Stores album metadata from MusicBrainz.
 pub async fn create_albums_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -709,12 +861,19 @@ async fn create_import_sessions_table(pool: &SqlitePool) -> Result<()> {
             current_operation TEXT NOT NULL,
             errors TEXT NOT NULL,
             started_at TEXT NOT NULL,
-            ended_at TEXT
+            ended_at TEXT,
+            file_classification_data TEXT
         )
         "#,
     )
     .execute(pool)
     .await?;
+
+    // **[PLAN027]** Add file_classification_data column for existing databases
+    // This will fail silently if column already exists (which is fine)
+    let _ = sqlx::query("ALTER TABLE import_sessions ADD COLUMN file_classification_data TEXT")
+        .execute(pool)
+        .await;
 
     Ok(())
 }

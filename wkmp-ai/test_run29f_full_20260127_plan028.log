@@ -1,0 +1,1673 @@
+   Compiling wkmp-ai v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai)
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:498:1
+    |
+498 | pub fn set_unix_permissions_0600(_path: &Path) -> Result<()> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-common\src\lib.rs:13:9
+    |
+ 13 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:527:1
+    |
+527 | pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:14:5
+   |
+14 |     Scanning {
+   |     ^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:15:9
+   |
+15 |         potential_files_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:16:9
+   |
+16 |         is_scanning: bool,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:17:9
+   |
+17 |         audio_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:18:9
+   |
+18 |         image_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:19:9
+   |
+19 |         other_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:38:5
+   |
+38 |     Processing {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:39:9
+   |
+39 |         completed: usize,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:40:9
+   |
+40 |         started: usize,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:41:9
+   |
+41 |         total: usize,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:50:5
+   |
+50 |     FilenameMatching {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:51:9
+   |
+51 |         completed_filenames_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:54:5
+   |
+54 |     Hashing {
+   |     ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:55:9
+   |
+55 |         hashes_computed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:56:9
+   |
+56 |         matches_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:59:5
+   |
+59 |     Extracting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:60:9
+   |
+60 |         successful_extractions: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:61:9
+   |
+61 |         failures: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:64:5
+   |
+64 |     Segmenting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:65:9
+   |
+65 |         files_processed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:66:9
+   |
+66 |         potential_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:67:9
+   |
+67 |         finalized_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:68:9
+   |
+68 |         songs_identified: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:71:5
+   |
+71 |     Fingerprinting {
+   |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:72:9
+   |
+72 |         passages_fingerprinted: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:73:9
+   |
+73 |         successful_matches: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:76:5
+   |
+76 |     SongMatching {
+   |     ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:77:9
+   |
+77 |         high_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:78:9
+   |
+78 |         medium_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:79:9
+   |
+79 |         low_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:80:9
+   |
+80 |         no_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:83:5
+   |
+83 |     Recording {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:84:9
+   |
+84 |         recorded_passages: Vec<RecordedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:87:5
+   |
+87 |     Amplitude {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:88:9
+   |
+88 |         analyzed_passages: Vec<AnalyzedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:91:5
+   |
+91 |     Flavoring {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:92:9
+   |
+92 |         pre_existing: usize,
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:93:9
+   |
+93 |         acousticbrainz: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:94:9
+   |
+94 |         essentia: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:95:9
+   |
+95 |         failed: usize,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:98:5
+   |
+98 |     PassagesComplete {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:99:9
+   |
+99 |         passages_completed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+   --> wkmp-common\src\events\import_types.rs:102:5
+    |
+102 |     FilesComplete {
+    |     ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:103:9
+    |
+103 |         files_completed: usize,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:110:5
+    |
+110 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:111:5
+    |
+111 |     pub file_path: String,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:117:5
+    |
+117 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:118:5
+    |
+118 |     pub passage_length_seconds: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:119:5
+    |
+119 |     pub lead_in_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:120:5
+    |
+120 |     pub lead_out_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-common` (lib) generated 52 warnings
+warning: unused import: `assign_tier`
+  --> wkmp-ai\src\fusion\identity_resolver.rs:20:23
+   |
+20 | use crate::matching::{assign_tier, ConfidenceTier};
+   |                       ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::collections::HashSet`
+  --> wkmp-ai\src\matching\edition_filter.rs:30:5
+   |
+30 | use std::collections::HashSet;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `apply_refinement_to_durations`
+  --> wkmp-ai\src\matching\orchestrator.rs:21:9
+   |
+21 |         apply_refinement_to_durations,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CachedDuration`
+  --> wkmp-ai\src\services\accurate_duration.rs:18:39
+   |
+18 | use crate::db::duration_cache::{self, CachedDuration, DurationMethod};
+   |                                       ^^^^^^^^^^^^^^
+
+warning: unused import: `super::passage_segmenter::PassageBoundary`
+  --> wkmp-ai\src\services\passage_recorder.rs:15:5
+   |
+15 | use super::passage_segmenter::PassageBoundary;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ConfidenceLevel`
+  --> wkmp-ai\src\services\passage_recorder.rs:16:35
+   |
+16 | use super::passage_song_matcher::{ConfidenceLevel, PassageSongMatch};
+   |                                   ^^^^^^^^^^^^^^^
+
+warning: unused import: `Instant`
+  --> wkmp-ai\src\services\pool_manager.rs:16:27
+   |
+16 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused import: `crate::models::ImportSession`
+  --> wkmp-ai\src\services\progress_manager.rs:22:5
+   |
+22 | use crate::models::ImportSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `FuturesUnordered`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:23
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                       ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::VecDeque`
+  --> wkmp-ai\src\services\write_queue.rs:24:5
+   |
+24 | use std::collections::VecDeque;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Duration` and `Instant`
+  --> wkmp-ai\src\testing\import_harness.rs:33:17
+   |
+33 | use std::time::{Duration, Instant};
+   |                 ^^^^^^^^  ^^^^^^^
+
+warning: unused import: `tokio::sync::Semaphore`
+  --> wkmp-ai\src\testing\import_harness.rs:39:5
+   |
+39 | use tokio::sync::Semaphore;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `debug`, `error`, and `warn`
+  --> wkmp-ai\src\testing\import_harness.rs:40:15
+   |
+40 | use tracing::{debug, error, info, warn};
+   |               ^^^^^  ^^^^^        ^^^^
+
+warning: unnecessary parentheses around block return value
+   --> wkmp-ai\src\services\amplitude_analyzer.rs:413:17
+    |
+413 |                 (t as f32 / 22050.0) // Linear ramp from 0 to 1 over 0.5s
+    |                 ^                  ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+413 -                 (t as f32 / 22050.0) // Linear ramp from 0 to 1 over 0.5s
+413 +                 t as f32 / 22050.0 // Linear ramp from 0 to 1 over 0.5s
+    |
+
+warning: unused import: `super::super::passage_fingerprinter::MBIDCandidate`
+   --> wkmp-ai\src\services\passage_song_matcher.rs:376:9
+    |
+376 |     use super::super::passage_fingerprinter::MBIDCandidate;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:3049:9
+     |
+3049 |     use super::*;
+     |         ^^^^^^^^
+
+warning: unused imports: `FailureAnalysis` and `ResetResult`
+  --> wkmp-ai\src\testing\integration_tests.rs:18:36
+   |
+18 |         failure::{FailureAnalyzer, FailureAnalysis},
+   |                                    ^^^^^^^^^^^^^^^
+...
+22 |         reset::{reset_for_testing, ResetResult},
+   |                                    ^^^^^^^^^^^
+
+warning: unused import: `crate::testing::batch::BatchResultEntry`
+   --> wkmp-ai\src\testing\integration_tests.rs:373:13
+    |
+373 |         use crate::testing::batch::BatchResultEntry;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+   --> wkmp-ai\src\validators\consistency_validator.rs:414:9
+    |
+414 |     use std::collections::HashMap;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+  --> wkmp-ai\src\matching\editions\mod.rs:27:30
+   |
+27 |     calculate_edition_score, calculate_total_duration_score, calculate_total_duration_score_validated,
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+  --> wkmp-ai\src\matching\orchestrator.rs:16:34
+   |
+16 |         calculate_edition_score, calculate_total_duration_score,
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\orchestrator.rs:133:26
+    |
+133 |     let duration_score = calculate_total_duration_score(detected_total_ms, edition_total_ms);
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `event_bus`
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_scanning.rs:72:13
+   |
+72 |         let event_bus = self.event_bus.clone();
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_event_bus`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: use of deprecated method `services::workflow_orchestrator::WorkflowOrchestrator::phase_processing_plan025`: Use phase_processing_per_file() with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:447:14
+    |
+447 |             .phase_processing_plan025(session, start_time, &cancel_token)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `workflow::pipeline::Pipeline::extract`: Use extract_with_audio() to avoid re-decoding audio
+   --> wkmp-ai\src\workflow\pipeline.rs:429:43
+    |
+429 |         let mut extraction_results = self.extract(file_path, boundary, passage_index).await?;
+    |                                           ^^^^^^^
+
+warning: unused import: `StreamExt`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:41
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                                         ^^^^^^^^^
+
+warning: value assigned to `silence_start` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:420:13
+    |
+420 |             silence_start = Some(window_count);
+    |             ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: value assigned to `window_count` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:431:9
+    |
+431 |         window_count += 1;
+    |         ^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: type `ClassifiedResult` is more private than the item `EvaluationEngine::results`
+   --> wkmp-ai\src\testing\evaluation.rs:332:5
+    |
+332 |     pub fn results(&self) -> &[ClassifiedResult] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `EvaluationEngine::results` is reachable at visibility `pub`
+    |
+note: but type `ClassifiedResult` is only usable at visibility `pub(self)`
+   --> wkmp-ai\src\testing\evaluation.rs:148:1
+    |
+148 | struct ClassifiedResult {
+    | ^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:718:21
+    |
+718 |         let score = calculate_total_duration_score(2_400_000, 2_450_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:725:21
+    |
+725 |         let score = calculate_total_duration_score(2_400_000, 2_580_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:732:21
+    |
+732 |         let score = calculate_total_duration_score(2_400_000, 2_700_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:739:21
+    |
+739 |         let score = calculate_total_duration_score(2_400_000, 2_880_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:746:21
+    |
+746 |         let score = calculate_total_duration_score(2_400_000, 8_500_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:753:21
+    |
+753 |         let score = calculate_total_duration_score(0, 2_400_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:760:21
+    |
+760 |         let score = calculate_total_duration_score(2_400_000, 0);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `extractor`
+   --> wkmp-ai\src\extractors\audio_derived_extractor.rs:405:13
+    |
+405 |         let extractor = AudioDerivedExtractor::new();
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_extractor`
+
+warning: unused variable: `extractor`
+   --> wkmp-ai\src\extractors\audio_derived_extractor.rs:413:13
+    |
+413 |         let extractor = AudioDerivedExtractor::new();
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_extractor`
+
+warning: unused variable: `extractor`
+   --> wkmp-ai\src\extractors\audio_derived_extractor.rs:427:13
+    |
+427 |         let extractor = AudioDerivedExtractor::new();
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_extractor`
+
+warning: unused variable: `extractor`
+   --> wkmp-ai\src\extractors\audio_derived_extractor.rs:446:13
+    |
+446 |         let extractor = AudioDerivedExtractor::new();
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_extractor`
+
+warning: unused variable: `extractor`
+   --> wkmp-ai\src\extractors\audio_derived_extractor.rs:455:13
+    |
+455 |         let extractor = AudioDerivedExtractor::new();
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_extractor`
+
+warning: unused variable: `config`
+   --> wkmp-ai\src\services\file_tracker.rs:469:13
+    |
+469 |         let config = create_test_config();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+
+warning: variable does not need to be mutable
+   --> wkmp-ai\src\services\progress_manager.rs:484:13
+    |
+484 |         let mut session = crate::models::ImportSession::new(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> wkmp-ai\src\services\progress_manager.rs:520:13
+    |
+520 |         let mut session = crate::models::ImportSession::new(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `dirty_time`
+   --> wkmp-ai\src\services\progress_manager.rs:580:13
+    |
+580 |         let dirty_time = manager.time_since_last_sync();
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dirty_time`
+
+warning: variable does not need to be mutable
+   --> wkmp-ai\src\services\progress_manager.rs:561:13
+    |
+561 |         let mut session = crate::models::ImportSession::new(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ai\src\services\progress_manager.rs:610:13
+    |
+610 |         let mut session = crate::models::ImportSession::new(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `integrator`
+   --> wkmp-ai\src\services\result_integrator.rs:318:13
+    |
+318 |         let integrator = ResultIntegrator::new(pool);
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_integrator`
+
+warning: field `passage_id` is never read
+  --> wkmp-ai\src\services\import_logger.rs:15:5
+   |
+13 | struct PassageInfo {
+   |        ----------- field in this struct
+14 |     #[sqlx(rename = "guid")]
+15 |     passage_id: String,
+   |     ^^^^^^^^^^
+   |
+   = note: `PassageInfo` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: enum `StateCommand` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:44:6
+   |
+44 | enum StateCommand {
+   |      ^^^^^^^^^^^^
+
+warning: multiple fields are never read
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:71:5
+   |
+68 | pub struct WorkflowOrchestrator {
+   |            -------------------- fields in this struct
+...
+71 |     file_scanner: FileScanner,
+   |     ^^^^^^^^^^^^
+72 |     metadata_extractor: MetadataExtractor,
+   |     ^^^^^^^^^^^^^^^^^^
+73 |     fingerprinter: Fingerprinter,
+   |     ^^^^^^^^^^^^^
+74 |     amplitude_analyzer: AmplitudeAnalyzer,
+   |     ^^^^^^^^^^^^^^^^^^
+75 |     mb_client: Option<MusicBrainzClient>,
+   |     ^^^^^^^^^
+...
+78 |     essentia_client: Option<EssentiaClient>,
+   |     ^^^^^^^^^^^^^^^
+...
+97 |     processing_thread_count: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `set_worker_phase_with_passage` is never used
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1659:14
+     |
+ 100 | impl WorkflowOrchestrator {
+     | ------------------------- method in this implementation
+...
+1659 |     async fn set_worker_phase_with_passage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:44:12
+   |
+43 | impl ScanningStats {
+   | ------------------ method in this implementation
+44 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:70:12
+   |
+69 | impl ProcessingStats {
+   | -------------------- method in this implementation
+70 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:88:12
+   |
+87 | impl FilenameMatchingStats {
+   | -------------------------- method in this implementation
+88 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:108:12
+    |
+107 | impl HashingStats {
+    | ----------------- method in this implementation
+108 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:128:12
+    |
+127 | impl ExtractingStats {
+    | -------------------- method in this implementation
+128 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:152:12
+    |
+151 | impl SegmentingStats {
+    | -------------------- method in this implementation
+152 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:175:12
+    |
+174 | impl FingerprintingStats {
+    | ------------------------ method in this implementation
+175 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:199:12
+    |
+198 | impl SongMatchingStats {
+    | ---------------------- method in this implementation
+199 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:218:12
+    |
+217 | impl RecordingStats {
+    | ------------------- method in this implementation
+218 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:243:12
+    |
+242 | impl AmplitudeStats {
+    | ------------------- method in this implementation
+243 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:274:12
+    |
+273 | impl FlavoringStats {
+    | ------------------- method in this implementation
+274 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:292:12
+    |
+291 | impl PassagesCompleteStats {
+    | -------------------------- method in this implementation
+292 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:307:12
+    |
+306 | impl FilesCompleteStats {
+    | ----------------------- method in this implementation
+307 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: methods `update_processing` and `update_scanning` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:452:12
+    |
+332 | impl ImportStatistics {
+    | --------------------- methods in this implementation
+...
+452 |     pub fn update_processing(&self, completed: usize, started: usize, total: usize) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+460 |     pub fn update_scanning(&self, is_scanning: bool, files_found: usize) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: methods `process_passage` and `extract` are never used
+   --> wkmp-ai\src\workflow\pipeline.rs:409:14
+    |
+105 | impl Pipeline {
+    | ------------- methods in this implementation
+...
+409 |     async fn process_passage(
+    |              ^^^^^^^^^^^^^^^
+...
+560 |     async fn extract(
+    |              ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:26
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                          ^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> wkmp-ai\src\lib.rs:5:9
+   |
+ 5 | #![warn(missing_docs)]
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:45
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                                             ^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:142:1
+    |
+142 | pub const SCORE_FILENAME_PATTERN: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:143:1
+    |
+143 | pub const SCORE_DIR_FILES_HIGH: f64 = 0.8;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:144:1
+    |
+144 | pub const SCORE_DIR_FILES_MEDIUM: f64 = 0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:145:1
+    |
+145 | pub const SCORE_DIR_FILES_SINGLE: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:146:1
+    |
+146 | pub const SCORE_ID3_TRACK_TOTAL: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:147:1
+    |
+147 | pub const SCORE_ID3_TRACK_NUMBER_ONLY: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:148:1
+    |
+148 | pub const SCORE_DURATION_SHORT: f64 = 0.7;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:149:1
+    |
+149 | pub const SCORE_DURATION_SUSPICIOUS: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:150:1
+    |
+150 | pub const SCORE_DURATION_ALBUM_LENGTH: f64 = -0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:151:1
+    |
+151 | pub const SCORE_SILENCE_GAPS_FEW: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:152:1
+    |
+152 | pub const SCORE_SILENCE_GAPS_MANY: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:133:5
+    |
+133 |     pub mbid: String,
+    |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:134:5
+    |
+134 |     pub title: String,
+    |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:135:5
+    |
+135 |     pub track_count: usize,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:136:5
+    |
+136 |     pub total_duration_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:137:5
+    |
+137 |     pub track_durations_secs: Vec<f64>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:138:5
+    |
+138 |     pub name_similarity: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:139:5
+    |
+139 |     pub score: f64,
+    |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\matching\stage6_helpers.rs:11:5
+   |
+11 |     pub start_track: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\matching\stage6_helpers.rs:12:5
+   |
+12 |     pub count: usize,
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\matching\stage6_helpers.rs:18:5
+   |
+18 |     pub track_index: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\matching\stage6_helpers.rs:19:5
+   |
+19 |     pub error1: f64,
+   |     ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\matching\stage6_helpers.rs:20:5
+   |
+20 |     pub error2: f64,
+   |     ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:86:5
+   |
+86 |     pub audio_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:87:5
+   |
+87 |     pub image_confirmed: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:88:5
+   |
+88 |     pub image_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:47:20
+   |
+47 |     NoCandidates { query: String },
+   |                    ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:49:16
+   |
+49 |     ApiError { error: String },
+   |                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:52:9
+   |
+52 |         expected: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:53:9
+   |
+53 |         found: String,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:54:9
+   |
+54 |         similarity: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:57:26
+   |
+57 |     AllStagesExhausted { stages_tried: usize },
+   |                          ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:59:20
+   |
+59 |     FileTooShort { duration_secs: f64 },
+   |                    ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:61:32
+   |
+61 |     MetadataExtractionFailed { error: String },
+   |                                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:65:22
+   |
+65 |     DecodingFailed { error: String },
+   |                      ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:22:9
+   |
+22 |         hash: String,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:23:9
+   |
+23 |         original_file_id: Uuid,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+  --> wkmp-ai\src\services\passage_flavor_fetcher.rs:44:5
+   |
+44 |     pub fn as_str(&self) -> &'static str {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:40:9
+   |
+40 |         session: ImportSession,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:41:9
+   |
+41 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:45:9
+   |
+45 |         passages: Vec<PassageData>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:46:9
+   |
+46 |         response_tx: oneshot::Sender<Result<Vec<Uuid>>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:50:9
+   |
+50 |         file_id: Uuid,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:51:9
+   |
+51 |         status: String,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:52:9
+   |
+52 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:63:5
+   |
+63 |     pub file_id: Uuid,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:64:5
+   |
+64 |     pub start_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:65:5
+   |
+65 |     pub end_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:66:5
+   |
+66 |     pub song_id: Option<Uuid>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:42:9
+   |
+42 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:43:9
+   |
+43 |         assigned_mbid: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:44:9
+   |
+44 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:45:9
+   |
+45 |         sources_consulted: Vec<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:46:9
+   |
+46 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:50:9
+   |
+50 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:51:9
+   |
+51 |         content_type: String,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:52:9
+   |
+52 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:53:9
+   |
+53 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:57:9
+   |
+57 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:58:9
+   |
+58 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:59:9
+   |
+59 |         error_message: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:60:9
+   |
+60 |         duration_ms: u64,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:61:9
+   |
+61 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:65:9
+   |
+65 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:66:9
+   |
+66 |         api_name: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:67:9
+   |
+67 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:68:9
+   |
+68 |         latency_ms: u64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:69:9
+   |
+69 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: type `ClassifiedResult` is more private than the item `evaluation::EvaluationEngine::results`
+   --> wkmp-ai\src\testing\evaluation.rs:332:5
+    |
+332 |     pub fn results(&self) -> &[ClassifiedResult] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `evaluation::EvaluationEngine::results` is reachable at visibility `pub`
+    |
+note: but type `ClassifiedResult` is only usable at visibility `pub(self)`
+   --> wkmp-ai\src\testing\evaluation.rs:148:1
+    |
+148 | struct ClassifiedResult {
+    | ^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: missing documentation for a module
+   --> wkmp-ai\src\extractors\mod.rs:152:1
+    |
+152 | pub mod mock {
+    | ^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-ai\src\lib.rs:5:9
+    |
+  5 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\extractors\mod.rs:158:9
+    |
+158 |         pub name: &'static str,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\extractors\mod.rs:159:9
+    |
+159 |         pub confidence: f32,
+    |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\extractors\mod.rs:160:9
+    |
+160 |         pub should_fail: bool,
+    |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+   --> wkmp-ai\src\extractors\mod.rs:164:9
+    |
+164 |         pub fn new(name: &'static str, confidence: f32) -> Self {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+   --> wkmp-ai\src\extractors\mod.rs:172:9
+    |
+172 |         pub fn failing(name: &'static str) -> Self {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:26
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                          ^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (lib) generated 112 warnings (run `cargo fix --lib -p wkmp-ai` to apply 13 suggestions)
+warning: unnecessary parentheses around block return value
+  --> wkmp-ai\tests\workflow_integration.rs:75:13
+   |
+75 |             (i16::MAX / 4)
+   |             ^            ^
+   |
+   = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+   |
+75 -             (i16::MAX / 4)
+75 +             i16::MAX / 4
+   |
+
+warning: unnecessary parentheses around block return value
+  --> wkmp-ai\tests\workflow_integration.rs:78:13
+   |
+78 |             (i16::MAX / 4)
+   |             ^            ^
+   |
+help: remove these parentheses
+   |
+78 -             (i16::MAX / 4)
+78 +             i16::MAX / 4
+   |
+
+warning: use of deprecated function `wkmp_ai::workflow::boundary_detector::detect_boundaries`: Use detect_boundaries_with_audio() to avoid re-decoding audio for extractors
+   --> wkmp-ai\tests\workflow_integration.rs:263:41
+    |
+263 |     let boundaries = boundary_detector::detect_boundaries(&wav_path).await;
+    |                                         ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: unused import: `std::path::PathBuf`
+ --> wkmp-ai\tests\component_tests.rs:7:5
+  |
+7 | use std::path::PathBuf;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unnecessary parentheses around closure body
+   --> wkmp-ai\tests\component_tests.rs:371:18
+    |
+371 |         .map(|i| (i as f32 / 132300.0)) // Linear ramp
+    |                  ^                   ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+371 -         .map(|i| (i as f32 / 132300.0)) // Linear ramp
+371 +         .map(|i| i as f32 / 132300.0) // Linear ramp
+    |
+
+warning: struct `BaselineResult` is never constructed
+  --> wkmp-ai\tests\run29f_comparison_test.rs:63:8
+   |
+63 | struct BaselineResult {
+   |        ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: unused import: `std::path::Path`
+ --> wkmp-ai\tests\helpers\db_utils.rs:7:5
+  |
+7 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `debug`, `error`, `info`, and `warn`
+   --> wkmp-ai\tests\helpers\log_capture.rs:161:19
+    |
+161 |     use tracing::{debug, error, info, warn};
+    |                   ^^^^^  ^^^^^  ^^^^  ^^^^
+
+warning: unused imports: `AudioConfig`, `generate_test_library`, and `generate_test_wav`
+  --> wkmp-ai\tests\helpers\mod.rs:10:27
+   |
+10 | pub use audio_generator::{generate_test_library, generate_test_wav, AudioConfig};
+   |                           ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused imports: `assert_has_column`, `assert_no_column`, `create_test_db`, `create_test_orchestrator`, `get_table_columns`, `has_column`, and `seed_test_files`
+  --> wkmp-ai\tests\helpers\mod.rs:12:5
+   |
+12 |     assert_has_column, assert_no_column, create_test_db, create_test_orchestrator,
+   |     ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+13 |     get_table_columns, has_column, seed_test_files,
+   |     ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused imports: `LogCapture` and `init_test_logging`
+  --> wkmp-ai\tests\helpers\mod.rs:15:23
+   |
+15 | pub use log_capture::{init_test_logging, LogCapture};
+   |                       ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^
+
+warning: fields `cid`, `type`, `notnull`, `dflt_value`, and `pk` are never read
+  --> wkmp-ai\tests\helpers\db_utils.rs:13:9
+   |
+12 | pub struct ColumnInfo {
+   |            ---------- fields in this struct
+13 |     pub cid: i32,
+   |         ^^^
+14 |     pub name: String,
+15 |     pub r#type: String,
+   |         ^^^^^^
+16 |     pub notnull: i32,
+   |         ^^^^^^^
+17 |     pub dflt_value: Option<String>,
+   |         ^^^^^^^^^^
+18 |     pub pk: i32,
+   |         ^^
+   |
+   = note: `ColumnInfo` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `create_test_orchestrator` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:84:8
+   |
+84 | pub fn create_test_orchestrator(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `seed_test_files` is never used
+   --> wkmp-ai\tests\helpers\db_utils.rs:105:14
+    |
+105 | pub async fn seed_test_files(
+    |              ^^^^^^^^^^^^^^^
+
+warning: fields `level` and `target` are never read
+  --> wkmp-ai\tests\helpers\log_capture.rs:13:9
+   |
+12 | pub struct LogRecord {
+   |            --------- fields in this struct
+13 |     pub level: Level,
+   |         ^^^^^
+14 |     pub target: String,
+   |         ^^^^^^
+   |
+   = note: `LogRecord` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `clear` is never used
+  --> wkmp-ai\tests\helpers\log_capture.rs:38:12
+   |
+24 | impl LogCapture {
+   | --------------- method in this implementation
+...
+38 |     pub fn clear(&self) {
+   |            ^^^^^
+
+warning: function `init_test_logging` is never used
+   --> wkmp-ai\tests\helpers\log_capture.rs:143:8
+    |
+143 | pub fn init_test_logging() -> LogCapture {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (lib test) generated 134 warnings (101 duplicates) (run `cargo fix --lib -p wkmp-ai --tests` to apply 10 suggestions)
+warning: unused import: `tempfile::TempDir`
+ --> wkmp-ai\tests\unit\path_handling_tests.rs:6:5
+  |
+6 | use tempfile::TempDir;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ImportState`
+ --> wkmp-ai\tests\unit\phase_scanning_tests.rs:6:56
+  |
+6 | use wkmp_ai::models::{ImportParameters, ImportSession, ImportState};
+  |                                                        ^^^^^^^^^^^
+
+warning: unused import: `wkmp_ai::services::WorkflowOrchestrator`
+ --> wkmp-ai\tests\unit\phase_scanning_tests.rs:7:5
+  |
+7 | use wkmp_ai::services::WorkflowOrchestrator;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> wkmp-ai\tests\architecture\pipeline_architecture_tests.rs:5:5
+  |
+5 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `wkmp_ai::services::WorkflowOrchestrator`
+ --> wkmp-ai\tests\architecture\pipeline_architecture_tests.rs:8:5
+  |
+8 | use wkmp_ai::services::WorkflowOrchestrator;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> wkmp-ai\tests\helpers\db_utils.rs:7:5
+  |
+7 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Context`
+ --> wkmp-ai\tests\cascade_refinement_test.rs:8:14
+  |
+8 | use anyhow::{Context, Result};
+  |              ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused variable: `audio_files`
+  --> wkmp-ai\tests\unit\phase_scanning_tests.rs:43:9
+   |
+43 |     let audio_files =
+   |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_audio_files`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `result`
+  --> wkmp-ai\tests\unit\phase_scanning_tests.rs:63:9
+   |
+63 |     let result = orchestrator
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_result`
+
+warning: variable does not need to be mutable
+  --> wkmp-ai\tests\unit\phase_scanning_tests.rs:50:9
+   |
+50 |     let mut session = ImportSession::new(
+   |         ----^^^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: function `assert_no_column` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:54:14
+   |
+54 | pub async fn assert_no_column(pool: &SqlitePool, table_name: &str, column_name: &str) {
+   |              ^^^^^^^^^^^^^^^^
+
+warning: function `assert_has_column` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:64:14
+   |
+64 | pub async fn assert_has_column(pool: &SqlitePool, table_name: &str, column_name: &str) {
+   |              ^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `sample_rate`
+  --> wkmp-ai\tests\cascade_refinement_test.rs:29:64
+   |
+29 |     fn from_passage_boundaries(boundaries: &[PassageBoundary], sample_rate: u32) -> Self {
+   |                                                                ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `sample_rate`
+  --> wkmp-ai\tests\cascade_refinement_test.rs:50:37
+   |
+50 |     fn to_passage_boundaries(&self, sample_rate: u32) -> Vec<PassageBoundary> {
+   |                                     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+warning: `wkmp-ai` (test "component_tests") generated 2 warnings (run `cargo fix --test "component_tests"` to apply 2 suggestions)
+warning: struct `TestFixture` is never constructed
+  --> wkmp-ai\tests\album_matcher_integration.rs:52:8
+   |
+52 | struct TestFixture {
+   |        ^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: constant `TEST_FIXTURES` is never used
+  --> wkmp-ai\tests\album_matcher_integration.rs:61:7
+   |
+61 | const TEST_FIXTURES: &[TestFixture] = &[
+   |       ^^^^^^^^^^^^^
+
+warning: unused import: `wkmp_ai::services::WorkflowOrchestrator`
+ --> wkmp-ai\tests\integration\orchestrator_integration_tests.rs:7:5
+  |
+7 | use wkmp_ai::services::WorkflowOrchestrator;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `wkmp_ai::matching::editions::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+ --> wkmp-ai\tests\integration\edition_selection_tests.rs:7:30
+  |
+7 |     calculate_edition_score, calculate_total_duration_score, calculate_track_count_penalty,
+  |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `wkmp_ai::matching::editions::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+  --> wkmp-ai\tests\integration\edition_selection_tests.rs:46:30
+   |
+46 |     let duration_score_std = calculate_total_duration_score(detected_total_ms, standard_total_ms);
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `wkmp_ai::matching::editions::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+  --> wkmp-ai\tests\integration\edition_selection_tests.rs:69:30
+   |
+69 |     let duration_score_dlx = calculate_total_duration_score(detected_total_ms, deluxe_total_ms);
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `wkmp_ai::matching::editions::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+  --> wkmp-ai\tests\integration\edition_selection_tests.rs:90:30
+   |
+90 |     let duration_score_box = calculate_total_duration_score(detected_total_ms, box_set_total_ms);
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `wkmp_ai::matching::editions::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\tests\integration\edition_selection_tests.rs:111:30
+    |
+111 |     let duration_score_jpn = calculate_total_duration_score(detected_total_ms, japanese_total_ms);
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `wkmp_ai::matching::editions::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\tests\integration\edition_selection_tests.rs:133:30
+    |
+133 |     let duration_score_rem = calculate_total_duration_score(detected_total_ms, remaster_total_ms);
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `wkmp_ai::matching::editions::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\tests\integration\edition_selection_tests.rs:259:26
+    |
+259 |     let duration_score = calculate_total_duration_score(detected_total_ms, edition_total_ms);
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `audio_files`
+  --> wkmp-ai\tests\integration\orchestrator_integration_tests.rs:44:9
+   |
+44 |     let audio_files =
+   |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_audio_files`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: `wkmp-ai` (test "workflow_integration") generated 3 warnings (run `cargo fix --test "workflow_integration"` to apply 2 suggestions)
+warning: `wkmp-ai` (test "database_schema_validation") generated 11 warnings (run `cargo fix --test "database_schema_validation"` to apply 5 suggestions)
+warning: `wkmp-ai` (test "run29f_comparison_test") generated 1 warning
+warning: comparison is useless due to type limits
+   --> wkmp-ai\tests\workflow_tests.rs:175:13
+    |
+175 |     assert!(session.progress.elapsed_seconds >= 0);
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_comparisons)]` on by default
+
+warning: `wkmp-ai` (test "cascade_refinement_test") generated 3 warnings (run `cargo fix --test "cascade_refinement_test"` to apply 1 suggestion)
+warning: `wkmp-ai` (test "architecture_compliance_tests") generated 12 warnings (9 duplicates) (run `cargo fix --test "architecture_compliance_tests"` to apply 3 suggestions)
+warning: `wkmp-ai` (test "unit_tests") generated 16 warnings (8 duplicates) (run `cargo fix --test "unit_tests"` to apply 4 suggestions)
+warning: function `create_test_mixed_files` is never used
+   --> wkmp-ai\tests\api_integration_tests.rs:335:4
+    |
+335 | fn create_test_mixed_files() -> tempfile::TempDir {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `wkmp-ai` (test "full_library_import_test") generated 13 warnings (13 duplicates)
+error: linking with `link.exe` failed: exit code: 1104
+  |
+  = note: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe" "/NOLOGO" "C:\\Users\\MANGOC~1\\AppData\\Local\\Temp\\rustcdCDnoh\\symbols.o" "<167 object files omitted>" "C:\\Users\\Mango Cat\\Dev\\McRhythm\\target\\debug\\deps/{libtracing_subscriber-1c4e4012daa0bc23,libsharded_slab-454a0a0b3ee6edfa,libmatchers-a3750e80a1bed632,libnu_ansi_term-8196d568ab31b1ae,libthread_local-a38eb02cd49de387,libtracing_log-0d7f24a34e051389}.rlib" "<sysroot>\\lib\\rustlib\\x86_64-pc-windows-msvc\\lib/{libtest-*,libgetopts-*,libunicode_width-*,librustc_std_workspace_std-*}.rlib" "C:\\Users\\Mango Cat\\Dev\\McRhythm\\target\\debug\\deps/{libwkmp_ai-c8d5fa148908f32e,liburlencoding-bd18dc5bad17a5cc,libnum_cpus-f97972824677675f,libtime-fafad3163cc527ed,libtime_core-1324e2f669b46013,libnum_conv-125d877b1372a4f0,libderanged-81053cb4a1e30170,libpowerfmt-804ca3930d905be8,libsysinfo-f793a82f9e3c342c,libntapi-1a9099a6e24a39ea,libwinapi-c8f3f0a21b57d237,libwindows-3737b32fa95f01ee,libwindows_core-9748d6ed5bc72a8d,libwindows_result-c32bffae58fe4b46,librubato-ca0c4e0e881d1a66,librealfft-af5bdf7c2f356264,librustfft-f68f994ad14f93a1,libprimal_check-926efd38f1a9ab35,libtranspose-3b011c8ace00690b,libstrength_reduce-c8db39d4a35663ad,libnum_integer-3b13f509717fc0c2,libnum_complex-7401dd34abfafb20,libchromaprint_sys_next-b1009bdc8a835a65,liblibc-932c2cb66255686b,libwalkdir-ffda8e3a5e51fe04,libsame_file-ca2e8dcf8df7b676,libwinapi_util-d6a8f0203014dadf,libregex-da23a042606447f5,libregex_automata-3209ec3edea3f14c,libaho_corasick-074e8f2255bcd7b1,libregex_syntax-34ff28565dad660b,librayon-c4e439b2ba503ed8,librayon_core-bc3f7f8b2b138326,libcrossbeam_deque-110a67dd4b9b1387,libcrossbeam_epoch-75f1baecb3d098f1,libstrsim-08a5bf74fbd9bfdd,libsymphonia-d937c5e24223cd35,libsymphonia_format_riff-1a588030d79ea9b5,libextended-7a827b8cd5bbbbb3,libsymphonia_format_ogg-c10d1b791b384820,libsymphonia_format_mkv-7757f81899321bbd,libsymphonia_format_isomp4-64702859c7125723,libsymphonia_format_caf-9129b47c13cda6f5,libsymphonia_codec_vorbis-1a7222ae5788d0d4,libsymphonia_codec_pcm-1ce481b93204954b,libsymphonia_codec_alac-b90e5e51581e0182,libsymphonia_codec_adpcm-19b1068d3de69517,libsymphonia_codec_aac-c802781fda6bf8da,libsymphonia_bundle_mp3-5f3cdc05937a6f51,libsymphonia_bundle_flac-4b9d628db09ed637,libsymphonia_utils_xiph-8de1294c2b58a8e4,libsymphonia_metadata-20e2a79d23d876f8,libsymphonia_core-3532df4cdd8cffa8,libbytemuck-ae9164877168d692,liblazy_static-73731f1283323c75,libbitflags-ebc49b3ddf256461,libarrayvec-6d84ecbe12f76970,liblofty-9aeedcc0e7ed5139,libflate2-275f99f82f5ecd61,libminiz_oxide-71f815bd4dd3eac0,libsimd_adler32-32e00a41bda7800b,libcrc32fast-12cd677bbebd86ec,libdata_encoding-3626d3681091d30f,libogg_pager-d18f7e0c06d7bd44,libbyteorder-a0746a1942865c31,libreqwest-9a58797de46db55d,librustls_pemfile-df0b62126cafdebf,libhyper_tls-1f473b8a37072fd8,libbase64-151455c9a47abc11,libwinreg-9b8d6119e460436e,libwindows_sys-22bc5d6b64cfa094,libwindows_targets-0d827d83d1b67418,libipnet-c78c53e7047f6b71,libtokio_native_tls-2b2108d058e27a52,libencoding_rs-2608f2b4e53f7be8,libnative_tls-bf616ae5019d36ad,libschannel-de07c490832c0da4,libwindows_sys-34ac0e6f598ac43f,libhyper-20d9404becf5a649,libsocket2-2e42a1dd0d0005a3,libwindows_sys-8cf0a8db79b2b7a2,libh2-b752fccf5ad585b4,libsync_wrapper-45753392c7df7687,libhttp_body-490f1b2ff3e43524,libhttp-39af2f56a021da76,libwkmp_common-2de605ae77f489a5,libtoml-469e78c8e4ef39f9,libtoml_edit-2d46e1fbff9e771c,libserde_spanned-18046fb396095e69,libwinnow-7b5388399855561d,libtoml_write-016447bd753b568b,libtoml_datetime-39284ebd71c4784f,libasync_stream-456a7aef12eadd1a,libthiserror-c92a3f3cd85a8baa,librand-13a9448fa81240f0,librand_chacha-b71528108bb612c9,libppv_lite86-3f5a0bf395c069dc,libzerocopy-63c900473cbb91de,librand_core-a434727ca48aea45,libfutures-565801d5d7f0c3b2,libsqlx-66178135d2b86a47,libsqlx_sqlite-e5ee5ffcda77ca29,libfutures_executor-f23cf680eb0c2a6d,libflume-b3114cd9529e6491,libspin-79b54c105dc5c1dc,libfutures_intrusive-e7323f9ff316cda1,liblibsqlite3_sys-167becc2136380d2,libatoi-04acecd13e7807c1,libsqlx_core-2ac81006acdc288d,libwebpki_roots-c2b0ac5fdebef52e,libwebpki_roots-b3e84a473ea4aa23,libthiserror-57cfa97e98f9cb4c,libbase64-37e52bbedd2ad386,libsha2-a85b1cf3a6b50cae,libcpufeatures-0bca02eec30f0f27,libdigest-96cfd89107e1104d,libblock_buffer-ac11602ffa0f3dc5,libcrypto_common-bfbae03ca1e8b1c3,libgeneric_array-b0bb5646a1736949,libtypenum-014f790c7172e706,librustls-bcc70453870438c1,libsubtle-b73616806c34c00e,libwebpki-c6d3729feae8b69f,libring-c255ca559242157b,libgetrandom-78358c5e38a413b9,libuntrusted-3356d7baa67acc1c,librustls_pki_types-e535fe3c43e2689b,libzeroize-3f8e66c9b1668abb,libhashlink-820604d2aaa302f2,libhashbrown-3d5fbafb18681304,libfoldhash-6880b476466fe399,liballocator_api2-af874dab6819d030,libchrono-4beb3e43345c60fa,libnum_traits-e839a3f38a7e216d,liburl-270cf57b281b784b,libidna-0a7d990550370cab,libutf8_iter-edb247b3cdc127e2,libidna_adapter-6c777f9d648041cd,libicu_properties-d8e5cd3273888771,libicu_properties_data-5ad7e2aa6155081d,libicu_normalizer-8f4812275d5aa8c7,libicu_normalizer_data-4d499cb70d848316,libicu_collections-878bc2444b7f1622,libpotential_utf-1bda33ba88b9171a,libicu_provider-cf10c7f93b64f42d,libicu_locale_core-d7048f08733a43d7,libtinystr-c6ebd8bf224e66b3,liblitemap-800230718727f963,libwriteable-b3ed089e6f2523b4,libzerovec-c6a5aba2dff6d496,libzerotrie-e86ac49ea976d321,libyoke-b5debd58f07e45de,libstable_deref_trait-b61fcbddf357d13b,libzerofrom-d76caee9a16a7be6,libcrossbeam_queue-f3624c13e26d03c5,libcrossbeam_utils-a16ac14480c5df31,libeither-655d43b29a4bd822,libevent_listener-10f283d90f25a8a8,libparking-6f2a14979ae4ba8c,libuuid-f5e1a99bdbf53d27,libgetrandom-9c7ed5147c015fd0,libaxum-b52e13fefb16f5f9,libserde_path_to_error-3c3a03fafd0e90be,libserde_json-3300d62676cc88e0,libserde_urlencoded-f3189462989ee515,libryu-45fa4043b7fe4cba,libform_urlencoded-495e39f0a3cf95c9,libpercent_encoding-21801a1d50e6350e,libhyper_util-800e01019cfc9916,libhyper-69bb54c8a55b0b3a,libwant-d0c95c27acf95d31,libtry_lock-f966fc651c1fcd51,libhttparse-d62da80dd9c014f9,libh2-e09bc814ab679b98,libindexmap-748b29dffb94b4f8,libequivalent-cf2c3546b8f31664,libhashbrown-82f0b17298bba82d,libtokio_util-a4d2216d1dd4a588,libatomic_waker-1f9a73942e695ec6,libhttpdate-eb9c13a18d801696,libmatchit-9b4d9548de3bce69,libaxum_core-bb4b3eee55cf4e21,libmime-deaa08e9cb221335,libhttp_body_util-1cf4b29b408faf69,libhttp_body-48e71029cb569434,libhttp-6373bae817f1645b,libitoa-e82d52ede3ccce7c,libfnv-b9a482015c76de4b,libtower-2e61f8f08e8c6099,libsync_wrapper-9cf4fa84f682202a,libtower_layer-61aa9170a6416ab0,libfutures_util-da467cc058a35076,libmemchr-c4b3cbf5a1cbc63d,libfutures_io-98b0dd9c4b1a73ef,libslab-40d493d53e52e090,libfutures_channel-2da2e45101a5841f,libfutures_sink-6c0a374744ecbf3c,libfutures_task-c3e45ef3f709d10b,libpin_utils-c1c7252a957c0b90,libfutures_core-ff6ece19c1cf3fb9,libtower_service-3b9dab00cbf8fc55,libtokio-1eea6597ded05e1a,libsocket2-0669a7993c1df6e4,libbytes-2026280b01880f04,libmio-2aed4fb86dcd99bd,libwindows_sys-84c425591fdfa559,libwindows_targets-9dd3e7c41f21dc7c,libparking_lot-f0131118483ae5e3,libparking_lot_core-77189241478c6b25,libwindows_link-c60f0935ed382490,libcfg_if-4764b5446a0ab7e6,libsmallvec-94ecff9ffe911df9,liblock_api-c291d8fe03581746,libscopeguard-b4d6b5f071b860bc,libtracing-f12f49c5681f1c2f,liblog-c7349a97ce13d918,libpin_project_lite-69a18155656350ae,libtracing_core-d506d67495e5db50,libonce_cell-d4f2bcf067b1114c,libserde-2467177da5a3ce6e,libserde_core-4d48296e5cb26964,libanyhow-a6ab5eb65d58aba9}.rlib" "<sysroot>\\lib\\rustlib\\x86_64-pc-windows-msvc\\lib/{libstd-*,libpanic_unwind-*,libwindows_targets-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libunwind-*,libcfg_if-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "kernel32.lib" "kernel32.lib" "ntdll.lib" "advapi32.lib" "credui.lib" "kernel32.lib" "secur32.lib" "C:\\Users\\Mango Cat\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib\\windows.0.52.0.lib" "C:\\Users\\Mango Cat\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib\\windows.0.52.0.lib" "C:\\Users\\Mango Cat\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib\\windows.0.52.0.lib" "legacy_stdio_definitions.lib" "C:\\Users\\Mango Cat\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.48.5\\lib\\windows.0.48.5.lib" "C:\\Users\\Mango Cat\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib\\windows.0.52.0.lib" "bcrypt.lib" "advapi32.lib" "C:\\Users\\Mango Cat\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib\\windows.0.52.0.lib" "kernel32.lib" "kernel32.lib" "kernel32.lib" "ntdll.lib" "userenv.lib" "ws2_32.lib" "dbghelp.lib" "/defaultlib:msvcrt" "/NXCOMPAT" "/LIBPATH:C:\\Users\\Mango Cat\\Dev\\McRhythm\\target\\debug\\build\\chromaprint-sys-next-e271060b68557b57\\out\\lib" "/LIBPATH:C:\\Users\\Mango Cat\\Dev\\McRhythm\\target\\debug\\build\\ring-4ef3e46118ccbc00\\out" "/LIBPATH:C:\\Users\\Mango Cat\\Dev\\McRhythm\\target\\debug\\build\\libsqlite3-sys-b8d2c8733a474aa3\\out" "/LIBPATH:C:\\Users\\Mango Cat\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.52.6\\lib" "/LIBPATH:C:\\Users\\Mango Cat\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows_x86_64_msvc-0.48.5\\lib" "/LIBPATH:C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\atlmfc\\lib\\x64" "/OUT:C:\\Users\\Mango Cat\\Dev\\McRhythm\\target\\debug\\deps\\run29f_full_comparison_test-ac01d80d84aec4e2.exe" "/OPT:REF,NOICF" "/DEBUG" "/PDBALTPATH:%_PDB%" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\intrinsic.natvis" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\liballoc.natvis" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\libcore.natvis" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\libstd.natvis"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: LINK : fatal error LNK1104: cannot open file 'C:\Users\Mango Cat\Dev\McRhythm\target\debug\deps\run29f_full_comparison_test-ac01d80d84aec4e2.exe'␍
+          
+
+error: could not compile `wkmp-ai` (test "run29f_full_comparison_test") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+warning: `wkmp-ai` (test "album_matcher_integration") generated 2 warnings
+warning: `wkmp-ai` (test "orchestrator_integration") generated 17 warnings (8 duplicates) (run `cargo fix --test "orchestrator_integration"` to apply 1 suggestion)
+warning: `wkmp-ai` (test "workflow_tests") generated 1 warning
+warning: `wkmp-ai` (test "api_integration_tests") generated 1 warning

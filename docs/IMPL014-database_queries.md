@@ -2,9 +2,9 @@
 
 **⚙️ TIER 3 - IMPLEMENTATION SPECIFICATION**
 
-Defines SQL queries for wkmp-ai import workflow. Derived from [SPEC024](SPEC024-audio_ingest_architecture.md) and [IMPL001](IMPL001-database_schema.md).
+Defines SQL queries for wkmp-ai import workflow. Derived from [SPEC032](SPEC032-audio_ingest_architecture.md) and [IMPL001](IMPL001-database_schema.md).
 
-> **Related:** [Audio Ingest Architecture](SPEC024-audio_ingest_architecture.md) | [Database Schema](IMPL001-database_schema.md) | [MusicBrainz Client](IMPL011-musicbrainz_client.md)
+> **Related:** [Audio Ingest Architecture](SPEC032-audio_ingest_architecture.md) | [Database Schema](IMPL001-database_schema.md) | [MusicBrainz Client](IMPL011-musicbrainz_client.md)
 
 ---
 

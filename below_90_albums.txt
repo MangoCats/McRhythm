@@ -1,0 +1,148 @@
+================================================================================
+ALBUMS WITH MATCH PERCENTAGE < 90% (24 albums)
+================================================================================
+
+1. Imagine Dragons - Unknown Title
+   File: Unknown
+   Match: 68.8%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+2. Heather Nova - Unknown Title
+   File: Unknown
+   Match: 69.2%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+3. Eagles - Unknown Title
+   File: Unknown
+   Match: 70.0%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+4. Foghat - Unknown Title
+   File: Unknown
+   Match: 71.4%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+5. Kraftwerk - Unknown Title
+   File: Unknown
+   Match: 71.4%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+6. Heather Nova - Unknown Title
+   File: Unknown
+   Match: 72.7%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+7. The Police - Unknown Title
+   File: Unknown
+   Match: 72.7%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+8. The Knack - Unknown Title
+   File: Unknown
+   Match: 75.0%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+9. Tom Petty - Unknown Title
+   File: Unknown
+   Match: 75.0%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+10. Rob Zombie - Unknown Title
+   File: Unknown
+   Match: 75.0%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+11. Michael Jackson - Unknown Title
+   File: Unknown
+   Match: 77.8%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+12. The Rolling Stones - Unknown Title
+   File: Unknown
+   Match: 77.8%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+13. Paul McCartney and Wings - Unknown Title
+   File: Unknown
+   Match: 77.8%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+14. No Doubt - Unknown Title
+   File: Unknown
+   Match: 78.6%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+15. The Doobie Brothers - Unknown Title
+   File: Unknown
+   Match: 81.8%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+16. Foreigner - Unknown Title
+   File: Unknown
+   Match: 83.3%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+17. Moby - Unknown Title
+   File: Unknown
+   Match: 84.2%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+18. Pet Shop Boys - Unknown Title
+   File: Unknown
+   Match: 84.6%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+19. Gloria Estefan - Unknown Title
+   File: Unknown
+   Match: 85.7%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+20. Joe Walsh - Unknown Title
+   File: Unknown
+   Match: 87.5%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+21. Elton John - Unknown Title
+   File: Unknown
+   Match: 88.5%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+22. The Doobie Brothers - Unknown Title
+   File: Unknown
+   Match: 88.9%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+23. "Weird Al" Yankovic - Unknown Title
+   File: Unknown
+   Match: 89.5%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+
+24. Chicago - Unknown Title
+   File: Unknown
+   Match: 89.7%
+   Tracks: Expected 0, Detected 0
+   MBID: N/A
+

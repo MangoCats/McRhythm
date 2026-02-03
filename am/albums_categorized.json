@@ -1,0 +1,1228 @@
+{
+  "better": [
+    {
+      "artist_album": "Asia - Gold",
+      "path": "Asia/GoldAsia.mp3",
+      "baseline_tracks": 36,
+      "current_tracks": 36,
+      "match_pct": 100.0,
+      "baseline_title": "Gold",
+      "new_title": "Asia - Gold",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "BTS - Wings",
+      "path": "BTS/Wings.mp3",
+      "baseline_tracks": 15,
+      "current_tracks": 15,
+      "match_pct": 100.0,
+      "baseline_title": "Wings",
+      "new_title": "BTS - Wings",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Beck - Hyperspace",
+      "path": "Beck/Hyperspace.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 100.0,
+      "baseline_title": "Hyperspace",
+      "new_title": "Beck - Hyperspace",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Robyn - Body Talk",
+      "path": "Bjork/BodyTalk.mp3",
+      "baseline_tracks": 15,
+      "current_tracks": 15,
+      "match_pct": 100.0,
+      "baseline_title": "Body Talk",
+      "new_title": "Robyn - Body Talk",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Bjork - Debut",
+      "path": "Bjork/Debut.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 100.0,
+      "baseline_title": "Debut",
+      "new_title": "Bj\u00f6rk - Debut",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Bjork - Vespertine",
+      "path": "Bjork/Vespertine.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 100.0,
+      "baseline_title": "Vespertine",
+      "new_title": "Bj\u00f6rk - Vespertine",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Bon Jovi - Bon Jovi",
+      "path": "Bon Jovi/BonJovi.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 100.0,
+      "baseline_title": "Bon Jovi",
+      "new_title": "Bon Jovi - Bon Jovi",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Jimmy Buffett - Life On The Flipside",
+      "path": "Buffett, Jimmy/LifeOnTheFlipSide.mp3",
+      "baseline_tracks": 14,
+      "current_tracks": 14,
+      "match_pct": 100.0,
+      "baseline_title": "Life on the Flip Side",
+      "new_title": "Jimmy Buffett - Life on the Flip Side",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Chemical Brothers - Dig Your Own Hole",
+      "path": "Chemical Brothers/DigYourOwnHole.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 100.0,
+      "baseline_title": "Dig Your Own Hole",
+      "new_title": "The Chemical Brothers - Dig Your Own Hole",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Derek & The Dominos - Layla And Other Assorted Love Songs",
+      "path": "Clapton, Eric/LaylaAndOtherAssortedLoveSongs.mp3",
+      "baseline_tracks": 14,
+      "current_tracks": 14,
+      "match_pct": 100.0,
+      "baseline_title": "Layla and Other Assorted Love Songs",
+      "new_title": "Derek and the Dominos - Layla and Other Assorted Love Songs",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Chick Corea - Light as a Feather",
+      "path": "Corea, Chick/LightAsAFeather.mp3",
+      "baseline_tracks": 6,
+      "current_tracks": 6,
+      "match_pct": 100.0,
+      "baseline_title": "Light as a Feather",
+      "new_title": "Chick Corea - Light as a Feather",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "The Crystal Method - Vegas",
+      "path": "Crystal Method, The/Vegas.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Vegas",
+      "new_title": "The Crystal Method - Vegas",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Daft Punk - Homework",
+      "path": "Daft Punk/Homework.mp3",
+      "baseline_tracks": 16,
+      "current_tracks": 16,
+      "match_pct": 100.0,
+      "baseline_title": "Homework",
+      "new_title": "Daft Punk - Homework",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Daft Punk - TRON: Legacy Reconfigured",
+      "path": "Daft Punk/TronLegacyReconfigured.mp3",
+      "baseline_tracks": 15,
+      "current_tracks": 15,
+      "match_pct": 100.0,
+      "baseline_title": "TRON: Legacy R3C0NF1GUR3D",
+      "new_title": "Daft Punk - TRON: Legacy Reconfigured (Australian Version)",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Deep Purple - Machine Head",
+      "path": "Deep Purple/MachineHead.mp3",
+      "baseline_tracks": 7,
+      "current_tracks": 7,
+      "match_pct": 100.0,
+      "baseline_title": "Machine Head",
+      "new_title": "Deep Purple - Machine Head",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Def Leppard - Pyromania",
+      "path": "Def Leppard/Pyromania.mp3",
+      "baseline_tracks": 25,
+      "current_tracks": 25,
+      "match_pct": 100.0,
+      "baseline_title": "Pyromania",
+      "new_title": "Def Leppard - Pyromania",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Devo - Freedom Of Choice",
+      "path": "Devo/FreedomOfChoice.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 100.0,
+      "baseline_title": "Freedom of Choice",
+      "new_title": "DEVO - Freedom of Choice",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Thomas Dolby - A Map Of The Floating City",
+      "path": "Dolby, Thomas/AMapOfTheFloatingCity.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 100.0,
+      "baseline_title": "A Map of the Floating City",
+      "new_title": "Thomas Dolby - A Map of the Floating City",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Thomas Dolby - Aliens Ate My Buick",
+      "path": "Dolby, Thomas/AliensAteMyBuick.mp3",
+      "baseline_tracks": 8,
+      "current_tracks": 8,
+      "match_pct": 100.0,
+      "baseline_title": "Aliens Ate My Buick",
+      "new_title": "Thomas Dolby - Aliens Ate My Buick",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "The Doobie Brothers - Minute By Minute",
+      "path": "Doobie Brothers/MinuteByMinute.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Minute by Minute",
+      "new_title": "The Doobie Brothers - Minute by Minute",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Eagles - Desperado",
+      "path": "Eagles/Desperado.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 100.0,
+      "baseline_title": "Desperado",
+      "new_title": "Eagles - Desperado",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Eagles - Eagles (2013 Remaster)",
+      "path": "Eagles/Eagles.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Eagles",
+      "new_title": "Eagles - Eagles",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Eagles - On the Border",
+      "path": "Eagles/OnTheBorder.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "On the Border",
+      "new_title": "Eagles - On the Border",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Eagles - One of These Nights",
+      "path": "Eagles/OneOfTheseNights.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 100.0,
+      "baseline_title": "One of These Nights",
+      "new_title": "Eagles - One of These Nights",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Samantha Fish - Black Wind Howlin'",
+      "path": "Fish, Samantha/BlackWindHowlin.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 100.0,
+      "baseline_title": "Black Wind Howlin\u2019",
+      "new_title": "Samantha Fish - Black Wind Howlin\u2019",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Fluke - Risotto",
+      "path": "Fluke/Risotto.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Risotto",
+      "new_title": "Fluke - Risotto",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Foreigner - Double Vision",
+      "path": "Foreigner/DoubleVision.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 100.0,
+      "baseline_title": "Double Vision",
+      "new_title": "Foreigner - Double Vision",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Foreigner - Head Games",
+      "path": "Foreigner/HeadGames.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 100.0,
+      "baseline_title": "Head Games",
+      "new_title": "Foreigner - Head Games",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Steve Howe - Anthology",
+      "path": "Howe, Steve/Anthology1.mp3",
+      "baseline_tracks": 24,
+      "current_tracks": 33,
+      "match_pct": 100.0,
+      "baseline_title": "Anthology",
+      "new_title": "Steve Howe - Anthology: A Solo Career Retrospective",
+      "reason": "Better edition: 24 -> 33 at 100.0%"
+    },
+    {
+      "artist_album": "Jack Johnson - In Between Dreams",
+      "path": "Johnson, Jack/InBetweenDreams.mp3",
+      "baseline_tracks": 14,
+      "current_tracks": 14,
+      "match_pct": 100.0,
+      "baseline_title": "In Between Dreams",
+      "new_title": "Jack Johnson - In Between Dreams",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Jack Johnson - To The Sea",
+      "path": "Johnson, Jack/ToTheSea.mp3",
+      "baseline_tracks": 13,
+      "current_tracks": 13,
+      "match_pct": 100.0,
+      "baseline_title": "To the Sea",
+      "new_title": "Jack Johnson - To the Sea",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "KISS - Greatest Kiss",
+      "path": "KISS/GreatestKiss.mp3",
+      "baseline_tracks": 20,
+      "current_tracks": 20,
+      "match_pct": 100.0,
+      "baseline_title": "Greatest KISS",
+      "new_title": "KISS - Greatest KISS",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Katrina & The Waves - Katrina & The Waves",
+      "path": "Katrina and the Waves/KatrinaAndTheWaves.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Katrina and the Waves",
+      "new_title": "Katrina and the Waves - Katrina and the Waves",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Mark Knopfler - Privateering",
+      "path": "Knopfler, Marc/Privateering.mp3",
+      "baseline_tracks": 25,
+      "current_tracks": 25,
+      "match_pct": 100.0,
+      "baseline_title": "Privateering",
+      "new_title": "Mark Knopfler - Privateering",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Kraftwerk - Trans Europe Express",
+      "path": "Kraftwerk/TransEuropeExpress.mp3",
+      "baseline_tracks": 8,
+      "current_tracks": 8,
+      "match_pct": 100.0,
+      "baseline_title": "Trans Europe Express",
+      "new_title": "Kraftwerk - Trans Europe Express",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Lady Gaga - Chromatica",
+      "path": "Lady Gaga/Chromatica.mp3",
+      "baseline_tracks": 16,
+      "current_tracks": 16,
+      "match_pct": 100.0,
+      "baseline_title": "Chromatica",
+      "new_title": "Lady Gaga - Chromatica",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Led Zeppelin - Led Zeppelin (Deluxe Edition)",
+      "path": "Led Zeppelin/LedZeppelin.mp3",
+      "baseline_tracks": 17,
+      "current_tracks": 17,
+      "match_pct": 100.0,
+      "baseline_title": "Led Zeppelin",
+      "new_title": "Led Zeppelin - Led Zeppelin",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Led Zeppelin - Led Zeppelin II (Deluxe Edition)",
+      "path": "Led Zeppelin/LedZeppelinII.mp3",
+      "baseline_tracks": 17,
+      "current_tracks": 17,
+      "match_pct": 100.0,
+      "baseline_title": "Led Zeppelin II",
+      "new_title": "Led Zeppelin - Led Zeppelin II",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Led Zeppelin - Led Zeppelin III (Deluxe Edition)",
+      "path": "Led Zeppelin/LedZeppelinIII.mp3",
+      "baseline_tracks": 19,
+      "current_tracks": 19,
+      "match_pct": 100.0,
+      "baseline_title": "Led Zeppelin III",
+      "new_title": "Led Zeppelin - Led Zeppelin III",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Huey Lewis & The News - Greatest Hits: Huey Lewis And The News",
+      "path": "Lewis, Huey and the News/GreatestHitsHueyLewisAndTheNews.mp3",
+      "baseline_tracks": 21,
+      "current_tracks": 21,
+      "match_pct": 100.0,
+      "baseline_title": "Greatest Hits & Videos",
+      "new_title": "Huey Lewis & the News - Greatest Hits",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Lorde - Melodrama",
+      "path": "Lorde/Melodrama.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 100.0,
+      "baseline_title": "Melodrama",
+      "new_title": "Lorde - Melodrama",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Massive Attack - Mezzanine",
+      "path": "Massive Attack/Mezzanine.mp3",
+      "baseline_tracks": 19,
+      "current_tracks": 19,
+      "match_pct": 100.0,
+      "baseline_title": "Mezzanine",
+      "new_title": "Massive Attack - Mezzanine",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "John Mayall - A Hard Road",
+      "path": "Mayall, John/AHardRoad.mp3",
+      "baseline_tracks": 28,
+      "current_tracks": 28,
+      "match_pct": 100.0,
+      "baseline_title": "A Hard Road",
+      "new_title": "John Mayall and the Bluesbreakers - A Hard Road",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Michael McDonald - If That's What It Takes",
+      "path": "McDonald, Michael/IfThatsWhatItTakes.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "If That's What It Takes",
+      "new_title": "Michael McDonald - If That's What It Takes",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "John Mellencamp - American Fool",
+      "path": "Mellencamp, John/AmericanFool.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "American Fool",
+      "new_title": "John Mellencamp - American Fool",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Steve Miller Band - Fly Like An Eagle",
+      "path": "Miller, Steve's Band/FlyLikeAnEagle.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 100.0,
+      "baseline_title": "Fly Like an Eagle",
+      "new_title": "Steve Miller Band - Fly Like an Eagle",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Molly Hatchet - Greatest Hits",
+      "path": "Molly Hatchet/GreatestHitsMollyHatchet.mp3",
+      "baseline_tracks": 15,
+      "current_tracks": 15,
+      "match_pct": 100.0,
+      "baseline_title": "Greatest Hits",
+      "new_title": "Molly Hatchet - Greatest Hits",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Eddie Money - The Best of Eddie Money",
+      "path": "Money, Eddie/TheBestOfEddieMoney.mp3",
+      "baseline_tracks": 16,
+      "current_tracks": 16,
+      "match_pct": 100.0,
+      "baseline_title": "The Best of Eddie Money",
+      "new_title": "Eddie Money - The Best of Eddie Money",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Nine Inch Nails - Pretty Hate Machine",
+      "path": "Nine Inch Nails/PrettyHateMachine.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Pretty Hate Machine",
+      "new_title": "Nine Inch Nails - Pretty Hate Machine",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Heather Nova - 300 Days At Sea",
+      "path": "Nova, Heather/300DaysAtSea.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 100.0,
+      "baseline_title": "300 Days at Sea",
+      "new_title": "Heather Nova - 300 Days at Sea",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Heather Nova - Live From The Milky Way",
+      "path": "Nova, Heather/LiveFromTheMilkyWay.mp3",
+      "baseline_tracks": 6,
+      "current_tracks": 6,
+      "match_pct": 100.0,
+      "baseline_title": "Live From the Milky Way",
+      "new_title": "Heather Nova - Live From the Milky Way",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Paramore - Paramore (Deluxe Edition)",
+      "path": "Paramore/Paramore.mp3",
+      "baseline_tracks": 29,
+      "current_tracks": 29,
+      "match_pct": 100.0,
+      "baseline_title": "Paramore",
+      "new_title": "Paramore - Paramore",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "The Police - Outlandos D'Amour",
+      "path": "Police/OutlandosDAmour.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Outlandos d\u2019Amour",
+      "new_title": "The Police - Outlandos d\u2019Amour",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Portugal, The Man - Woodstock",
+      "path": "Portugal. the Man/Woodstock.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Woodstock",
+      "new_title": "Portugal. The Man - Woodstock",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Flora Purim - Butterfly Dreams",
+      "path": "Purim, Flora/ButterflyDreams.mp3",
+      "baseline_tracks": 8,
+      "current_tracks": 8,
+      "match_pct": 100.0,
+      "baseline_title": "Butterfly Dreams",
+      "new_title": "Flora Purim - Butterfly Dreams",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "R.E.O. Speedwagon - You Can Tune a Piano But You Can't Tuna Fish",
+      "path": "REO Speedwagon/YouCanTuneAPianoButYouCantTunaFish.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 100.0,
+      "baseline_title": "You Can Tune a Piano, but You Can't Tuna Fish",
+      "new_title": "REO Speedwagon - You Can Tune a Piano, but You Can\u2019t Tuna Fish",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Radiohead - Amnesiac",
+      "path": "Radiohead/Amnesiac.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 100.0,
+      "baseline_title": "Amnesiac",
+      "new_title": "Radiohead - Amnesiac",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Radiohead - Pablo Honey",
+      "path": "Radiohead/PabloHoney.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 100.0,
+      "baseline_title": "Pablo Honey",
+      "new_title": "Radiohead - Pablo Honey",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Gerry Rafferty - City To City",
+      "path": "Rafferty, Gerry/CityToCity.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "City to City",
+      "new_title": "Gerry Rafferty - City to City",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Red Rider - Breaking Curfew",
+      "path": "Red Ryder/BreakingCurfew.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 100.0,
+      "baseline_title": "Breaking Curfew",
+      "new_title": "Red Rider - Breaking Curfew",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Robyn - Body Talk",
+      "path": "Robyn/BodyTalk.mp3",
+      "baseline_tracks": 15,
+      "current_tracks": 15,
+      "match_pct": 100.0,
+      "baseline_title": "Body Talk",
+      "new_title": "Robyn - Body Talk",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Rock Candy Funk Party - Groove is King",
+      "path": "Rock Candy Funk Party/GrooveIsKing.mp3",
+      "baseline_tracks": 16,
+      "current_tracks": 16,
+      "match_pct": 100.0,
+      "baseline_title": "Groove Is King",
+      "new_title": "Rock Candy Funk Party - Groove Is King",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Rush - Exit Stage Left",
+      "path": "Rush/ExitStageLeft.mp3",
+      "baseline_tracks": 13,
+      "current_tracks": 13,
+      "match_pct": 100.0,
+      "baseline_title": "Exit\u2026 Stage Left",
+      "new_title": "Rush - Exit\u2026 Stage Left",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Rush - Test For Echo",
+      "path": "Rush/TestForEcho.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 100.0,
+      "baseline_title": "Test for Echo",
+      "new_title": "Rush - Test for Echo",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "The Score - Atlas",
+      "path": "Score, The/Atlas.mp3",
+      "baseline_tracks": 14,
+      "current_tracks": 24,
+      "match_pct": 95.83333333333334,
+      "baseline_title": "Atlas",
+      "new_title": "The Bony King Of Nowhere - Alas My Love",
+      "reason": "Better edition: 14 -> 24 at 95.8%"
+    },
+    {
+      "artist_album": "Scorpions - Love At First Sting",
+      "path": "Scorpions/Love At First Sting.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 100.0,
+      "baseline_title": "Love at First Sting",
+      "new_title": "Scorpions - Love at First Sting",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Seals and Crofts - Summer Breeze",
+      "path": "Seals and Crofts/SummerBreeze.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Summer Breeze",
+      "new_title": "Seals & Crofts - Summer Breeze",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Smash Mouth - Astro Lounge",
+      "path": "Smash Mouth/AstroLounge.mp3",
+      "baseline_tracks": 15,
+      "current_tracks": 15,
+      "match_pct": 100.0,
+      "baseline_title": "Astro Lounge",
+      "new_title": "Smash Mouth - Astro Lounge",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Sneaker Pimps - Becoming X",
+      "path": "Sneaker Pimps/BecomingX.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 100.0,
+      "baseline_title": "Becoming X",
+      "new_title": "Sneaker Pimps - Becoming X",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Billy Squier - Don't Say No",
+      "path": "Squier, Billy/DontSayNo.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Don\u2019t Say No",
+      "new_title": "Billy Squier - Don't Say No",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Donald Fagen - Sunken Condos",
+      "path": "Steely Dan/Donald Fagen/SunkenCondos.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 100.0,
+      "baseline_title": "Sunken Condos",
+      "new_title": "Donald Fagen - Sunken Condos",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Steely Dan - Gaucho",
+      "path": "Steely Dan/Gaucho.mp3",
+      "baseline_tracks": 7,
+      "current_tracks": 7,
+      "match_pct": 100.0,
+      "baseline_title": "Gaucho",
+      "new_title": "Steely Dan - Gaucho",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Steely Dan - The Royal Scam",
+      "path": "Steely Dan/TheRoyalScam.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 100.0,
+      "baseline_title": "The Royal Scam",
+      "new_title": "Steely Dan - The Royal Scam",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "The Stray Cats - Built For Speed",
+      "path": "Stray Cats/BuildForSpeed.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 100.0,
+      "baseline_title": "Built for Speed",
+      "new_title": "Stray Cats - Built for Speed",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Thin Lizzy - Live And Dangerous",
+      "path": "Thin Lizzie/LiveAndDangerous.mp3",
+      "baseline_tracks": 17,
+      "current_tracks": 17,
+      "match_pct": 100.0,
+      "baseline_title": "Live and Dangerous",
+      "new_title": "Thin Lizzy - Live and Dangerous",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "George Thorogood and the Destroyers - The Baddest of George Thorogood and the Destroyers",
+      "path": "Thorogood, George and The Destroyers/TheBaddestOfGeorgeThorogoodAndTheDestroyers.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 100.0,
+      "baseline_title": "The Baddest of George Thorogood and the Destroyers",
+      "new_title": "George Thorogood & the Destroyers - The Baddest of George Thorogood and the Destroyers",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Toto - Toto IV",
+      "path": "Toto/TotoIV.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Toto IV",
+      "new_title": "Toto - Toto IV",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "U2 - Rattle and Hum",
+      "path": "U2/RattleAndHum.mp3",
+      "baseline_tracks": 17,
+      "current_tracks": 17,
+      "match_pct": 100.0,
+      "baseline_title": "Rattle and Hum",
+      "new_title": "U2 - Rattle and Hum",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Van Halen - 1984",
+      "path": "Van Halen/1984.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 100.0,
+      "baseline_title": "1984",
+      "new_title": "Van Halen - 1984",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Van Halen - Fair Warning",
+      "path": "Van Halen/FairWarning.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 100.0,
+      "baseline_title": "Fair Warning",
+      "new_title": "Van Halen - Fair Warning",
+      "reason": "Perfect match (100%)"
+    },
+    {
+      "artist_album": "Suzanne Vega - Tales from the Realm of the Queen of Pentacles",
+      "path": "Vega, Susan/TalesFromTheRealmOfTheQueenOfPentacles.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 100.0,
+      "baseline_title": "Tales From the Realm of the Queen of Pentacles",
+      "new_title": "Suzanne Vega - Tales From the Realm of the Queen of Pentacles",
+      "reason": "Perfect match (100%)"
+    }
+  ],
+  "worse": [
+    {
+      "artist_album": "The Cars - Panorama",
+      "path": "Cars/Panorama.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 1,
+      "match_pct": 100.0,
+      "baseline_title": "Panorama",
+      "new_title": "Stephan Mathieu - Radioland (Panor\u00e1mica)",
+      "reason": "Track count collapse: 10 -> 1 track"
+    },
+    {
+      "artist_album": "Eagles - The Long Run",
+      "path": "Eagles/TheLongRun.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 70.0,
+      "baseline_title": "The Long Run",
+      "new_title": "Eagles - The Long Run",
+      "reason": "Low match percentage: 70.0%"
+    },
+    {
+      "artist_album": "Imagine Dragons - Night Visions",
+      "path": "Imagine Dragons/NightVisions.mp3",
+      "baseline_tracks": 16,
+      "current_tracks": 16,
+      "match_pct": 68.75,
+      "baseline_title": "Night Visions",
+      "new_title": "Imagine Dragons - Night Visions",
+      "reason": "Low match percentage: 68.8%"
+    },
+    {
+      "artist_album": "Heather Nova - Pearl",
+      "path": "Nova, Heather/Pearl.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 72.72727272727273,
+      "baseline_title": "Pearl",
+      "new_title": "Heather Nova - Pearl",
+      "reason": "Low match percentage: 72.7%"
+    },
+    {
+      "artist_album": "Delerium - Ritual",
+      "path": "Phildel/Ritual.mp3",
+      "baseline_tracks": 1,
+      "current_tracks": 8,
+      "match_pct": 87.5,
+      "baseline_title": "Ritual",
+      "new_title": "Velonnic Sin - Ritual",
+      "reason": "Large track increase with poor match: 1 -> 8 at 87.5%"
+    },
+    {
+      "artist_album": "The Police - Zenyatta Mondatta",
+      "path": "Police/ZenyattaMondatta.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 72.72727272727273,
+      "baseline_title": "Zenyatt\u00e0 Mondatta",
+      "new_title": "The Police - Zenyatt\u00e0 Mondatta",
+      "reason": "Low match percentage: 72.7%"
+    },
+    {
+      "artist_album": "The Rolling Stones - Let It Bleed",
+      "path": "Rolling Stones/LetItBleed.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 66.66666666666666,
+      "baseline_title": "Let It Bleed",
+      "new_title": "The Rolling Stones - Let It Bleed",
+      "reason": "Low match percentage: 66.7%"
+    }
+  ],
+  "equivocal": [
+    {
+      "artist_album": "Aerosmith - Pump",
+      "path": "Aerosmith/Pump.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 90.0,
+      "baseline_title": "Pump",
+      "new_title": "Aerosmith - Pump",
+      "reason": "Different edition, same quality: 90.0%"
+    },
+    {
+      "artist_album": "Bear's Den - Islands",
+      "path": "Bears' Den/Islands.mp3",
+      "baseline_tracks": 20,
+      "current_tracks": 20,
+      "match_pct": 95.0,
+      "baseline_title": "Islands",
+      "new_title": "Bear\u2019s Den - Islands",
+      "reason": "Different edition, same quality: 95.0%"
+    },
+    {
+      "artist_album": "Blackmore's Night - Beyond the Sunset",
+      "path": "Blackmore's Night/BeyondTheSunset.mp3",
+      "baseline_tracks": 17,
+      "current_tracks": 13,
+      "match_pct": 92.3076923076923,
+      "baseline_title": "Beyond The Sunset: The Romantic Collection",
+      "new_title": "Blackmore\u2019s Night - Dancer and the Moon",
+      "reason": "Track count change, moderate match: 17 -> 13 at 92.3%"
+    },
+    {
+      "artist_album": "The Cars - Heartbeat City",
+      "path": "Cars/HeartbeatCity.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 90.0,
+      "baseline_title": "Heartbeat City",
+      "new_title": "The Cars - Heartbeat City",
+      "reason": "Different edition, same quality: 90.0%"
+    },
+    {
+      "artist_album": "Chumbawamba - Tubthumper",
+      "path": "Chumbawumba/Tubthumper.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 91.66666666666666,
+      "baseline_title": "Tubthumper",
+      "new_title": "Chumbawamba - Tubthumper",
+      "reason": "Different edition, same quality: 91.7%"
+    },
+    {
+      "artist_album": "Elvis Costello - The Best of The First 10 Years",
+      "path": "Costello, Elvis/TheBestOfTheFirst10Years.mp3",
+      "baseline_tracks": 22,
+      "current_tracks": 22,
+      "match_pct": 95.45454545454545,
+      "baseline_title": "The Best of Elvis Costello: The First 10 Years",
+      "new_title": "Elvis Costello - The Best of Elvis Costello: The First 10 Years",
+      "reason": "Different edition, same quality: 95.5%"
+    },
+    {
+      "artist_album": "Crosby, Stills & Nash - Daylight Again (Deluxe Version 2012)",
+      "path": "Crosby, Stills and Nash/DaylightAgain.mp3",
+      "baseline_tracks": 15,
+      "current_tracks": 15,
+      "match_pct": 93.33333333333333,
+      "baseline_title": "Daylight Again",
+      "new_title": "Crosby, Stills & Nash - Daylight Again",
+      "reason": "Different edition, same quality: 93.3%"
+    },
+    {
+      "artist_album": "The Doobie Brothers - Takin' It to the Streets",
+      "path": "Doobie Brothers/TakinItToTheStreets.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 88.88888888888889,
+      "baseline_title": "Takin\u2019 It to the Streets",
+      "new_title": "The Doobie Brothers - Takin' It to the Streets",
+      "reason": "Moderate match percentage: 88.9%"
+    },
+    {
+      "artist_album": "The Doobie Brothers - The Captain And Me",
+      "path": "Doobie Brothers/TheCaptainAndMe.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 81.81818181818183,
+      "baseline_title": "The Captain and Me",
+      "new_title": "The Doobie Brothers - The Captain and Me",
+      "reason": "Moderate match percentage: 81.8%"
+    },
+    {
+      "artist_album": "The Doobie Brothers - Toulouse Street",
+      "path": "Doobie Brothers/ToulouseStreet.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 10,
+      "match_pct": 90.0,
+      "baseline_title": "Toulouse Street",
+      "new_title": "The Doobie Brothers - Toulouse Street",
+      "reason": "Different edition, same quality: 90.0%"
+    },
+    {
+      "artist_album": "Fatboy Slim - The Greatest Hits - Why Try Harder",
+      "path": "Fatboy Slim/WhyTryHarder.mp3",
+      "baseline_tracks": 18,
+      "current_tracks": 18,
+      "match_pct": 94.44444444444444,
+      "baseline_title": "Why Try Harder: The Greatest Hits",
+      "new_title": "Fatboy Slim - The Greatest Hits: Why Try Harder",
+      "reason": "Different edition, same quality: 94.4%"
+    },
+    {
+      "artist_album": "Foreigner - 4",
+      "path": "Foreigner/4.mp3",
+      "baseline_tracks": 10,
+      "current_tracks": 12,
+      "match_pct": 83.33333333333334,
+      "baseline_title": "4",
+      "new_title": "Foreigner - 4",
+      "reason": "Track count change, moderate match: 10 -> 12 at 83.3%"
+    },
+    {
+      "artist_album": "Peter Frampton - Frampton Comes Alive",
+      "path": "Frampton, Peter/FramptonComesAlive.mp3",
+      "baseline_tracks": 14,
+      "current_tracks": 14,
+      "match_pct": 92.85714285714286,
+      "baseline_title": "Frampton Comes Alive!",
+      "new_title": "Peter Frampton - Frampton Comes Alive!",
+      "reason": "Different edition, same quality: 92.9%"
+    },
+    {
+      "artist_album": "Guns N' Roses - Appetite For Destruction",
+      "path": "Guns 'n Roses/AppetiteForDestruction.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 91.66666666666666,
+      "baseline_title": "Appetite For Destruction",
+      "new_title": "Guns N\u2019 Roses - Appetite for Destruction",
+      "reason": "Different edition, same quality: 91.7%"
+    },
+    {
+      "artist_album": "Journey - Trial By Fire",
+      "path": "Journey/TrialByFire.mp3",
+      "baseline_tracks": 16,
+      "current_tracks": 16,
+      "match_pct": 75.0,
+      "baseline_title": "Trial by Fire",
+      "new_title": "Journey - Trial by Fire",
+      "reason": "Moderate match percentage: 75.0%"
+    },
+    {
+      "artist_album": "King Crimson - The Power To Believe",
+      "path": "King Crimson/ThePowerToBelieve.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 90.9090909090909,
+      "baseline_title": "The Power to Believe",
+      "new_title": "King Crimson - The Power to Believe",
+      "reason": "Different edition, same quality: 90.9%"
+    },
+    {
+      "artist_album": "The Knack - Get The Knack",
+      "path": "Knack, The/GetTheKnack.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 75.0,
+      "baseline_title": "Get the Knack",
+      "new_title": "The Knack - Get the Knack",
+      "reason": "Moderate match percentage: 75.0%"
+    },
+    {
+      "artist_album": "Bob Marley & The Wailers - Catch A Fire",
+      "path": "Marley, Bob and the Wailers/CatchAFire.mp3",
+      "baseline_tracks": 20,
+      "current_tracks": 20,
+      "match_pct": 95.0,
+      "baseline_title": "Catch a Fire",
+      "new_title": "Bob Marley & The Wailers - Catch A Fire Deluxe Edition",
+      "reason": "Different edition, same quality: 95.0%"
+    },
+    {
+      "artist_album": "Moby - Wait For Me",
+      "path": "Moby/WaitForMe.mp3",
+      "baseline_tracks": 16,
+      "current_tracks": 19,
+      "match_pct": 84.21052631578947,
+      "baseline_title": "Wait for Me",
+      "new_title": "Moby - Wait for Me",
+      "reason": "Track count change, moderate match: 16 -> 19 at 84.2%"
+    },
+    {
+      "artist_album": "No Doubt - Tragic Kingdom",
+      "path": "No Doubt/TragicKingdom.mp3",
+      "baseline_tracks": 14,
+      "current_tracks": 14,
+      "match_pct": 78.57142857142857,
+      "baseline_title": "Tragic Kingdom",
+      "new_title": "No Doubt - Tragic Kingdom",
+      "reason": "Moderate match percentage: 78.6%"
+    },
+    {
+      "artist_album": "Tom Petty - Full Moon Fever",
+      "path": "Petty, Tom and the Heartbreakers/FullMoonFever.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 75.0,
+      "baseline_title": "Full Moon Fever",
+      "new_title": "Tom Petty - Full Moon Fever",
+      "reason": "Moderate match percentage: 75.0%"
+    },
+    {
+      "artist_album": "The Police - Synchronicity",
+      "path": "Police/Synchronicity.mp3",
+      "baseline_tracks": 11,
+      "current_tracks": 11,
+      "match_pct": 90.9090909090909,
+      "baseline_title": "Synchronicity",
+      "new_title": "The Police - Synchronicity",
+      "reason": "Different edition, same quality: 90.9%"
+    },
+    {
+      "artist_album": "Tears for Fears - Songs from the Big Chair",
+      "path": "Tears For Fears/SongsFromTheBigChair.mp3",
+      "baseline_tracks": 33,
+      "current_tracks": 33,
+      "match_pct": 90.9090909090909,
+      "baseline_title": "Songs From the Big Chair",
+      "new_title": "Tears for Fears - Songs From the Big Chair",
+      "reason": "Different edition, same quality: 90.9%"
+    },
+    {
+      "artist_album": "Tedeschi Trucks Band - Let Me Get By",
+      "path": "Tedeschi Trucks Band/LetMeGetBy.mp3",
+      "baseline_tracks": 18,
+      "current_tracks": 18,
+      "match_pct": 94.44444444444444,
+      "baseline_title": "Let Me Get By",
+      "new_title": "Tedeschi Trucks Band - Let Me Get By",
+      "reason": "Different edition, same quality: 94.4%"
+    },
+    {
+      "artist_album": "Traffic - John Barlerycorn Must Die",
+      "path": "Traffic/JohnBarleycornMustDie.mp3",
+      "baseline_tracks": 16,
+      "current_tracks": 16,
+      "match_pct": 93.75,
+      "baseline_title": "John Barleycorn Must Die (deluxe edition)",
+      "new_title": "Traffic - John Barleycorn Must Die",
+      "reason": "Different edition, same quality: 93.8%"
+    },
+    {
+      "artist_album": "Various - Guardians of the Galaxy",
+      "path": "Various/GuardiansOfTheGalaxy.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 14,
+      "match_pct": 92.85714285714286,
+      "baseline_title": "Guardians of the Galaxy: Awesome Mix Vol. 1",
+      "new_title": "Various Artists - Guardians of the Galaxy Vol. 2: Awesome Mix, Vol. 2",
+      "reason": "Track count change, moderate match: 12 -> 14 at 92.9%"
+    },
+    {
+      "artist_album": "Disney - Moana Soundtrack",
+      "path": "Various/Moana.mp3",
+      "baseline_tracks": 59,
+      "current_tracks": 51,
+      "match_pct": 98.0392156862745,
+      "baseline_title": "Moana",
+      "new_title": "Disney - Moana 2 (Original Motion Picture Soundtrack/Deluxe Edition)",
+      "reason": "Track count change, moderate match: 59 -> 51 at 98.0%"
+    },
+    {
+      "artist_album": "Jessita Reyes - Native American Flute Lullabies",
+      "path": "Various/NativeAmericanFluteLullabies.mp3",
+      "baseline_tracks": 18,
+      "current_tracks": 16,
+      "match_pct": 93.75,
+      "baseline_title": "Native American Flute Lullabies",
+      "new_title": "Alice Gomez - Sacred Wind - Native American Flute",
+      "reason": "Track count change, moderate match: 18 -> 16 at 93.8%"
+    },
+    {
+      "artist_album": "Various - Tomb Raider",
+      "path": "Various/TombRaider.mp3",
+      "baseline_tracks": 16,
+      "current_tracks": 15,
+      "match_pct": 100.0,
+      "baseline_title": "Lara Croft: Tomb Raider",
+      "new_title": "Various Artists - Lara Croft: Tomb Raider (Music From the Motion Picture)",
+      "reason": "Track count change, moderate match: 16 -> 15 at 100.0%"
+    },
+    {
+      "artist_album": "Joe Walsh - But Seriously, Folks",
+      "path": "Walsh, Joe/ButSerioulyFolks.mp3",
+      "baseline_tracks": 8,
+      "current_tracks": 8,
+      "match_pct": 87.5,
+      "baseline_title": "\u201cBut Seriously, Folks\u2026\u201d",
+      "new_title": "Joe Walsh - \u201cBut Seriously, Folks\u2026\u201d",
+      "reason": "Moderate match percentage: 87.5%"
+    },
+    {
+      "artist_album": "The Who - Who's Next",
+      "path": "Who, The/WhosNext.mp3",
+      "baseline_tracks": 29,
+      "current_tracks": 29,
+      "match_pct": 96.55172413793103,
+      "baseline_title": "Who\u2019s Next",
+      "new_title": "The Who - Who\u2019s Next",
+      "reason": "Different edition, same quality: 96.6%"
+    },
+    {
+      "artist_album": "Paul McCartney and Wings - Band On The Run",
+      "path": "Wings/BandOnTheRun.mp3",
+      "baseline_tracks": 9,
+      "current_tracks": 9,
+      "match_pct": 77.77777777777779,
+      "baseline_title": "Band on the Run",
+      "new_title": "Paul McCartney & Wings - Band on the Run",
+      "reason": "Moderate match percentage: 77.8%"
+    },
+    {
+      "artist_album": "\"Weird Al\" Yankovic - The Essential \"Weird Al\" Yankovic",
+      "path": "Yankovic, Weird Al/TheEssentialWeirdAlYankovic.mp3",
+      "baseline_tracks": 38,
+      "current_tracks": 38,
+      "match_pct": 86.8421052631579,
+      "baseline_title": "The Essential \u201cWeird Al\u201d Yankovic",
+      "new_title": "\u201cWeird Al\u201d Yankovic - The Essential \u201cWeird Al\u201d Yankovic",
+      "reason": "Moderate match percentage: 86.8%"
+    },
+    {
+      "artist_album": "Rob Zombie - Best Of/20th Century",
+      "path": "Zombie, Rob/BestOfRobZombie.mp3",
+      "baseline_tracks": 12,
+      "current_tracks": 12,
+      "match_pct": 75.0,
+      "baseline_title": "20th Century Masters: The Millennium Collection: The Best of Rob Zombie",
+      "new_title": "Rob Zombie - 20th Century Masters: The Millennium Collection: The Best of Rob Zombie",
+      "reason": "Moderate match percentage: 75.0%"
+    }
+  ]
+}

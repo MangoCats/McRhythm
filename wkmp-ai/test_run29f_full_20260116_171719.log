@@ -1,0 +1,767 @@
+2026-01-16T22:17:19.565158Z  INFO wkmp_ai::matching::album_matcher: Starting album match for: C:\Users\Mango Cat\Music\38 Special/Anthology.mp3
+2026-01-16T22:17:19.565427Z DEBUG wkmp_ai::matching::album_matcher: Metadata: artist=38 Special, album=Anthology
+2026-01-16T22:17:19.565950Z  INFO wkmp_ai::matching::album_matcher: Starting parallel: decode + MusicBrainz lookup for artist=38 Special, album=Anthology
+2026-01-16T22:17:19.566383Z DEBUG wkmp_ai::services::musicbrainz_client: Album search cache hit artist=38 Special album=Anthology count=25 cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.566724Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.566960Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=4a81fc08-f915-49fc-9aa2-5b708c18f07a cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.567167Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=67832e22-bcd2-40e6-a1c3-7865a4af62f1 cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.567349Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=3b03bfe4-87f8-443e-989c-40d38b2cadc3 cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.567539Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=8da40fa0-70b5-4730-85cc-20ebce1912d2 cached_at=2025-12-31 02:23:42
+2026-01-16T22:17:19.567707Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=f6193694-b4f4-4e2e-948c-3493b0bcef8b cached_at=2025-12-31 02:23:42
+2026-01-16T22:17:19.567904Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=e62d8846-b1a0-449e-8242-d0a782eb87d4 cached_at=2025-12-31 02:23:42
+2026-01-16T22:17:19.568069Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=d30a13a4-df96-4b42-91ee-fdf7676136b9 cached_at=2025-12-31 02:23:42
+2026-01-16T22:17:19.568151Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=7a726db3-acfd-4020-9295-cbd81804ef39 cached_at=2025-12-31 02:23:42
+2026-01-16T22:17:19.568316Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=18141d7c-2a02-46f9-b98b-302546b4da67 cached_at=2025-12-31 02:23:42
+2026-01-16T22:17:19.568387Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=ae435b3f-8984-4fd2-aaa9-4b7b5538b1c7 cached_at=2025-12-31 02:23:42
+2026-01-16T22:17:19.568456Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=9d54e652-8dcb-41b5-a812-304d050c917d cached_at=2025-12-31 02:23:42
+2026-01-16T22:17:19.568524Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=95a27f35-126f-416f-acd4-48ed5bea6a0e cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.568578Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=ae7b7427-9680-49ac-bcee-24cd952fa6fb cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.568630Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=5bd74dc5-cb19-4d29-96ce-f7a7f754d13a cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.568678Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=e6322cdc-ff5e-4381-a1e0-d1513c1b5733 cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.568739Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=a3f25b8c-1243-406b-bcfb-d7a92dcfb0cd cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.568844Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=5520ef8a-4cf4-459a-81e4-b72863406b5e cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.569060Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=709cd3f0-2746-4c76-bbf0-0a6759e9e107 cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.569225Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=9d286a68-b7e3-486e-bdc0-083efd875de1 cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.569398Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=20f4f11b-51de-4672-867d-295525993ab2 cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.569586Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=5dc8468a-fc86-4270-8c89-6b1359e875cd cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.569928Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=eadab0eb-ec28-4977-8ee0-8100cd4c9f2e cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.570108Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=d8016dc1-5e99-440b-9eb3-a583a006305f cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.570307Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=bd9b1327-7d70-4803-bea4-4dc3bdfd7104 cached_at=2025-12-30 19:31:00
+2026-01-16T22:17:19.570335Z  INFO wkmp_ai::services::musicbrainz_client: Comprehensive search completed (with caching) artist=38 Special album=Anthology found=25
+2026-01-16T22:17:29.483934Z  INFO wkmp_ai::workflow::memory_tracker: MEMORY: +1599.7 MB [album_matcher decode] → Total: 1599.7 MB (1.60 GB) | 399922560 samples
+2026-01-16T22:17:29.483971Z DEBUG wkmp_ai::matching::album_matcher: Decoded 399922560 samples at 44100Hz (9068.5s, 9068538ms)
+2026-01-16T22:17:29.483980Z  INFO wkmp_ai::matching::album_matcher: Found 25 MusicBrainz releases
+2026-01-16T22:17:29.484104Z  INFO wkmp_ai::matching::album_matcher: Grouped into 23 unique editions
+2026-01-16T22:17:29.484124Z DEBUG wkmp_ai::matching::editions::filtering: Compilation detected - using relaxed artist matching threshold source_artist=38 Special source_album=Anthology threshold=0.50
+2026-01-16T22:17:29.484143Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Mellow Sonic mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=5dc8468a-fc86-4270-8c89-6b1359e875cd similarity=0.083 threshold=0.50
+2026-01-16T22:17:29.484153Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Spectral Lore mb_title=Wanderers: Astrology of the Nine source_artist=38 Special source_album=Anthology release_mbid=67832e22-bcd2-40e6-a1c3-7865a4af62f1 similarity=0.231 threshold=0.50
+2026-01-16T22:17:29.484158Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Pentatonik mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=20f4f11b-51de-4672-867d-295525993ab2 similarity=0.000 threshold=0.50
+2026-01-16T22:17:29.484163Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Salome Scheidegger mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=eadab0eb-ec28-4977-8ee0-8100cd4c9f2e similarity=0.167 threshold=0.50
+2026-01-16T22:17:29.484168Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Giant Sons mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=ae435b3f-8984-4fd2-aaa9-4b7b5538b1c7 similarity=0.000 threshold=0.50
+2026-01-16T22:17:29.484173Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Droogs mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=709cd3f0-2746-4c76-bbf0-0a6759e9e107 similarity=0.000 threshold=0.50
+2026-01-16T22:17:29.484178Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Stephanie Jackson mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=d8016dc1-5e99-440b-9eb3-a583a006305f similarity=0.118 threshold=0.50
+2026-01-16T22:17:29.484183Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Jarreau Vandal mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=bd9b1327-7d70-4803-bea4-4dc3bdfd7104 similarity=0.143 threshold=0.50
+2026-01-16T22:17:29.484189Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Daniel Disilva mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=a3f25b8c-1243-406b-bcfb-d7a92dcfb0cd similarity=0.143 threshold=0.50
+2026-01-16T22:17:29.484234Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=The Cathedrals mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=9d54e652-8dcb-41b5-a812-304d050c917d similarity=0.200 threshold=0.50
+2026-01-16T22:17:29.484242Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Thule mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=18141d7c-2a02-46f9-b98b-302546b4da67 similarity=0.100 threshold=0.50
+2026-01-16T22:17:29.484247Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Willis Drummond mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=ae7b7427-9680-49ac-bcee-24cd952fa6fb similarity=0.067 threshold=0.50
+2026-01-16T22:17:29.484252Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=DJ King Assassin mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=8da40fa0-70b5-4730-85cc-20ebce1912d2 similarity=0.125 threshold=0.50
+2026-01-16T22:17:29.484259Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Sweethearts of the Rodeo mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=95a27f35-126f-416f-acd4-48ed5bea6a0e similarity=0.083 threshold=0.50
+2026-01-16T22:17:29.484266Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Mojo Juju and The Snake-Oil Merchants mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=f6193694-b4f4-4e2e-948c-3493b0bcef8b similarity=0.135 threshold=0.50
+2026-01-16T22:17:29.484271Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Supermarket All-Stars mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=e62d8846-b1a0-449e-8242-d0a782eb87d4 similarity=0.143 threshold=0.50
+2026-01-16T22:17:29.484277Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=38 Special mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 similarity=1.000 threshold=0.50 reason=" (compilation)"
+2026-01-16T22:17:29.484281Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=38 Special mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=4a81fc08-f915-49fc-9aa2-5b708c18f07a similarity=1.000 threshold=0.50 reason=" (compilation)"
+2026-01-16T22:17:29.484286Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Cryogenic Echelon mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=7a726db3-acfd-4020-9295-cbd81804ef39 similarity=0.176 threshold=0.50
+2026-01-16T22:17:29.484291Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Dana Ray Band mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=e6322cdc-ff5e-4381-a1e0-d1513c1b5733 similarity=0.100 threshold=0.50
+2026-01-16T22:17:29.484296Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Spectral Lore mb_title=Wanderers: Astrology of the Nine source_artist=38 Special source_album=Anthology release_mbid=3b03bfe4-87f8-443e-989c-40d38b2cadc3 similarity=0.231 threshold=0.50
+2026-01-16T22:17:29.484302Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Benihana Kenobi mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=5520ef8a-4cf4-459a-81e4-b72863406b5e similarity=0.067 threshold=0.50
+2026-01-16T22:17:29.484310Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Walter Maioli mb_title=Anthology source_artist=38 Special source_album=Anthology release_mbid=d30a13a4-df96-4b42-91ee-fdf7676136b9 similarity=0.154 threshold=0.50
+2026-01-16T22:17:29.484314Z  INFO wkmp_ai::matching::album_matcher: Artist filter: 21 editions removed (2 remaining, threshold=0.60)
+2026-01-16T22:17:29.484329Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 artist=38 Special title=Anthology edition_duration_ms=8986188 file_duration_ms=9068538 ratio=99.1%
+2026-01-16T22:17:29.484333Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=4a81fc08-f915-49fc-9aa2-5b708c18f07a artist=38 Special title=Anthology edition_duration_ms=8985834 file_duration_ms=9068538 ratio=99.1%
+2026-01-16T22:17:29.484337Z  INFO wkmp_ai::matching::album_matcher: Testing 2 editions (top by name similarity)
+2026-01-16T22:17:29.484374Z DEBUG wkmp_ai::matching::stages::stage7_progressive_refinement: Stage 7 not needed: only 0 tracks with ≥30s error
+2026-01-16T22:17:29.491374Z DEBUG wkmp_ai::matching::album_matcher: Stage 6: Attempting boundary refinement
+2026-01-16T22:17:29.491435Z DEBUG wkmp_ai::matching::album_matcher: Boundary refinement: edition=94c5881c-e47a-42ba-bea0-d9ff8cb79dd1, track_count=34, original_match=100.0%
+2026-01-16T22:17:29.491481Z DEBUG wkmp_ai::matching::album_matcher: No refinement patterns detected - returning original boundaries
+2026-01-16T22:17:29.491528Z  INFO wkmp_ai::matching::album_matcher: Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+2026-01-16T22:17:29.491724Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=4a81fc08-f915-49fc-9aa2-5b708c18f07a url=https://musicbrainz.org/ws/2/release/4a81fc08-f915-49fc-9aa2-5b708c18f07a?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:17:30.341781Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=4a81fc08-f915-49fc-9aa2-5b708c18f07a title=Anthology tracks=34
+2026-01-16T22:17:30.342137Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 149.5827ms
+2026-01-16T22:17:30.497288Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 url=https://musicbrainz.org/ws/2/release/94c5881c-e47a-42ba-bea0-d9ff8cb79dd1?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:17:31.035490Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 title=Anthology tracks=34
+2026-01-16T22:17:31.036308Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 460.9666ms
+2026-01-16T22:17:31.501410Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 url=https://musicbrainz.org/ws/2/release/94c5881c-e47a-42ba-bea0-d9ff8cb79dd1?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:17:31.844048Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 title=Anthology tracks=34
+2026-01-16T22:17:31.844185Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 657.1954ms
+2026-01-16T22:17:32.502918Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 url=https://musicbrainz.org/ws/2/release/94c5881c-e47a-42ba-bea0-d9ff8cb79dd1?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:17:32.780036Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 title=Anthology tracks=34
+2026-01-16T22:17:32.780127Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=6230f1c6-7f4a-4989-83c4-841f623a73b8 url=https://acousticbrainz.org/api/v1/6230f1c6-7f4a-4989-83c4-841f623a73b8/low-level
+2026-01-16T22:17:33.710810Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=6230f1c6-7f4a-4989-83c4-841f623a73b8 has_tonal=true has_rhythm=true
+2026-01-16T22:17:33.710884Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 69.2323ms
+2026-01-16T22:17:33.785453Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=7dbb8c3e-be23-431f-8e43-2624ac599fc6 url=https://acousticbrainz.org/api/v1/7dbb8c3e-be23-431f-8e43-2624ac599fc6/low-level
+2026-01-16T22:17:34.030548Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=7dbb8c3e-be23-431f-8e43-2624ac599fc6 has_tonal=true has_rhythm=true
+2026-01-16T22:17:34.030609Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 754.8246ms
+2026-01-16T22:17:34.801550Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=62109324-204c-4ee6-9e54-75ad0b15dd9b url=https://acousticbrainz.org/api/v1/62109324-204c-4ee6-9e54-75ad0b15dd9b/low-level
+2026-01-16T22:17:35.069901Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=62109324-204c-4ee6-9e54-75ad0b15dd9b has_tonal=true has_rhythm=true
+2026-01-16T22:17:35.069962Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 731.5582ms
+2026-01-16T22:17:35.816184Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=6e580fe0-8ced-4fa6-9f0d-247d0d6b1724 url=https://acousticbrainz.org/api/v1/6e580fe0-8ced-4fa6-9f0d-247d0d6b1724/low-level
+2026-01-16T22:17:35.973091Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=6e580fe0-8ced-4fa6-9f0d-247d0d6b1724 has_tonal=true has_rhythm=true
+2026-01-16T22:17:35.973165Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 842.9903ms
+2026-01-16T22:17:36.831445Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=80b42351-5558-4465-9fea-e16a9a7f79cb url=https://acousticbrainz.org/api/v1/80b42351-5558-4465-9fea-e16a9a7f79cb/low-level
+2026-01-16T22:17:37.053449Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=80b42351-5558-4465-9fea-e16a9a7f79cb has_tonal=true has_rhythm=true
+2026-01-16T22:17:37.053523Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 777.9018ms
+2026-01-16T22:17:37.833740Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=90cbd9b7-7f70-4db1-b01d-7dbde27337a7 url=https://acousticbrainz.org/api/v1/90cbd9b7-7f70-4db1-b01d-7dbde27337a7/low-level
+2026-01-16T22:17:38.030650Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=90cbd9b7-7f70-4db1-b01d-7dbde27337a7 has_tonal=true has_rhythm=true
+2026-01-16T22:17:38.030728Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 802.9772ms
+2026-01-16T22:17:38.836592Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=35967031-8fdd-4a5e-b35a-f5d23ff59d2a url=https://acousticbrainz.org/api/v1/35967031-8fdd-4a5e-b35a-f5d23ff59d2a/low-level
+2026-01-16T22:17:39.006492Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=35967031-8fdd-4a5e-b35a-f5d23ff59d2a has_tonal=true has_rhythm=true
+2026-01-16T22:17:39.006546Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 830.0178ms
+2026-01-16T22:17:39.852493Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=a8c3db3e-d612-47ce-a6c3-dbe6ec6a2e73 url=https://acousticbrainz.org/api/v1/a8c3db3e-d612-47ce-a6c3-dbe6ec6a2e73/low-level
+2026-01-16T22:17:40.142935Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=a8c3db3e-d612-47ce-a6c3-dbe6ec6a2e73 has_tonal=true has_rhythm=true
+2026-01-16T22:17:40.143000Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 709.4794ms
+2026-01-16T22:17:40.854078Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=b27e336f-e691-4d8c-8059-f289d40fd417 url=https://acousticbrainz.org/api/v1/b27e336f-e691-4d8c-8059-f289d40fd417/low-level
+2026-01-16T22:17:41.071976Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=b27e336f-e691-4d8c-8059-f289d40fd417 has_tonal=true has_rhythm=true
+2026-01-16T22:17:41.072088Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 781.9705ms
+2026-01-16T22:17:41.864621Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=d982b804-ad1a-4eb6-92be-1ec765ff85fa url=https://acousticbrainz.org/api/v1/d982b804-ad1a-4eb6-92be-1ec765ff85fa/low-level
+2026-01-16T22:17:42.094530Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=d982b804-ad1a-4eb6-92be-1ec765ff85fa has_tonal=true has_rhythm=true
+2026-01-16T22:17:42.094588Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 770.0037ms
+2026-01-16T22:17:42.878620Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=1f38b2c1-5bde-48ec-9b68-3776df933739 url=https://acousticbrainz.org/api/v1/1f38b2c1-5bde-48ec-9b68-3776df933739/low-level
+2026-01-16T22:17:43.075920Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=1f38b2c1-5bde-48ec-9b68-3776df933739 has_tonal=true has_rhythm=true
+2026-01-16T22:17:43.075940Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 802.6707ms
+2026-01-16T22:17:43.891440Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=63297751-67a3-4371-99d2-a91d2ef810df url=https://acousticbrainz.org/api/v1/63297751-67a3-4371-99d2-a91d2ef810df/low-level
+2026-01-16T22:17:44.085137Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=63297751-67a3-4371-99d2-a91d2ef810df has_tonal=true has_rhythm=true
+2026-01-16T22:17:44.085169Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 806.2603ms
+2026-01-16T22:17:44.904649Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=c819578d-0752-4943-92b5-0248f49b6bdb url=https://acousticbrainz.org/api/v1/c819578d-0752-4943-92b5-0248f49b6bdb/low-level
+2026-01-16T22:17:45.159989Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=c819578d-0752-4943-92b5-0248f49b6bdb has_tonal=true has_rhythm=true
+2026-01-16T22:17:45.160012Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 744.599ms
+2026-01-16T22:17:45.911444Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=9e7ac71f-10d6-473d-8eae-897ca0a38a88 url=https://acousticbrainz.org/api/v1/9e7ac71f-10d6-473d-8eae-897ca0a38a88/low-level
+2026-01-16T22:17:46.197686Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=9e7ac71f-10d6-473d-8eae-897ca0a38a88 has_tonal=true has_rhythm=true
+2026-01-16T22:17:46.197763Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 713.6679ms
+2026-01-16T22:17:46.924540Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=b3e676ac-f7ca-48cf-ae68-a515dfdc59b3 url=https://acousticbrainz.org/api/v1/b3e676ac-f7ca-48cf-ae68-a515dfdc59b3/low-level
+2026-01-16T22:17:47.125802Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=b3e676ac-f7ca-48cf-ae68-a515dfdc59b3 has_tonal=true has_rhythm=true
+2026-01-16T22:17:47.125871Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 798.6558ms
+2026-01-16T22:17:47.939135Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=63aa0714-d36b-41d4-888d-00452001cfc8 url=https://acousticbrainz.org/api/v1/63aa0714-d36b-41d4-888d-00452001cfc8/low-level
+2026-01-16T22:17:48.110156Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=63aa0714-d36b-41d4-888d-00452001cfc8 has_tonal=true has_rhythm=true
+2026-01-16T22:17:48.110317Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 828.7959ms
+2026-01-16T22:17:48.953234Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=e6f3f8b8-3ecf-4525-8562-2dd77406677b url=https://acousticbrainz.org/api/v1/e6f3f8b8-3ecf-4525-8562-2dd77406677b/low-level
+2026-01-16T22:17:49.137607Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=e6f3f8b8-3ecf-4525-8562-2dd77406677b has_tonal=true has_rhythm=true
+2026-01-16T22:17:49.137677Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 815.5302ms
+2026-01-16T22:17:49.967012Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=bb1636c9-5fe0-4e70-8f8d-b533a9db3e71 url=https://acousticbrainz.org/api/v1/bb1636c9-5fe0-4e70-8f8d-b533a9db3e71/low-level
+2026-01-16T22:17:50.189784Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=bb1636c9-5fe0-4e70-8f8d-b533a9db3e71 has_tonal=true has_rhythm=true
+2026-01-16T22:17:50.189843Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 777.134ms
+2026-01-16T22:17:50.979769Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=67bdd038-43ce-42e7-9eb0-5c385a73024e url=https://acousticbrainz.org/api/v1/67bdd038-43ce-42e7-9eb0-5c385a73024e/low-level
+2026-01-16T22:17:51.166792Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=67bdd038-43ce-42e7-9eb0-5c385a73024e has_tonal=true has_rhythm=true
+2026-01-16T22:17:51.166861Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 812.8818ms
+2026-01-16T22:17:51.991043Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=892aaa9a-2c3e-4ed5-93cc-0829630ef24e url=https://acousticbrainz.org/api/v1/892aaa9a-2c3e-4ed5-93cc-0829630ef24e/low-level
+2026-01-16T22:17:52.167019Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=892aaa9a-2c3e-4ed5-93cc-0829630ef24e has_tonal=true has_rhythm=true
+2026-01-16T22:17:52.167164Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 823.8635ms
+2026-01-16T22:17:53.004440Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=ff195bf5-4cb7-40ac-9049-2877fcbba09d url=https://acousticbrainz.org/api/v1/ff195bf5-4cb7-40ac-9049-2877fcbba09d/low-level
+2026-01-16T22:17:53.167706Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=ff195bf5-4cb7-40ac-9049-2877fcbba09d has_tonal=true has_rhythm=true
+2026-01-16T22:17:53.167776Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 836.6397ms
+2026-01-16T22:17:54.017202Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=cd41cbc4-c132-4939-b116-6bcf528ff2af url=https://acousticbrainz.org/api/v1/cd41cbc4-c132-4939-b116-6bcf528ff2af/low-level
+2026-01-16T22:17:54.184231Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=cd41cbc4-c132-4939-b116-6bcf528ff2af has_tonal=true has_rhythm=true
+2026-01-16T22:17:54.184301Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 832.8513ms
+2026-01-16T22:17:55.031481Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=5b84127c-cbba-4dc0-9645-466201782ff8 url=https://acousticbrainz.org/api/v1/5b84127c-cbba-4dc0-9645-466201782ff8/low-level
+2026-01-16T22:17:55.201107Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=5b84127c-cbba-4dc0-9645-466201782ff8 has_tonal=true has_rhythm=true
+2026-01-16T22:17:55.201177Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 830.2916ms
+2026-01-16T22:17:56.044711Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=dfc27b4b-b832-469a-8c5e-b123e859f003 url=https://acousticbrainz.org/api/v1/dfc27b4b-b832-469a-8c5e-b123e859f003/low-level
+2026-01-16T22:17:56.228565Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=dfc27b4b-b832-469a-8c5e-b123e859f003 has_tonal=true has_rhythm=true
+2026-01-16T22:17:56.228633Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 816.0553ms
+2026-01-16T22:17:57.047550Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=5991de0c-15cc-4a6e-9c79-a8c6c671319d url=https://acousticbrainz.org/api/v1/5991de0c-15cc-4a6e-9c79-a8c6c671319d/low-level
+2026-01-16T22:17:57.228680Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=5991de0c-15cc-4a6e-9c79-a8c6c671319d has_tonal=true has_rhythm=true
+2026-01-16T22:17:57.228737Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 818.7846ms
+2026-01-16T22:17:58.059084Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=5d3663eb-9450-4537-bf03-de798806677a url=https://acousticbrainz.org/api/v1/5d3663eb-9450-4537-bf03-de798806677a/low-level
+2026-01-16T22:17:58.214584Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=5d3663eb-9450-4537-bf03-de798806677a has_tonal=true has_rhythm=true
+2026-01-16T22:17:58.214605Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 844.4622ms
+2026-01-16T22:17:59.071649Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=153f44ff-4914-4e32-84df-14a05c9e0986 url=https://acousticbrainz.org/api/v1/153f44ff-4914-4e32-84df-14a05c9e0986/low-level
+2026-01-16T22:17:59.379953Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=153f44ff-4914-4e32-84df-14a05c9e0986 has_tonal=true has_rhythm=true
+2026-01-16T22:17:59.379971Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 691.6617ms
+2026-01-16T22:18:00.086185Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=946d8c0c-048b-424c-8cff-233b52affb20 url=https://acousticbrainz.org/api/v1/946d8c0c-048b-424c-8cff-233b52affb20/low-level
+2026-01-16T22:18:00.351204Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=946d8c0c-048b-424c-8cff-233b52affb20 has_tonal=true has_rhythm=true
+2026-01-16T22:18:00.351228Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 734.915ms
+2026-01-16T22:18:01.096361Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=b606b7c5-34fe-4def-94e2-b21872aed9e0 url=https://acousticbrainz.org/api/v1/b606b7c5-34fe-4def-94e2-b21872aed9e0/low-level
+2026-01-16T22:18:01.300516Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=b606b7c5-34fe-4def-94e2-b21872aed9e0 has_tonal=true has_rhythm=true
+2026-01-16T22:18:01.300600Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 795.7534ms
+2026-01-16T22:18:02.110797Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=250b953c-43f6-4269-b3c0-22d849113cf0 url=https://acousticbrainz.org/api/v1/250b953c-43f6-4269-b3c0-22d849113cf0/low-level
+2026-01-16T22:18:02.456915Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=250b953c-43f6-4269-b3c0-22d849113cf0 has_tonal=true has_rhythm=true
+2026-01-16T22:18:02.456948Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 653.8404ms
+2026-01-16T22:18:03.114517Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=f7eb248a-2ef2-40f1-8d79-9d92f94bcf82 url=https://acousticbrainz.org/api/v1/f7eb248a-2ef2-40f1-8d79-9d92f94bcf82/low-level
+2026-01-16T22:18:03.326649Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=f7eb248a-2ef2-40f1-8d79-9d92f94bcf82 has_tonal=true has_rhythm=true
+2026-01-16T22:18:03.326717Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 787.7869ms
+2026-01-16T22:18:04.130240Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=e89a3e71-e35a-43c4-a2e7-8bdf216253bf url=https://acousticbrainz.org/api/v1/e89a3e71-e35a-43c4-a2e7-8bdf216253bf/low-level
+2026-01-16T22:18:04.324414Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=e89a3e71-e35a-43c4-a2e7-8bdf216253bf has_tonal=true has_rhythm=true
+2026-01-16T22:18:04.324479Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 805.7472ms
+2026-01-16T22:18:05.131821Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=81d4ceae-134c-4c91-90fb-cd9bc30c5064 url=https://acousticbrainz.org/api/v1/81d4ceae-134c-4c91-90fb-cd9bc30c5064/low-level
+2026-01-16T22:18:05.306754Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=81d4ceae-134c-4c91-90fb-cd9bc30c5064 has_tonal=true has_rhythm=true
+2026-01-16T22:18:05.306820Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 824.9693ms
+2026-01-16T22:18:06.146442Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=7f54b465-04b3-48b2-aa51-e82ff5cdef7f url=https://acousticbrainz.org/api/v1/7f54b465-04b3-48b2-aa51-e82ff5cdef7f/low-level
+2026-01-16T22:18:06.321073Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=7f54b465-04b3-48b2-aa51-e82ff5cdef7f has_tonal=true has_rhythm=true
+2026-01-16T22:18:06.400763Z  INFO wkmp_ai::matching::album_matcher: Starting album match for: C:\Users\Mango Cat\Music\Ace of Base/HappyNation.mp3
+2026-01-16T22:18:06.400885Z DEBUG wkmp_ai::matching::album_matcher: Metadata: artist=Ace of Base, album=Happy Nation (U.S. Version) (Remastered)
+2026-01-16T22:18:06.401005Z  INFO wkmp_ai::matching::album_matcher: Starting parallel: decode + MusicBrainz lookup for artist=Ace of Base, album=Happy Nation (U.S. Version) (Remastered)
+2026-01-16T22:18:06.401343Z DEBUG wkmp_ai::services::musicbrainz_client: Album search cache hit artist=Ace of Base album=Happy Nation (U.S. Version) (Remastered) count=25 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.401460Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=a69f8eae-4e34-45fe-85fb-12b049dbdf38 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.401589Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=142b09aa-a4ed-49dd-9c66-adf5e2f865c1 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.401700Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=eaefdd3b-9b90-4c60-a115-b77a9cbe9284 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.401796Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=60b53369-d195-4067-b72c-1a1bdac17b60 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.401994Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=60f6e7fd-b2dc-4b52-acdc-42993794c436 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.402080Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=1b353212-01c4-3942-886c-2bc05553bccf cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.402315Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=66b6ba53-2cc5-39e9-b60f-1c56328ff6d5 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.402504Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=5d8600ce-9908-4014-9442-b1678baac664 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.402735Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=a5095ac7-0a3c-43e7-a884-fa2cf34ee7b0 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.402911Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=91030119-843e-4d42-8c84-caa5dfcff0bf cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.403025Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=166a6475-4fb3-45d4-adc1-a6dd4290bef4 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.403229Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=b7f9103d-137a-4c12-996a-a93bcbb64ad6 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.403414Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=ed9ac402-c3bf-4425-9f5e-68bc349aa897 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.403594Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=4c2299db-b339-38d8-b57f-bff923e37741 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.403768Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=e1da15e1-fc4e-4273-9e61-46b47d2822f2 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.404016Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=9dd06ad4-e37a-413d-bbdd-e5f200791de2 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.404180Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=a5763b41-0838-4e4f-922d-7610fdd84b74 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.404317Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=bce4b089-939b-4971-adc0-30c2314bf53c cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.404393Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=ef8b401b-89be-4eb6-963a-810c8131911a cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.404458Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=bd788e2d-e816-4e3c-899f-24437245bdd1 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.404520Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=ffac435d-7bdb-48f0-9096-3de5b3e82582 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.404576Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=cf619396-c1a8-4826-a6a8-21980490aaf5 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.404653Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=52b23729-adbf-467f-a226-c20e3d63425c cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.404717Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=c6aa9d68-9f87-4590-be5b-6b0d58c1a86c cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.404769Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=7619aaf0-87c9-448e-9764-97a3765e0a83 cached_at=2025-12-30 19:47:20
+2026-01-16T22:18:06.404783Z  INFO wkmp_ai::services::musicbrainz_client: Comprehensive search completed (with caching) artist=Ace of Base album=Happy Nation (U.S. Version) (Remastered) found=25
+2026-01-16T22:18:10.164924Z  INFO wkmp_ai::workflow::memory_tracker: MEMORY: +646.9 MB [album_matcher decode] → Total: 2246.5 MB (2.25 GB) | 161713152 samples
+2026-01-16T22:18:10.164956Z DEBUG wkmp_ai::matching::album_matcher: Decoded 161713152 samples at 44100Hz (3667.0s, 3666964ms)
+2026-01-16T22:18:10.164962Z  INFO wkmp_ai::matching::album_matcher: Found 25 MusicBrainz releases
+2026-01-16T22:18:10.165060Z  INFO wkmp_ai::matching::album_matcher: Grouped into 17 unique editions
+2026-01-16T22:18:10.165077Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace Of Base mb_title=Happy Nation source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=a69f8eae-4e34-45fe-85fb-12b049dbdf38 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165085Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation (U.S. version) source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=91030119-843e-4d42-8c84-caa5dfcff0bf similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165090Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation (U.S. version) source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=142b09aa-a4ed-49dd-9c66-adf5e2f865c1 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165098Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=a5763b41-0838-4e4f-922d-7610fdd84b74 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165105Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=eaefdd3b-9b90-4c60-a115-b77a9cbe9284 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165109Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation (U.S. version) source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=5d8600ce-9908-4014-9442-b1678baac664 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165114Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=bd788e2d-e816-4e3c-899f-24437245bdd1 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165118Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation (U.S. version) source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=1b353212-01c4-3942-886c-2bc05553bccf similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165123Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=4c2299db-b339-38d8-b57f-bff923e37741 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165127Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=60b53369-d195-4067-b72c-1a1bdac17b60 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165131Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=ffac435d-7bdb-48f0-9096-3de5b3e82582 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165136Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=52b23729-adbf-467f-a226-c20e3d63425c similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165140Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=7619aaf0-87c9-448e-9764-97a3765e0a83 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165145Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation (U.S. version) source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=60f6e7fd-b2dc-4b52-acdc-42993794c436 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165149Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation (U.S. version) source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=66b6ba53-2cc5-39e9-b60f-1c56328ff6d5 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165153Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=e1da15e1-fc4e-4273-9e61-46b47d2822f2 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165159Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Ace of Base mb_title=Happy Nation (U.S. version) source_artist=Ace of Base source_album=Happy Nation (U.S. Version) (Remastered) release_mbid=b7f9103d-137a-4c12-996a-a93bcbb64ad6 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:10.165178Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=91030119-843e-4d42-8c84-caa5dfcff0bf artist=Ace of Base title=Happy Nation (U.S. version) edition_duration_ms=3472689 file_duration_ms=3666964 ratio=94.7%
+2026-01-16T22:18:10.165181Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=142b09aa-a4ed-49dd-9c66-adf5e2f865c1 artist=Ace of Base title=Happy Nation (U.S. version) edition_duration_ms=3663000 file_duration_ms=3666964 ratio=99.9%
+2026-01-16T22:18:10.165184Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=5d8600ce-9908-4014-9442-b1678baac664 artist=Ace of Base title=Happy Nation (U.S. version) edition_duration_ms=3441000 file_duration_ms=3666964 ratio=93.8%
+2026-01-16T22:18:10.165186Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=1b353212-01c4-3942-886c-2bc05553bccf artist=Ace of Base title=Happy Nation (U.S. version) edition_duration_ms=3471000 file_duration_ms=3666964 ratio=94.7%
+2026-01-16T22:18:10.165189Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=60f6e7fd-b2dc-4b52-acdc-42993794c436 artist=Ace of Base title=Happy Nation (U.S. version) edition_duration_ms=3468220 file_duration_ms=3666964 ratio=94.6%
+2026-01-16T22:18:10.165191Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=66b6ba53-2cc5-39e9-b60f-1c56328ff6d5 artist=Ace of Base title=Happy Nation (U.S. version) edition_duration_ms=3471556 file_duration_ms=3666964 ratio=94.7%
+2026-01-16T22:18:10.165193Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=b7f9103d-137a-4c12-996a-a93bcbb64ad6 artist=Ace of Base title=Happy Nation (U.S. version) edition_duration_ms=3472821 file_duration_ms=3666964 ratio=94.7%
+2026-01-16T22:18:10.165196Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=a69f8eae-4e34-45fe-85fb-12b049dbdf38 artist=Ace Of Base title=Happy Nation edition_duration_ms=3417000 file_duration_ms=3666964 ratio=93.2%
+2026-01-16T22:18:10.165200Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=a5763b41-0838-4e4f-922d-7610fdd84b74 artist=Ace of Base title=Happy Nation edition_duration_ms=2997221 file_duration_ms=3666964 ratio=81.7% reason="edition too short (< 85%)"
+2026-01-16T22:18:10.165204Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=eaefdd3b-9b90-4c60-a115-b77a9cbe9284 artist=Ace of Base title=Happy Nation edition_duration_ms=3210000 file_duration_ms=3666964 ratio=87.5%
+2026-01-16T22:18:10.165207Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT (zero or missing track durations) release_mbid=bd788e2d-e816-4e3c-899f-24437245bdd1 artist=Ace of Base title=Happy Nation
+2026-01-16T22:18:10.165210Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=4c2299db-b339-38d8-b57f-bff923e37741 artist=Ace of Base title=Happy Nation edition_duration_ms=2994997 file_duration_ms=3666964 ratio=81.7% reason="edition too short (< 85%)"
+2026-01-16T22:18:10.165213Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=60b53369-d195-4067-b72c-1a1bdac17b60 artist=Ace of Base title=Happy Nation edition_duration_ms=3206997 file_duration_ms=3666964 ratio=87.5%
+2026-01-16T22:18:10.165215Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=ffac435d-7bdb-48f0-9096-3de5b3e82582 artist=Ace of Base title=Happy Nation edition_duration_ms=2995783 file_duration_ms=3666964 ratio=81.7% reason="edition too short (< 85%)"
+2026-01-16T22:18:10.165218Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=52b23729-adbf-467f-a226-c20e3d63425c artist=Ace of Base title=Happy Nation edition_duration_ms=463999 file_duration_ms=3666964 ratio=12.7% reason="edition too short (< 85%)"
+2026-01-16T22:18:10.165223Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=7619aaf0-87c9-448e-9764-97a3765e0a83 artist=Ace of Base title=Happy Nation edition_duration_ms=866999 file_duration_ms=3666964 ratio=23.6% reason="edition too short (< 85%)"
+2026-01-16T22:18:10.165227Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=e1da15e1-fc4e-4273-9e61-46b47d2822f2 artist=Ace of Base title=Happy Nation edition_duration_ms=2994997 file_duration_ms=3666964 ratio=81.7% reason="edition too short (< 85%)"
+2026-01-16T22:18:10.165230Z  INFO wkmp_ai::matching::album_matcher: Testing 10 editions (top by name similarity)
+2026-01-16T22:18:10.165270Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 16 boundaries, 15 expected tracks, 161713152 samples (3667.0s)
+2026-01-16T22:18:10.165277Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:18:10.165281Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT COMPLETE: No boundaries needed adjustment
+2026-01-16T22:18:10.165300Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 16 boundaries, 15 expected tracks, 161713152 samples (3667.0s)
+2026-01-16T22:18:10.165303Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:18:10.165305Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT COMPLETE: No boundaries needed adjustment
+2026-01-16T22:18:10.165320Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 16 boundaries, 15 expected tracks, 161713152 samples (3667.0s)
+2026-01-16T22:18:10.165322Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:18:10.165324Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT COMPLETE: No boundaries needed adjustment
+2026-01-16T22:18:10.165338Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 16 boundaries, 15 expected tracks, 161713152 samples (3667.0s)
+2026-01-16T22:18:10.165340Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:18:10.165342Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT COMPLETE: No boundaries needed adjustment
+2026-01-16T22:18:10.165357Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 16 boundaries, 15 expected tracks, 161713152 samples (3667.0s)
+2026-01-16T22:18:10.165359Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:18:10.165361Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT COMPLETE: No boundaries needed adjustment
+2026-01-16T22:18:10.165376Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 16 boundaries, 15 expected tracks, 161713152 samples (3667.0s)
+2026-01-16T22:18:10.165378Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:18:10.165380Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT COMPLETE: No boundaries needed adjustment
+2026-01-16T22:18:10.165393Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 16 boundaries, 15 expected tracks, 161713152 samples (3667.0s)
+2026-01-16T22:18:10.165395Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:18:10.165397Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT COMPLETE: No boundaries needed adjustment
+2026-01-16T22:18:10.165411Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 15 boundaries, 14 expected tracks, 161713152 samples (3667.0s)
+2026-01-16T22:18:10.165414Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:18:10.165416Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT COMPLETE: No boundaries needed adjustment
+2026-01-16T22:18:10.165431Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 15 boundaries, 14 expected tracks, 161713152 samples (3667.0s)
+2026-01-16T22:18:10.165434Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:18:10.165436Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT COMPLETE: No boundaries needed adjustment
+2026-01-16T22:18:10.165445Z DEBUG wkmp_ai::matching::stages::stage7_progressive_refinement: Stage 7 not needed: only 0 tracks with ≥30s error
+2026-01-16T22:18:10.173567Z DEBUG wkmp_ai::matching::album_matcher: Stage 6: Attempting boundary refinement
+2026-01-16T22:18:10.173583Z DEBUG wkmp_ai::matching::album_matcher: Boundary refinement: edition=142b09aa-a4ed-49dd-9c66-adf5e2f865c1, track_count=16, original_match=100.0%
+2026-01-16T22:18:10.173599Z DEBUG wkmp_ai::matching::album_matcher: No refinement patterns detected - returning original boundaries
+2026-01-16T22:18:10.173603Z  INFO wkmp_ai::matching::album_matcher: Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+2026-01-16T22:18:10.173745Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=142b09aa-a4ed-49dd-9c66-adf5e2f865c1 url=https://musicbrainz.org/ws/2/release/142b09aa-a4ed-49dd-9c66-adf5e2f865c1?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:18:11.016849Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=142b09aa-a4ed-49dd-9c66-adf5e2f865c1 title=Happy Nation (U.S. version) tracks=16
+2026-01-16T22:18:11.017249Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 156.4972ms
+2026-01-16T22:18:11.187247Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=142b09aa-a4ed-49dd-9c66-adf5e2f865c1 url=https://musicbrainz.org/ws/2/release/142b09aa-a4ed-49dd-9c66-adf5e2f865c1?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:18:11.525993Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=142b09aa-a4ed-49dd-9c66-adf5e2f865c1 title=Happy Nation (U.S. version) tracks=16
+2026-01-16T22:18:11.526227Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 661.007ms
+2026-01-16T22:18:12.200108Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=142b09aa-a4ed-49dd-9c66-adf5e2f865c1 url=https://musicbrainz.org/ws/2/release/142b09aa-a4ed-49dd-9c66-adf5e2f865c1?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:18:12.475251Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=142b09aa-a4ed-49dd-9c66-adf5e2f865c1 title=Happy Nation (U.S. version) tracks=16
+2026-01-16T22:18:12.475319Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 724.7524ms
+2026-01-16T22:18:13.202821Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=142b09aa-a4ed-49dd-9c66-adf5e2f865c1 url=https://musicbrainz.org/ws/2/release/142b09aa-a4ed-49dd-9c66-adf5e2f865c1?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:18:13.476673Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=142b09aa-a4ed-49dd-9c66-adf5e2f865c1 title=Happy Nation (U.S. version) tracks=16
+2026-01-16T22:18:13.476776Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=f9e75b22-20d2-4cc3-bc3a-42d983059565 url=https://acousticbrainz.org/api/v1/f9e75b22-20d2-4cc3-bc3a-42d983059565/low-level
+2026-01-16T22:18:13.630814Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 845.9549ms
+2026-01-16T22:18:14.486977Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=3eac2bd5-da07-4b5e-bc63-f100dc968f0b url=https://acousticbrainz.org/api/v1/3eac2bd5-da07-4b5e-bc63-f100dc968f0b/low-level
+2026-01-16T22:18:14.765405Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=3eac2bd5-da07-4b5e-bc63-f100dc968f0b has_tonal=true has_rhythm=true
+2026-01-16T22:18:14.765470Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 721.4779ms
+2026-01-16T22:18:15.503902Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=fd009dc3-8cd1-4a46-86de-d3fa2baa0ae3 url=https://acousticbrainz.org/api/v1/fd009dc3-8cd1-4a46-86de-d3fa2baa0ae3/low-level
+2026-01-16T22:18:15.723093Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=fd009dc3-8cd1-4a46-86de-d3fa2baa0ae3 has_tonal=true has_rhythm=true
+2026-01-16T22:18:15.723173Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 780.7098ms
+2026-01-16T22:18:16.518398Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=d2df9667-1ea7-4e0e-b68a-3b3d8aa66224 url=https://acousticbrainz.org/api/v1/d2df9667-1ea7-4e0e-b68a-3b3d8aa66224/low-level
+2026-01-16T22:18:16.675181Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=d2df9667-1ea7-4e0e-b68a-3b3d8aa66224 has_tonal=true has_rhythm=true
+2026-01-16T22:18:16.675241Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 843.0221ms
+2026-01-16T22:18:17.535239Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=351bb48f-ba27-42b6-9d13-d7803c3b39e5 url=https://acousticbrainz.org/api/v1/351bb48f-ba27-42b6-9d13-d7803c3b39e5/low-level
+2026-01-16T22:18:17.728791Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=351bb48f-ba27-42b6-9d13-d7803c3b39e5 has_tonal=true has_rhythm=true
+2026-01-16T22:18:17.728851Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 806.3525ms
+2026-01-16T22:18:18.538018Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=e156c7ad-0dfb-4c7a-86a2-bcc704ca391e url=https://acousticbrainz.org/api/v1/e156c7ad-0dfb-4c7a-86a2-bcc704ca391e/low-level
+2026-01-16T22:18:18.700971Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=e156c7ad-0dfb-4c7a-86a2-bcc704ca391e has_tonal=true has_rhythm=true
+2026-01-16T22:18:18.701057Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 836.935ms
+2026-01-16T22:18:19.554157Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=251aeb66-069f-4181-be78-9656ac9c716e url=https://acousticbrainz.org/api/v1/251aeb66-069f-4181-be78-9656ac9c716e/low-level
+2026-01-16T22:18:19.722510Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=251aeb66-069f-4181-be78-9656ac9c716e has_tonal=true has_rhythm=true
+2026-01-16T22:18:19.722588Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 831.5447ms
+2026-01-16T22:18:20.570385Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=be04dc32-1b23-4c73-b366-97a00d37ad86 url=https://acousticbrainz.org/api/v1/be04dc32-1b23-4c73-b366-97a00d37ad86/low-level
+2026-01-16T22:18:20.770205Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=be04dc32-1b23-4c73-b366-97a00d37ad86 has_tonal=true has_rhythm=true
+2026-01-16T22:18:20.770254Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 800.103ms
+2026-01-16T22:18:21.576772Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=731bfd69-b7b9-4390-a3c4-8110a1ed00c1 url=https://acousticbrainz.org/api/v1/731bfd69-b7b9-4390-a3c4-8110a1ed00c1/low-level
+2026-01-16T22:18:21.834763Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=731bfd69-b7b9-4390-a3c4-8110a1ed00c1 has_tonal=true has_rhythm=true
+2026-01-16T22:18:21.834832Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 741.914ms
+2026-01-16T22:18:22.592201Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=33411e08-b7cc-4bda-8002-fe2bc9c7cafc url=https://acousticbrainz.org/api/v1/33411e08-b7cc-4bda-8002-fe2bc9c7cafc/low-level
+2026-01-16T22:18:23.144604Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=33411e08-b7cc-4bda-8002-fe2bc9c7cafc has_tonal=true has_rhythm=true
+2026-01-16T22:18:23.144667Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 447.51ms
+2026-01-16T22:18:23.606910Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=922a200a-bd0a-4d36-bfe6-01f29d50744b url=https://acousticbrainz.org/api/v1/922a200a-bd0a-4d36-bfe6-01f29d50744b/low-level
+2026-01-16T22:18:23.796104Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=922a200a-bd0a-4d36-bfe6-01f29d50744b has_tonal=true has_rhythm=true
+2026-01-16T22:18:23.796165Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 810.7249ms
+2026-01-16T22:18:24.611467Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=0b9c5be6-0b85-447b-9c9e-3bfc357b6225 url=https://acousticbrainz.org/api/v1/0b9c5be6-0b85-447b-9c9e-3bfc357b6225/low-level
+2026-01-16T22:18:24.790442Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=0b9c5be6-0b85-447b-9c9e-3bfc357b6225 has_tonal=true has_rhythm=true
+2026-01-16T22:18:24.790519Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 820.9333ms
+2026-01-16T22:18:25.627556Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=eca7aecb-91d8-4049-a849-4f96cf0f6d79 url=https://acousticbrainz.org/api/v1/eca7aecb-91d8-4049-a849-4f96cf0f6d79/low-level
+2026-01-16T22:18:25.785254Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=eca7aecb-91d8-4049-a849-4f96cf0f6d79 has_tonal=true has_rhythm=true
+2026-01-16T22:18:25.785321Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 842.2157ms
+2026-01-16T22:18:26.642845Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=515301ff-4348-437f-ab6b-0b38f94017a0 url=https://acousticbrainz.org/api/v1/515301ff-4348-437f-ab6b-0b38f94017a0/low-level
+2026-01-16T22:18:27.076016Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=515301ff-4348-437f-ab6b-0b38f94017a0 has_tonal=true has_rhythm=true
+2026-01-16T22:18:27.076075Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 566.7483ms
+2026-01-16T22:18:27.646338Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=8e4cf3ae-12b4-4c01-aa44-e594fb7f26bc url=https://acousticbrainz.org/api/v1/8e4cf3ae-12b4-4c01-aa44-e594fb7f26bc/low-level
+2026-01-16T22:18:27.842010Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=8e4cf3ae-12b4-4c01-aa44-e594fb7f26bc has_tonal=true has_rhythm=true
+2026-01-16T22:18:27.842071Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 804.2382ms
+2026-01-16T22:18:28.663000Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=0763d90f-6b92-4e54-881d-7302e9f069f4 url=https://acousticbrainz.org/api/v1/0763d90f-6b92-4e54-881d-7302e9f069f4/low-level
+2026-01-16T22:18:28.892467Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=0763d90f-6b92-4e54-881d-7302e9f069f4 has_tonal=true has_rhythm=true
+2026-01-16T22:18:28.920947Z  INFO wkmp_ai::matching::album_matcher: Starting album match for: C:\Users\Mango Cat\Music\Aerosmith/Pump.mp3
+2026-01-16T22:18:28.921107Z DEBUG wkmp_ai::matching::album_matcher: Metadata: artist=Aerosmith, album=Pump
+2026-01-16T22:18:28.921236Z  INFO wkmp_ai::matching::album_matcher: Starting parallel: decode + MusicBrainz lookup for artist=Aerosmith, album=Pump
+2026-01-16T22:18:28.921620Z DEBUG wkmp_ai::services::musicbrainz_client: Album search cache hit artist=Aerosmith album=Pump count=25 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.921704Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=5a9be9a5-9efe-43c4-9687-02f80f6461ba cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.921929Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=6372e080-454a-4484-a2e4-2f400f04db08 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922017Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=f086ba8e-09cf-4619-b706-bcfcfb676644 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922120Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=de830453-932f-3ac7-8f02-748e17947b04 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922189Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=20d745cb-5334-327f-9cfe-e08e108cdba2 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922244Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=401fc8d9-b2c9-481d-98e1-b65287d3ef42 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922293Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=c9eafc4e-894b-35d9-8807-0815793803ce cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922358Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=7c25cb7e-2bd7-4bf2-bbd5-2cbce261f9c2 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922413Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=d1e9f574-c569-49cd-8ead-63713ded17dc cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922466Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=20309da0-031b-34f7-a58b-b13ab2c67e0d cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922532Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=a0453705-0318-495c-8627-b63da94c85ae cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922580Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=e7d96645-1325-4f1f-91f5-3dffa9458ecf cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922656Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=dac4786a-ee92-4254-8c56-dbf5511db664 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922713Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=af41373e-b8c9-43c4-b20d-c94a0c8b6227 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922762Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=f6eb986a-f0df-482c-8a95-5e9ab95356b4 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922808Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=2a2f5d3a-42a7-4f9e-8388-8b21403bd60d cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922851Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=6a2f7271-e848-47f5-a640-8e2979239bb2 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922909Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=80f18b81-8e9f-4a25-9cd7-11ef296cf266 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.922958Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=609727e9-cd83-471e-ad3b-08b48ea251ae cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.923002Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=615ade1d-1632-4ddf-8ae4-260159ba75b7 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.923056Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=1d288a41-0b02-4d59-943e-1870c6308ea1 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.923103Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=01025488-32f9-4ece-85cd-a6ed64950553 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.923150Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=94924f7e-1c01-4e53-8413-bab5b9367821 cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.923193Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=8095ddfd-8b99-4ccc-8da3-f2e42db32fdc cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.923244Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=63965ed6-f446-4e71-9468-69a7bc25671a cached_at=2025-12-30 19:54:29
+2026-01-16T22:18:28.923254Z  INFO wkmp_ai::services::musicbrainz_client: Comprehensive search completed (with caching) artist=Aerosmith album=Pump found=25
+2026-01-16T22:18:31.749744Z  INFO wkmp_ai::workflow::memory_tracker: MEMORY: +504.1 MB [album_matcher decode] → Total: 2750.7 MB (2.75 GB) | 126036864 samples
+2026-01-16T22:18:31.749770Z DEBUG wkmp_ai::matching::album_matcher: Decoded 126036864 samples at 44100Hz (2858.0s, 2857978ms)
+2026-01-16T22:18:31.749776Z  INFO wkmp_ai::matching::album_matcher: Found 25 MusicBrainz releases
+2026-01-16T22:18:31.749855Z  INFO wkmp_ai::matching::album_matcher: Grouped into 7 unique editions
+2026-01-16T22:18:31.749869Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Aerosmith mb_title=Pump source_artist=Aerosmith source_album=Pump release_mbid=e7d96645-1325-4f1f-91f5-3dffa9458ecf similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:31.749876Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Aerosmith mb_title=Pump source_artist=Aerosmith source_album=Pump release_mbid=1d288a41-0b02-4d59-943e-1870c6308ea1 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:31.749880Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Aerosmith mb_title=Pump source_artist=Aerosmith source_album=Pump release_mbid=6372e080-454a-4484-a2e4-2f400f04db08 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:31.749884Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Aerosmith mb_title=Pump source_artist=Aerosmith source_album=Pump release_mbid=5a9be9a5-9efe-43c4-9687-02f80f6461ba similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:31.749888Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Aerosmith mb_title=Pump source_artist=Aerosmith source_album=Pump release_mbid=401fc8d9-b2c9-481d-98e1-b65287d3ef42 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:31.749892Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Aerosmith mb_title=Pump source_artist=Aerosmith source_album=Pump release_mbid=6a2f7271-e848-47f5-a640-8e2979239bb2 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:31.749897Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Aerosmith mb_title=Pump source_artist=Aerosmith source_album=Pump release_mbid=a0453705-0318-495c-8627-b63da94c85ae similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:18:31.749906Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=e7d96645-1325-4f1f-91f5-3dffa9458ecf artist=Aerosmith title=Pump edition_duration_ms=2863770 file_duration_ms=2857978 ratio=100.2%
+2026-01-16T22:18:31.749910Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=1d288a41-0b02-4d59-943e-1870c6308ea1 artist=Aerosmith title=Pump edition_duration_ms=2864000 file_duration_ms=2857978 ratio=100.2%
+2026-01-16T22:18:31.749912Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=6372e080-454a-4484-a2e4-2f400f04db08 artist=Aerosmith title=Pump edition_duration_ms=2885024 file_duration_ms=2857978 ratio=100.9%
+2026-01-16T22:18:31.749915Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=5a9be9a5-9efe-43c4-9687-02f80f6461ba artist=Aerosmith title=Pump edition_duration_ms=2858000 file_duration_ms=2857978 ratio=100.0%
+2026-01-16T22:18:31.749917Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=401fc8d9-b2c9-481d-98e1-b65287d3ef42 artist=Aerosmith title=Pump edition_duration_ms=3167996 file_duration_ms=2857978 ratio=110.8%
+2026-01-16T22:18:31.749920Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT (zero or missing track durations) release_mbid=6a2f7271-e848-47f5-a640-8e2979239bb2 artist=Aerosmith title=Pump
+2026-01-16T22:18:31.749923Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=a0453705-0318-495c-8627-b63da94c85ae artist=Aerosmith title=Pump edition_duration_ms=2864489 file_duration_ms=2857978 ratio=100.2%
+2026-01-16T22:18:31.749930Z  INFO wkmp_ai::matching::album_matcher: Testing 6 editions (top by name similarity)
+2026-01-16T22:18:31.749970Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 15 boundaries, 14 expected tracks, 126036864 samples (2858.0s)
+2026-01-16T22:18:31.749973Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:18:31.749977Z DEBUG wkmp_ai::matching::stages::boundary_refinement: Split failure detected at track 3: errors=+321.17s/-320.98s, residual=0.20s (0.1% of 338.00s), combined_error=642.15s
+2026-01-16T22:18:31.749981Z DEBUG wkmp_ai::matching::stages::boundary_refinement: SEARCHING for boundary 3: window=[22421331, 23744331] (30.0s range), expected=23082831
+2026-01-16T22:18:31.749994Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH START (track 3): 1300950 iterations over 30.0s
+2026-01-16T22:18:33.048128Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 3): 10% (130095/1300950 iterations)
+2026-01-16T22:18:34.347021Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 3): 20% (260190/1300950 iterations)
+2026-01-16T22:18:35.651265Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 3): 30% (390285/1300950 iterations)
+2026-01-16T22:18:36.954410Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 3): 40% (520380/1300950 iterations)
+2026-01-16T22:18:38.263157Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 3): 50% (650475/1300950 iterations)
+2026-01-16T22:18:39.563707Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 3): 60% (780570/1300950 iterations)
+2026-01-16T22:18:40.871043Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 3): 70% (910665/1300950 iterations)
+2026-01-16T22:18:42.171832Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 3): 80% (1040760/1300950 iterations)
+2026-01-16T22:18:43.476664Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 3): 90% (1170855/1300950 iterations)
+2026-01-16T22:18:44.766970Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 3): 100% (1300950/1300950 iterations)
+2026-01-16T22:18:44.766995Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH COMPLETE (track 3): Found quiet spot at sample 23071341 (RMS: 0.017139) in range [22421331, 23744331]
+2026-01-16T22:18:44.766999Z  INFO wkmp_ai::matching::stages::boundary_refinement: Refining boundary 3: moving from sample 37246497 to 23071341 (expected: 23082831) [errors: +321.17s/-320.98s]
+2026-01-16T22:18:44.767003Z DEBUG wkmp_ai::matching::stages::boundary_refinement: Split failure detected at track 6: errors=+320.89s/-328.99s, residual=8.10s (2.4% of 340.00s), combined_error=649.87s
+2026-01-16T22:18:44.767006Z DEBUG wkmp_ai::matching::stages::boundary_refinement: SEARCHING for boundary 6: window=[47478487, 48801487] (30.0s range), expected=48139987
+2026-01-16T22:18:44.767009Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH START (track 6): 1300950 iterations over 30.0s
+2026-01-16T22:18:46.080727Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 6): 10% (130095/1300950 iterations)
+2026-01-16T22:18:47.367601Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 6): 20% (260190/1300950 iterations)
+2026-01-16T22:18:48.660425Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 6): 30% (390285/1300950 iterations)
+2026-01-16T22:18:49.954088Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 6): 40% (520380/1300950 iterations)
+2026-01-16T22:18:51.253243Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 6): 50% (650475/1300950 iterations)
+2026-01-16T22:18:52.540830Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 6): 60% (780570/1300950 iterations)
+2026-01-16T22:18:53.832960Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 6): 70% (910665/1300950 iterations)
+2026-01-16T22:18:55.131346Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 6): 80% (1040760/1300950 iterations)
+2026-01-16T22:18:56.477609Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 6): 90% (1170855/1300950 iterations)
+2026-01-16T22:18:57.771067Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 6): 100% (1300950/1300950 iterations)
+2026-01-16T22:18:57.771097Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH COMPLETE (track 6): Found quiet spot at sample 47925628 (RMS: 0.000025) in range [47478487, 48801487]
+2026-01-16T22:18:57.771101Z  INFO wkmp_ai::matching::stages::boundary_refinement: Refining boundary 6: moving from sample 62291100 to 47925628 (expected: 48139987) [errors: +320.89s/-328.99s]
+2026-01-16T22:18:57.771108Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 2/3
+2026-01-16T22:18:57.771112Z  INFO wkmp_ai::matching::stages::boundary_refinement: REFINEMENT COMPLETE: 2 boundaries adjusted
+2026-01-16T22:18:57.771191Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 12 boundaries, 11 expected tracks, 126036864 samples (2858.0s)
+2026-01-16T22:18:57.771194Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:18:57.771196Z DEBUG wkmp_ai::matching::stages::boundary_refinement: Split failure detected at track 4: errors=+335.41s/-333.35s, residual=2.06s (0.4% of 570.64s), combined_error=668.76s
+2026-01-16T22:18:57.771199Z DEBUG wkmp_ai::matching::stages::boundary_refinement: SEARCHING for boundary 4: window=[47076528, 48399528] (30.0s range), expected=47738028
+2026-01-16T22:18:57.771202Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH START (track 4): 1300950 iterations over 30.0s
+2026-01-16T22:18:59.067419Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 4): 10% (130095/1300950 iterations)
+2026-01-16T22:19:00.376152Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 4): 20% (260190/1300950 iterations)
+2026-01-16T22:19:01.669151Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 4): 30% (390285/1300950 iterations)
+2026-01-16T22:19:02.968648Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 4): 40% (520380/1300950 iterations)
+2026-01-16T22:19:04.258517Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 4): 50% (650475/1300950 iterations)
+2026-01-16T22:19:05.577212Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 4): 60% (780570/1300950 iterations)
+2026-01-16T22:19:06.882125Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 4): 70% (910665/1300950 iterations)
+2026-01-16T22:19:08.210101Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 4): 80% (1040760/1300950 iterations)
+2026-01-16T22:19:09.512819Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 4): 90% (1170855/1300950 iterations)
+2026-01-16T22:19:10.797744Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 4): 100% (1300950/1300950 iterations)
+2026-01-16T22:19:10.797778Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH COMPLETE (track 4): Found quiet spot at sample 47925628 (RMS: 0.000025) in range [47076528, 48399528]
+2026-01-16T22:19:10.797783Z  INFO wkmp_ai::matching::stages::boundary_refinement: Refining boundary 4: moving from sample 62529682 to 47925628 (expected: 47738028) [errors: +335.41s/-333.35s]
+2026-01-16T22:19:10.797790Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 2/3
+2026-01-16T22:19:10.797797Z  INFO wkmp_ai::matching::stages::boundary_refinement: REFINEMENT COMPLETE: 1 boundaries adjusted
+2026-01-16T22:19:10.797922Z DEBUG wkmp_ai::matching::stages::stage7_progressive_refinement: Stage 7 not needed: only 0 tracks with ≥30s error
+2026-01-16T22:19:10.804621Z DEBUG wkmp_ai::matching::album_matcher: Stage 6: Attempting boundary refinement
+2026-01-16T22:19:10.804637Z DEBUG wkmp_ai::matching::album_matcher: Boundary refinement: edition=e7d96645-1325-4f1f-91f5-3dffa9458ecf, track_count=10, original_match=90.0%
+2026-01-16T22:19:10.804644Z DEBUG wkmp_ai::matching::album_matcher: No refinement patterns detected - returning original boundaries
+2026-01-16T22:19:10.804650Z  INFO wkmp_ai::matching::album_matcher: Album match complete: matched=true, stage=Some(Stage3), percentage=90.0%
+2026-01-16T22:19:10.804856Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=5a9be9a5-9efe-43c4-9687-02f80f6461ba url=https://musicbrainz.org/ws/2/release/5a9be9a5-9efe-43c4-9687-02f80f6461ba?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:10.805800Z  WARN wkmp_ai::services::musicbrainz_client: Connection closed by MusicBrainz server - waiting 1000ms before retry operation=lookup release 5a9be9a5-9efe-43c4-9687-02f80f6461ba attempt=1 max_retries=3
+2026-01-16T22:19:11.813516Z  INFO wkmp_ai::services::musicbrainz_client: Retrying connection to MusicBrainz (attempt 2/3) operation=lookup release 5a9be9a5-9efe-43c4-9687-02f80f6461ba attempt=2 max_retries=3
+2026-01-16T22:19:12.830976Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=5a9be9a5-9efe-43c4-9687-02f80f6461ba title=Pump tracks=10
+2026-01-16T22:19:12.831296Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=e7d96645-1325-4f1f-91f5-3dffa9458ecf url=https://musicbrainz.org/ws/2/release/e7d96645-1325-4f1f-91f5-3dffa9458ecf?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:13.132368Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=e7d96645-1325-4f1f-91f5-3dffa9458ecf title=Pump tracks=10
+2026-01-16T22:19:13.132891Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 698.4038ms
+2026-01-16T22:19:13.845356Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=e7d96645-1325-4f1f-91f5-3dffa9458ecf url=https://musicbrainz.org/ws/2/release/e7d96645-1325-4f1f-91f5-3dffa9458ecf?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:14.094064Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=e7d96645-1325-4f1f-91f5-3dffa9458ecf title=Pump tracks=10
+2026-01-16T22:19:14.094135Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 751.1928ms
+2026-01-16T22:19:14.846666Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=e7d96645-1325-4f1f-91f5-3dffa9458ecf url=https://musicbrainz.org/ws/2/release/e7d96645-1325-4f1f-91f5-3dffa9458ecf?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:14.986259Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=e7d96645-1325-4f1f-91f5-3dffa9458ecf title=Pump tracks=10
+2026-01-16T22:19:14.986298Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=7cb52aa0-3c20-498c-884b-9205ea133007 url=https://acousticbrainz.org/api/v1/7cb52aa0-3c20-498c-884b-9205ea133007/low-level
+2026-01-16T22:19:15.168823Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=7cb52aa0-3c20-498c-884b-9205ea133007 has_tonal=true has_rhythm=true
+2026-01-16T22:19:15.168863Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 817.4333ms
+2026-01-16T22:19:15.988960Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=f58fb6dd-0360-4075-99bb-729fe310ad7f url=https://acousticbrainz.org/api/v1/f58fb6dd-0360-4075-99bb-729fe310ad7f/low-level
+2026-01-16T22:19:16.172030Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=f58fb6dd-0360-4075-99bb-729fe310ad7f has_tonal=true has_rhythm=true
+2026-01-16T22:19:16.172116Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 816.8248ms
+2026-01-16T22:19:17.004147Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=ea5713a7-d084-490a-a6ce-3e3ce06477a2 url=https://acousticbrainz.org/api/v1/ea5713a7-d084-490a-a6ce-3e3ce06477a2/low-level
+2026-01-16T22:19:17.221603Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=ea5713a7-d084-490a-a6ce-3e3ce06477a2 has_tonal=true has_rhythm=true
+2026-01-16T22:19:17.221681Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 782.4553ms
+2026-01-16T22:19:18.020616Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=42d6da1f-7561-4ace-ac5c-52eb2139a7bc url=https://acousticbrainz.org/api/v1/42d6da1f-7561-4ace-ac5c-52eb2139a7bc/low-level
+2026-01-16T22:19:18.206860Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=42d6da1f-7561-4ace-ac5c-52eb2139a7bc has_tonal=true has_rhythm=true
+2026-01-16T22:19:18.206929Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 813.6655ms
+2026-01-16T22:19:19.032212Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=277b9513-b321-4722-a301-5370a2a37a7a url=https://acousticbrainz.org/api/v1/277b9513-b321-4722-a301-5370a2a37a7a/low-level
+2026-01-16T22:19:19.250265Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=277b9513-b321-4722-a301-5370a2a37a7a has_tonal=true has_rhythm=true
+2026-01-16T22:19:19.250324Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 781.862ms
+2026-01-16T22:19:20.048006Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=d93d2a41-d638-43a3-9549-3108d910b9ad url=https://acousticbrainz.org/api/v1/d93d2a41-d638-43a3-9549-3108d910b9ad/low-level
+2026-01-16T22:19:20.406893Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=d93d2a41-d638-43a3-9549-3108d910b9ad has_tonal=true has_rhythm=true
+2026-01-16T22:19:20.406962Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 641.0238ms
+2026-01-16T22:19:21.063342Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=98cd4bbc-9bbe-4ad9-881d-f8a2effd1ee2 url=https://acousticbrainz.org/api/v1/98cd4bbc-9bbe-4ad9-881d-f8a2effd1ee2/low-level
+2026-01-16T22:19:21.279468Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=98cd4bbc-9bbe-4ad9-881d-f8a2effd1ee2 has_tonal=true has_rhythm=true
+2026-01-16T22:19:21.279520Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 783.8058ms
+2026-01-16T22:19:22.078393Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=1040f033-b754-4af5-a944-1cdcfe2bee4a url=https://acousticbrainz.org/api/v1/1040f033-b754-4af5-a944-1cdcfe2bee4a/low-level
+2026-01-16T22:19:22.307183Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=1040f033-b754-4af5-a944-1cdcfe2bee4a has_tonal=true has_rhythm=true
+2026-01-16T22:19:22.307255Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 771.1077ms
+2026-01-16T22:19:23.089281Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=a5150051-afeb-4955-806d-fccd953e1b50 url=https://acousticbrainz.org/api/v1/a5150051-afeb-4955-806d-fccd953e1b50/low-level
+2026-01-16T22:19:23.471025Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=a5150051-afeb-4955-806d-fccd953e1b50 has_tonal=true has_rhythm=true
+2026-01-16T22:19:23.471089Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 618.1719ms
+2026-01-16T22:19:24.091767Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=27a4eb3d-711e-44d6-b50b-c183ca6b0bcf url=https://acousticbrainz.org/api/v1/27a4eb3d-711e-44d6-b50b-c183ca6b0bcf/low-level
+2026-01-16T22:19:24.354064Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=27a4eb3d-711e-44d6-b50b-c183ca6b0bcf has_tonal=true has_rhythm=true
+2026-01-16T22:19:24.371010Z  INFO wkmp_ai::matching::album_matcher: Starting album match for: C:\Users\Mango Cat\Music\Alice In Chains/AliceInChainsGreatestHits.mp3
+2026-01-16T22:19:24.371170Z DEBUG wkmp_ai::matching::album_matcher: Metadata: artist=Alice In Chains, album=Greatest Hits
+2026-01-16T22:19:24.371296Z  INFO wkmp_ai::matching::album_matcher: Starting parallel: decode + MusicBrainz lookup for artist=Alice In Chains, album=Greatest Hits
+2026-01-16T22:19:24.371599Z DEBUG wkmp_ai::services::musicbrainz_client: Album search cache hit artist=Alice In Chains album=Greatest Hits count=25 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.371714Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=7e61ceef-77ce-42f9-b0cd-c59bc3598437 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.371817Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=37cc6812-0779-496a-b9d8-19fd69e4b2c5 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.371883Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=f657cea8-3437-494c-92fc-4766d15804fd cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.371991Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=c5db56c2-944e-4664-9d32-2179af3ceadc cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372077Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=ffad0aee-e52f-4909-a436-2fb1f45a07c8 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372151Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=fda4bb7d-6a29-44fa-9e39-0ad2649ad1ba cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372210Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=befcbf3f-1807-4ace-977e-b267f28a92b1 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372318Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=412a8d5b-f4ce-494e-9c24-368d50a9a65a cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372391Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=a293657f-06b8-48e6-a64a-cd76fae16ad0 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372451Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=772857ca-fdb6-4cf6-8130-e2072e6527e2 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372523Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=7dccaa1b-55b2-4528-916a-5eb987a6c59a cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372577Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=afcc8884-560c-458e-b759-7b7cbdea0993 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372639Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=0834cdbd-b99d-43e4-acc2-36c6f7580775 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372708Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=b5754310-45ec-487c-a47f-b9f2053bf06b cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372771Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=5c24cefc-73ea-41c9-8bd4-a6943cf2a181 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372851Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=904c5a3d-99a5-4087-bce9-0cbe7009b195 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.372946Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=149a6bc5-886e-3b87-ae8b-47e6fe10f151 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.373002Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=3722e0bc-5e5d-4b52-987f-a86523c3911c cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.373060Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=246ef748-7c19-434d-84ef-6ade5833b163 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.373124Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=bd1aece7-f7e0-4aeb-aad3-35496e024866 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.373182Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=c42808fb-86ee-4f08-bb11-439562a94c9d cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.373234Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=1bb15988-4893-4718-9085-1146479a519d cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.373290Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=e860faf6-98b4-46d6-b8c5-b5a41ba15bde cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.373397Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=e5a7b38c-08aa-4a27-9573-63185a3e2a97 cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.373481Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=51d3dded-2e51-4e1b-a38c-15263523de9e cached_at=2025-12-30 20:00:10
+2026-01-16T22:19:24.373493Z  INFO wkmp_ai::services::musicbrainz_client: Comprehensive search completed (with caching) artist=Alice In Chains album=Greatest Hits found=25
+2026-01-16T22:19:27.023110Z  INFO wkmp_ai::workflow::memory_tracker: MEMORY: +473.7 MB [album_matcher decode] → Total: 3224.3 MB (3.22 GB) | 118412928 samples
+2026-01-16T22:19:27.023141Z DEBUG wkmp_ai::matching::album_matcher: Decoded 118412928 samples at 44100Hz (2685.1s, 2685100ms)
+2026-01-16T22:19:27.023147Z  INFO wkmp_ai::matching::album_matcher: Found 25 MusicBrainz releases
+2026-01-16T22:19:27.023259Z  INFO wkmp_ai::matching::album_matcher: Grouped into 13 unique editions
+2026-01-16T22:19:27.023266Z DEBUG wkmp_ai::matching::editions::filtering: Compilation detected - using relaxed artist matching threshold source_artist=Alice In Chains source_album=Greatest Hits threshold=0.50
+2026-01-16T22:19:27.023279Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=In-Grid mb_title=Greatest Hits source_artist=Alice In Chains source_album=Greatest Hits release_mbid=afcc8884-560c-458e-b759-7b7cbdea0993 similarity=0.267 threshold=0.50
+2026-01-16T22:19:27.023303Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Alice Cooper mb_title=Alice Cooper’s Greatest Hits source_artist=Alice In Chains source_album=Greatest Hits release_mbid=b5754310-45ec-487c-a47f-b9f2053bf06b similarity=0.467 threshold=0.50
+2026-01-16T22:19:27.023309Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Goldie Lookin Chain mb_title=Greatest Hits source_artist=Alice In Chains source_album=Greatest Hits release_mbid=772857ca-fdb6-4cf6-8130-e2072e6527e2 similarity=0.526 threshold=0.50 reason=" (compilation)"
+2026-01-16T22:19:27.023314Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Alice Cooper mb_title=Greatest Hits source_artist=Alice In Chains source_album=Greatest Hits release_mbid=412a8d5b-f4ce-494e-9c24-368d50a9a65a similarity=0.467 threshold=0.50
+2026-01-16T22:19:27.023323Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Alice in Chains mb_title=Greatest Songs source_artist=Alice In Chains source_album=Greatest Hits release_mbid=fda4bb7d-6a29-44fa-9e39-0ad2649ad1ba similarity=1.000 threshold=0.50 reason=""
+2026-01-16T22:19:27.023328Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Teach-In mb_title=Greatest Hits source_artist=Alice In Chains source_album=Greatest Hits release_mbid=0834cdbd-b99d-43e4-acc2-36c6f7580775 similarity=0.333 threshold=0.50
+2026-01-16T22:19:27.023333Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Alice Cooper mb_title=Alice Cooper’s Greatest Hits source_artist=Alice In Chains source_album=Greatest Hits release_mbid=c42808fb-86ee-4f08-bb11-439562a94c9d similarity=0.467 threshold=0.50
+2026-01-16T22:19:27.023342Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Alice Cooper mb_title=Greatest Hits source_artist=Alice In Chains source_album=Greatest Hits release_mbid=befcbf3f-1807-4ace-977e-b267f28a92b1 similarity=0.467 threshold=0.50
+2026-01-16T22:19:27.023349Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: REJECT (similarity below threshold) mb_artist=Alice Cooper mb_title=Alice Cooper’s Greatest Hits source_artist=Alice In Chains source_album=Greatest Hits release_mbid=5c24cefc-73ea-41c9-8bd4-a6943cf2a181 similarity=0.467 threshold=0.50
+2026-01-16T22:19:27.023354Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Alice in Chains mb_title=Greatest Hits (Chopped Not Slopped by DJ Lil Steve) source_artist=Alice In Chains source_album=Greatest Hits release_mbid=ffad0aee-e52f-4909-a436-2fb1f45a07c8 similarity=1.000 threshold=0.50 reason=" (compilation)"
+2026-01-16T22:19:27.023359Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Alice in Chains mb_title=Greatest Hits source_artist=Alice In Chains source_album=Greatest Hits release_mbid=7e61ceef-77ce-42f9-b0cd-c59bc3598437 similarity=1.000 threshold=0.50 reason=" (compilation)"
+2026-01-16T22:19:27.023364Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Alice in Chains mb_title=Greatest Hits source_artist=Alice In Chains source_album=Greatest Hits release_mbid=37cc6812-0779-496a-b9d8-19fd69e4b2c5 similarity=1.000 threshold=0.50 reason=" (compilation)"
+2026-01-16T22:19:27.023369Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=Goldie Lookin Chain mb_title=Greatest Hits source_artist=Alice In Chains source_album=Greatest Hits release_mbid=a293657f-06b8-48e6-a64a-cd76fae16ad0 similarity=0.526 threshold=0.50 reason=" (compilation)"
+2026-01-16T22:19:27.023371Z  INFO wkmp_ai::matching::album_matcher: Artist filter: 7 editions removed (6 remaining, threshold=0.60)
+2026-01-16T22:19:27.023385Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=7e61ceef-77ce-42f9-b0cd-c59bc3598437 artist=Alice in Chains title=Greatest Hits edition_duration_ms=5367089 file_duration_ms=2685100 ratio=199.9% reason="edition too long (> 125%)"
+2026-01-16T22:19:27.023389Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=37cc6812-0779-496a-b9d8-19fd69e4b2c5 artist=Alice in Chains title=Greatest Hits edition_duration_ms=2683089 file_duration_ms=2685100 ratio=99.9%
+2026-01-16T22:19:27.023392Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=fda4bb7d-6a29-44fa-9e39-0ad2649ad1ba artist=Alice in Chains title=Greatest Songs edition_duration_ms=6045352 file_duration_ms=2685100 ratio=225.1% reason="edition too long (> 125%)"
+2026-01-16T22:19:27.023396Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=ffad0aee-e52f-4909-a436-2fb1f45a07c8 artist=Alice in Chains title=Greatest Hits (Chopped Not Slopped by DJ Lil Steve) edition_duration_ms=4373836 file_duration_ms=2685100 ratio=162.9% reason="edition too long (> 125%)"
+2026-01-16T22:19:27.023399Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=772857ca-fdb6-4cf6-8130-e2072e6527e2 artist=Goldie Lookin Chain title=Greatest Hits edition_duration_ms=2281077 file_duration_ms=2685100 ratio=85.0% reason="edition too short (< 85%)"
+2026-01-16T22:19:27.023402Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=a293657f-06b8-48e6-a64a-cd76fae16ad0 artist=Goldie Lookin Chain title=Greatest Hits edition_duration_ms=2936077 file_duration_ms=2685100 ratio=109.3%
+2026-01-16T22:19:27.023404Z  INFO wkmp_ai::matching::album_matcher: Testing 2 editions (top by name similarity)
+2026-01-16T22:19:27.023416Z DEBUG wkmp_ai::matching::stages::stage7_progressive_refinement: Stage 7 not needed: only 0 tracks with ≥30s error
+2026-01-16T22:19:27.025029Z DEBUG wkmp_ai::matching::album_matcher: Stage 6: Attempting boundary refinement
+2026-01-16T22:19:27.025052Z DEBUG wkmp_ai::matching::album_matcher: Boundary refinement: edition=37cc6812-0779-496a-b9d8-19fd69e4b2c5, track_count=10, original_match=100.0%
+2026-01-16T22:19:27.025065Z DEBUG wkmp_ai::matching::album_matcher: No refinement patterns detected - returning original boundaries
+2026-01-16T22:19:27.025069Z  INFO wkmp_ai::matching::album_matcher: Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+2026-01-16T22:19:27.025257Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=37cc6812-0779-496a-b9d8-19fd69e4b2c5 url=https://musicbrainz.org/ws/2/release/37cc6812-0779-496a-b9d8-19fd69e4b2c5?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:27.221634Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=37cc6812-0779-496a-b9d8-19fd69e4b2c5 title=Greatest Hits tracks=10
+2026-01-16T22:19:27.221917Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 803.3386ms
+2026-01-16T22:19:28.037078Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=37cc6812-0779-496a-b9d8-19fd69e4b2c5 url=https://musicbrainz.org/ws/2/release/37cc6812-0779-496a-b9d8-19fd69e4b2c5?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:28.226416Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=37cc6812-0779-496a-b9d8-19fd69e4b2c5 title=Greatest Hits tracks=10
+2026-01-16T22:19:28.226636Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 810.401ms
+2026-01-16T22:19:29.052947Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=37cc6812-0779-496a-b9d8-19fd69e4b2c5 url=https://musicbrainz.org/ws/2/release/37cc6812-0779-496a-b9d8-19fd69e4b2c5?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:29.191803Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=37cc6812-0779-496a-b9d8-19fd69e4b2c5 title=Greatest Hits tracks=10
+2026-01-16T22:19:29.191858Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 861.0687ms
+2026-01-16T22:19:30.066721Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=37cc6812-0779-496a-b9d8-19fd69e4b2c5 url=https://musicbrainz.org/ws/2/release/37cc6812-0779-496a-b9d8-19fd69e4b2c5?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:30.205564Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=37cc6812-0779-496a-b9d8-19fd69e4b2c5 title=Greatest Hits tracks=10
+2026-01-16T22:19:30.205630Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=1b055a51-eac1-4b06-a28f-d0b8c7a5e65a url=https://acousticbrainz.org/api/v1/1b055a51-eac1-4b06-a28f-d0b8c7a5e65a/low-level
+2026-01-16T22:19:30.386061Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=1b055a51-eac1-4b06-a28f-d0b8c7a5e65a has_tonal=true has_rhythm=true
+2026-01-16T22:19:30.386106Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 819.5177ms
+2026-01-16T22:19:31.207441Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=fba87631-6ed8-457a-87d3-2388c6a45e5c url=https://acousticbrainz.org/api/v1/fba87631-6ed8-457a-87d3-2388c6a45e5c/low-level
+2026-01-16T22:19:31.403461Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=fba87631-6ed8-457a-87d3-2388c6a45e5c has_tonal=true has_rhythm=true
+2026-01-16T22:19:31.403536Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 803.8898ms
+2026-01-16T22:19:32.208189Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=fb9e081f-d9ae-4a18-8f4a-7f8bfbbac588 url=https://acousticbrainz.org/api/v1/fb9e081f-d9ae-4a18-8f4a-7f8bfbbac588/low-level
+2026-01-16T22:19:32.480012Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=fb9e081f-d9ae-4a18-8f4a-7f8bfbbac588 has_tonal=true has_rhythm=true
+2026-01-16T22:19:32.480070Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 728.1106ms
+2026-01-16T22:19:33.219960Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=66c29b8d-cec8-423c-beb2-77e4d79c45f2 url=https://acousticbrainz.org/api/v1/66c29b8d-cec8-423c-beb2-77e4d79c45f2/low-level
+2026-01-16T22:19:33.366342Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 853.6088ms
+2026-01-16T22:19:34.233826Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=b0b9e9c1-a234-42db-a2b6-d0d576bf525d url=https://acousticbrainz.org/api/v1/b0b9e9c1-a234-42db-a2b6-d0d576bf525d/low-level
+2026-01-16T22:19:34.393118Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=b0b9e9c1-a234-42db-a2b6-d0d576bf525d has_tonal=true has_rhythm=true
+2026-01-16T22:19:34.393182Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 840.6019ms
+2026-01-16T22:19:35.249870Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=a87bcd80-ef4b-463b-ba57-66dbfa98bff8 url=https://acousticbrainz.org/api/v1/a87bcd80-ef4b-463b-ba57-66dbfa98bff8/low-level
+2026-01-16T22:19:35.438538Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=a87bcd80-ef4b-463b-ba57-66dbfa98bff8 has_tonal=true has_rhythm=true
+2026-01-16T22:19:35.438609Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 811.2424ms
+2026-01-16T22:19:36.255495Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=f36bd43c-b5df-4590-9a04-eeba45e19488 url=https://acousticbrainz.org/api/v1/f36bd43c-b5df-4590-9a04-eeba45e19488/low-level
+2026-01-16T22:19:36.448878Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=f36bd43c-b5df-4590-9a04-eeba45e19488 has_tonal=true has_rhythm=true
+2026-01-16T22:19:36.448934Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 806.5446ms
+2026-01-16T22:19:37.257050Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=bf0b2b61-2d7f-4eb4-a920-38528745db03 url=https://acousticbrainz.org/api/v1/bf0b2b61-2d7f-4eb4-a920-38528745db03/low-level
+2026-01-16T22:19:37.458081Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=bf0b2b61-2d7f-4eb4-a920-38528745db03 has_tonal=true has_rhythm=true
+2026-01-16T22:19:37.458148Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 798.8753ms
+2026-01-16T22:19:38.265375Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=c066a723-cebc-4511-b326-5cb143b8c6ed url=https://acousticbrainz.org/api/v1/c066a723-cebc-4511-b326-5cb143b8c6ed/low-level
+2026-01-16T22:19:38.450607Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=c066a723-cebc-4511-b326-5cb143b8c6ed has_tonal=true has_rhythm=true
+2026-01-16T22:19:38.450692Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 814.6646ms
+2026-01-16T22:19:39.280529Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=5f10a5a2-5ca6-4e06-96db-4d914337e608 url=https://acousticbrainz.org/api/v1/5f10a5a2-5ca6-4e06-96db-4d914337e608/low-level
+2026-01-16T22:19:39.469493Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=5f10a5a2-5ca6-4e06-96db-4d914337e608 has_tonal=true has_rhythm=true
+2026-01-16T22:19:39.493382Z  INFO wkmp_ai::matching::album_matcher: Starting album match for: C:\Users\Mango Cat\Music\Allman Brothers/AtFillmoreEast.mp3
+2026-01-16T22:19:39.493576Z DEBUG wkmp_ai::matching::album_matcher: Metadata: artist=The Allman Brothers, album=At Fillmore East
+2026-01-16T22:19:39.493742Z  INFO wkmp_ai::matching::album_matcher: Starting parallel: decode + MusicBrainz lookup for artist=The Allman Brothers, album=At Fillmore East
+2026-01-16T22:19:39.494288Z DEBUG wkmp_ai::services::musicbrainz_client: Album search cache hit artist=The Allman Brothers album=At Fillmore East count=25 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.494431Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=e134362b-3eab-3ab3-8b1a-6ca552887056 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.494552Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=29e18ce2-3777-432b-bff6-c446e71b21e7 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.494672Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=07414908-a9b1-48fe-9d38-1a20f21fc843 cached_at=2025-12-30 20:21:09
+2026-01-16T22:19:39.494754Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=342f87ff-f267-4762-a078-50e7c8400e19 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.494847Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=c0d515ad-0688-46a5-9ab0-3857fa32453d cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.494896Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=286e27d9-c56f-3849-8819-9a70a553afc0 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.494941Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=4025b60d-fb16-4c18-b588-3ee54ad4f2b5 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.494988Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=8d33fe0e-539e-48e8-8925-94ab88222f54 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495035Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=5a1d4b69-a48b-3fc6-9f46-762894b3df62 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495077Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=e452e265-aecb-4f5e-b6ff-70fe8f31140b cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495118Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=7e9eaba3-0835-417a-97f8-d38978387370 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495172Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=1100bd1d-9940-427e-a79b-95050fd76641 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495217Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=00b29434-fcd2-4586-b764-cef6b9b084cc cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495260Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=f54d5d53-e85a-3b4e-b35c-3c86400f18aa cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495306Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=98ba2133-4e07-4633-8804-0546fed6c215 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495354Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=f4595e6d-8996-494e-b346-82a1b0512d45 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495395Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=27d542cb-2b7d-4449-8307-65a2f0f9b30b cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495437Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=01136b7c-b0d2-4569-94a9-74c5ac49a55c cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495490Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=bf784256-5ba1-44f1-a362-4c719953e549 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495538Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=3f1f7bd6-47eb-4828-abaa-df3c8c4751d0 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495581Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=c0df8e86-86b2-43a9-be8a-d990a6d110c4 cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495624Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=a35df3d8-6c04-4bff-8a0a-d080304c614d cached_at=2025-12-30 20:05:22
+2026-01-16T22:19:39.495667Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=d57209ed-772d-451b-bfca-40c684b47caa cached_at=2025-12-30 20:05:23
+2026-01-16T22:19:39.495763Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=4d3d7b1e-20e7-4b42-a99e-221759a21804 cached_at=2025-12-30 20:05:23
+2026-01-16T22:19:39.495805Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=6bd67003-f248-4795-83e0-853accfd1fe6 cached_at=2025-12-30 20:05:23
+2026-01-16T22:19:39.495813Z  INFO wkmp_ai::services::musicbrainz_client: Comprehensive search completed (with caching) artist=The Allman Brothers album=At Fillmore East found=25
+2026-01-16T22:19:47.669405Z  INFO wkmp_ai::workflow::memory_tracker: MEMORY: +1415.5 MB [album_matcher decode] → Total: 4639.8 MB (4.64 GB) | 353863296 samples
+2026-01-16T22:19:47.669434Z DEBUG wkmp_ai::matching::album_matcher: Decoded 353863296 samples at 44100Hz (8024.1s, 8024111ms)
+2026-01-16T22:19:47.669440Z  INFO wkmp_ai::matching::album_matcher: Found 25 MusicBrainz releases
+2026-01-16T22:19:47.669544Z  INFO wkmp_ai::matching::album_matcher: Grouped into 11 unique editions
+2026-01-16T22:19:47.669565Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=At Fillmore East source_artist=The Allman Brothers source_album=At Fillmore East release_mbid=29e18ce2-3777-432b-bff6-c446e71b21e7 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:19:47.669573Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=At Fillmore East source_artist=The Allman Brothers source_album=At Fillmore East release_mbid=e134362b-3eab-3ab3-8b1a-6ca552887056 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:19:47.669579Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=At Fillmore East source_artist=The Allman Brothers source_album=At Fillmore East release_mbid=1100bd1d-9940-427e-a79b-95050fd76641 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:19:47.669584Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers mb_title=At Fillmore East source_artist=The Allman Brothers source_album=At Fillmore East release_mbid=07414908-a9b1-48fe-9d38-1a20f21fc843 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:19:47.669589Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=At Fillmore East source_artist=The Allman Brothers source_album=At Fillmore East release_mbid=e452e265-aecb-4f5e-b6ff-70fe8f31140b similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:19:47.669595Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=At Fillmore East source_artist=The Allman Brothers source_album=At Fillmore East release_mbid=a35df3d8-6c04-4bff-8a0a-d080304c614d similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:19:47.669600Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=At Fillmore East source_artist=The Allman Brothers source_album=At Fillmore East release_mbid=6bd67003-f248-4795-83e0-853accfd1fe6 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:19:47.669605Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=At Fillmore East source_artist=The Allman Brothers source_album=At Fillmore East release_mbid=00b29434-fcd2-4586-b764-cef6b9b084cc similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:19:47.669610Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=At Fillmore East source_artist=The Allman Brothers source_album=At Fillmore East release_mbid=3f1f7bd6-47eb-4828-abaa-df3c8c4751d0 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:19:47.669615Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=At Fillmore East source_artist=The Allman Brothers source_album=At Fillmore East release_mbid=c0d515ad-0688-46a5-9ab0-3857fa32453d similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:19:47.669623Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=At Fillmore East source_artist=The Allman Brothers source_album=At Fillmore East release_mbid=8d33fe0e-539e-48e8-8925-94ab88222f54 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:19:47.669642Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=07414908-a9b1-48fe-9d38-1a20f21fc843 artist=The Allman Brothers title=At Fillmore East edition_duration_ms=3394999 file_duration_ms=8024111 ratio=42.3% reason="edition too short (< 85%)"
+2026-01-16T22:19:47.669646Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=29e18ce2-3777-432b-bff6-c446e71b21e7 artist=The Allman Brothers Band title=At Fillmore East edition_duration_ms=8043797 file_duration_ms=8024111 ratio=100.2%
+2026-01-16T22:19:47.669649Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=e134362b-3eab-3ab3-8b1a-6ca552887056 artist=The Allman Brothers Band title=At Fillmore East edition_duration_ms=4716597 file_duration_ms=8024111 ratio=58.8% reason="edition too short (< 85%)"
+2026-01-16T22:19:47.669652Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=1100bd1d-9940-427e-a79b-95050fd76641 artist=The Allman Brothers Band title=At Fillmore East edition_duration_ms=4688000 file_duration_ms=8024111 ratio=58.4% reason="edition too short (< 85%)"
+2026-01-16T22:19:47.669655Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=e452e265-aecb-4f5e-b6ff-70fe8f31140b artist=The Allman Brothers Band title=At Fillmore East edition_duration_ms=4727399 file_duration_ms=8024111 ratio=58.9% reason="edition too short (< 85%)"
+2026-01-16T22:19:47.669657Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=a35df3d8-6c04-4bff-8a0a-d080304c614d artist=The Allman Brothers Band title=At Fillmore East edition_duration_ms=4821345 file_duration_ms=8024111 ratio=60.1% reason="edition too short (< 85%)"
+2026-01-16T22:19:47.669660Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=6bd67003-f248-4795-83e0-853accfd1fe6 artist=The Allman Brothers Band title=At Fillmore East edition_duration_ms=4584000 file_duration_ms=8024111 ratio=57.1% reason="edition too short (< 85%)"
+2026-01-16T22:19:47.669663Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=00b29434-fcd2-4586-b764-cef6b9b084cc artist=The Allman Brothers Band title=At Fillmore East edition_duration_ms=4586000 file_duration_ms=8024111 ratio=57.2% reason="edition too short (< 85%)"
+2026-01-16T22:19:47.669666Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=3f1f7bd6-47eb-4828-abaa-df3c8c4751d0 artist=The Allman Brothers Band title=At Fillmore East edition_duration_ms=4717531 file_duration_ms=8024111 ratio=58.8% reason="edition too short (< 85%)"
+2026-01-16T22:19:47.669669Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=c0d515ad-0688-46a5-9ab0-3857fa32453d artist=The Allman Brothers Band title=At Fillmore East edition_duration_ms=4586000 file_duration_ms=8024111 ratio=57.2% reason="edition too short (< 85%)"
+2026-01-16T22:19:47.669671Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=8d33fe0e-539e-48e8-8925-94ab88222f54 artist=The Allman Brothers Band title=At Fillmore East edition_duration_ms=9470954 file_duration_ms=8024111 ratio=118.0%
+2026-01-16T22:19:47.669674Z  INFO wkmp_ai::matching::album_matcher: Testing 2 editions (top by name similarity)
+2026-01-16T22:19:47.669693Z DEBUG wkmp_ai::matching::stages::stage7_progressive_refinement: Stage 7 not needed: only 0 tracks with ≥30s error
+2026-01-16T22:19:47.672673Z DEBUG wkmp_ai::matching::album_matcher: Stage 6: Attempting boundary refinement
+2026-01-16T22:19:47.672687Z DEBUG wkmp_ai::matching::album_matcher: Boundary refinement: edition=29e18ce2-3777-432b-bff6-c446e71b21e7, track_count=13, original_match=100.0%
+2026-01-16T22:19:47.672694Z DEBUG wkmp_ai::matching::album_matcher: No refinement patterns detected - returning original boundaries
+2026-01-16T22:19:47.672698Z  INFO wkmp_ai::matching::album_matcher: Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+2026-01-16T22:19:47.672835Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=29e18ce2-3777-432b-bff6-c446e71b21e7 url=https://musicbrainz.org/ws/2/release/29e18ce2-3777-432b-bff6-c446e71b21e7?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:47.861475Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=29e18ce2-3777-432b-bff6-c446e71b21e7 title=At Fillmore East tracks=13
+2026-01-16T22:19:47.861684Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 811.1492ms
+2026-01-16T22:19:48.678081Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=29e18ce2-3777-432b-bff6-c446e71b21e7 url=https://musicbrainz.org/ws/2/release/29e18ce2-3777-432b-bff6-c446e71b21e7?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:49.006415Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=29e18ce2-3777-432b-bff6-c446e71b21e7 title=At Fillmore East tracks=13
+2026-01-16T22:19:49.006745Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 671.308ms
+2026-01-16T22:19:49.692318Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=29e18ce2-3777-432b-bff6-c446e71b21e7 url=https://musicbrainz.org/ws/2/release/29e18ce2-3777-432b-bff6-c446e71b21e7?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:49.970278Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=29e18ce2-3777-432b-bff6-c446e71b21e7 title=At Fillmore East tracks=13
+2026-01-16T22:19:49.970402Z DEBUG wkmp_ai::services::musicbrainz_client: Rate limiting: waiting 721.9006ms
+2026-01-16T22:19:50.693682Z DEBUG wkmp_ai::services::musicbrainz_client: Fetching release details from MusicBrainz mbid=29e18ce2-3777-432b-bff6-c446e71b21e7 url=https://musicbrainz.org/ws/2/release/29e18ce2-3777-432b-bff6-c446e71b21e7?inc=recordings+media+artist-credits+labels&fmt=json
+2026-01-16T22:19:50.967162Z  INFO wkmp_ai::services::musicbrainz_client: Retrieved release details from MusicBrainz mbid=29e18ce2-3777-432b-bff6-c446e71b21e7 title=At Fillmore East tracks=13
+2026-01-16T22:19:50.967211Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=712bae60-4cde-4327-9b96-2d2f847546cf url=https://acousticbrainz.org/api/v1/712bae60-4cde-4327-9b96-2d2f847546cf/low-level
+2026-01-16T22:19:51.123778Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=712bae60-4cde-4327-9b96-2d2f847546cf has_tonal=true has_rhythm=true
+2026-01-16T22:19:51.123853Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 843.3575ms
+2026-01-16T22:19:51.975525Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=eb91195a-2bcd-4c4e-8edc-d0b51fc2b601 url=https://acousticbrainz.org/api/v1/eb91195a-2bcd-4c4e-8edc-d0b51fc2b601/low-level
+2026-01-16T22:19:52.263632Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=eb91195a-2bcd-4c4e-8edc-d0b51fc2b601 has_tonal=true has_rhythm=true
+2026-01-16T22:19:52.263701Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 711.8025ms
+2026-01-16T22:19:52.988443Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=7303e6a9-1d51-4d53-aedb-52e90acd54a9 url=https://acousticbrainz.org/api/v1/7303e6a9-1d51-4d53-aedb-52e90acd54a9/low-level
+2026-01-16T22:19:53.356532Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=7303e6a9-1d51-4d53-aedb-52e90acd54a9 has_tonal=true has_rhythm=true
+2026-01-16T22:19:53.356599Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 631.8151ms
+2026-01-16T22:19:53.991731Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=3506aca7-8980-4014-94b5-0011f0c46488 url=https://acousticbrainz.org/api/v1/3506aca7-8980-4014-94b5-0011f0c46488/low-level
+2026-01-16T22:19:54.353030Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=3506aca7-8980-4014-94b5-0011f0c46488 has_tonal=true has_rhythm=true
+2026-01-16T22:19:54.353091Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 638.611ms
+2026-01-16T22:19:55.005805Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=28289936-4a11-4c86-9005-1f5905c7567d url=https://acousticbrainz.org/api/v1/28289936-4a11-4c86-9005-1f5905c7567d/low-level
+2026-01-16T22:19:55.314997Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=28289936-4a11-4c86-9005-1f5905c7567d has_tonal=true has_rhythm=true
+2026-01-16T22:19:55.315062Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 690.7152ms
+2026-01-16T22:19:56.020075Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=ef9bd359-a7ef-4c32-8e04-dd58c1ac2838 url=https://acousticbrainz.org/api/v1/ef9bd359-a7ef-4c32-8e04-dd58c1ac2838/low-level
+2026-01-16T22:19:56.441754Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=ef9bd359-a7ef-4c32-8e04-dd58c1ac2838 has_tonal=true has_rhythm=true
+2026-01-16T22:19:56.441807Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 578.2422ms
+2026-01-16T22:19:57.031010Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=6b5197ff-e9b8-456b-af4a-de7fdf9fd3fc url=https://acousticbrainz.org/api/v1/6b5197ff-e9b8-456b-af4a-de7fdf9fd3fc/low-level
+2026-01-16T22:19:57.349332Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=6b5197ff-e9b8-456b-af4a-de7fdf9fd3fc has_tonal=true has_rhythm=true
+2026-01-16T22:19:57.349395Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 681.5906ms
+2026-01-16T22:19:58.032190Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=b99dc52b-34e1-4bb4-8b10-cab5987a3887 url=https://acousticbrainz.org/api/v1/b99dc52b-34e1-4bb4-8b10-cab5987a3887/low-level
+2026-01-16T22:19:58.238660Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=b99dc52b-34e1-4bb4-8b10-cab5987a3887 has_tonal=true has_rhythm=true
+2026-01-16T22:19:58.238722Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 793.4413ms
+2026-01-16T22:19:59.047444Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=dae9fc61-687d-46e6-832f-76a69394a98c url=https://acousticbrainz.org/api/v1/dae9fc61-687d-46e6-832f-76a69394a98c/low-level
+2026-01-16T22:19:59.226500Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=dae9fc61-687d-46e6-832f-76a69394a98c has_tonal=true has_rhythm=true
+2026-01-16T22:19:59.226565Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 820.8505ms
+2026-01-16T22:20:00.060891Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=bfc6c1bd-8823-4d00-8621-e5e8f11b79da url=https://acousticbrainz.org/api/v1/bfc6c1bd-8823-4d00-8621-e5e8f11b79da/low-level
+2026-01-16T22:20:00.255321Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=bfc6c1bd-8823-4d00-8621-e5e8f11b79da has_tonal=true has_rhythm=true
+2026-01-16T22:20:00.255394Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 805.4697ms
+2026-01-16T22:20:01.072158Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=2c2a3256-8f5d-46a2-bb60-a54281cc22ad url=https://acousticbrainz.org/api/v1/2c2a3256-8f5d-46a2-bb60-a54281cc22ad/low-level
+2026-01-16T22:20:01.261832Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=2c2a3256-8f5d-46a2-bb60-a54281cc22ad has_tonal=true has_rhythm=true
+2026-01-16T22:20:01.261872Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 810.2206ms
+2026-01-16T22:20:02.087225Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=b3cb0c63-eada-4e26-ac7a-f624724483c0 url=https://acousticbrainz.org/api/v1/b3cb0c63-eada-4e26-ac7a-f624724483c0/low-level
+2026-01-16T22:20:02.310064Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=b3cb0c63-eada-4e26-ac7a-f624724483c0 has_tonal=true has_rhythm=true
+2026-01-16T22:20:02.310122Z DEBUG wkmp_ai::services::acousticbrainz_client: AcousticBrainz rate limiting: waiting 777.0722ms
+2026-01-16T22:20:03.089468Z DEBUG wkmp_ai::services::acousticbrainz_client: Querying AcousticBrainz API mbid=1270285f-0040-402d-81e0-589b9f6fc095 url=https://acousticbrainz.org/api/v1/1270285f-0040-402d-81e0-589b9f6fc095/low-level
+2026-01-16T22:20:03.376835Z  INFO wkmp_ai::services::acousticbrainz_client: AcousticBrainz lookup successful mbid=1270285f-0040-402d-81e0-589b9f6fc095 has_tonal=true has_rhythm=true
+2026-01-16T22:20:03.453111Z  INFO wkmp_ai::matching::album_matcher: Starting album match for: C:\Users\Mango Cat\Music\Allman Brothers/EatAPeach.mp3
+2026-01-16T22:20:03.453271Z DEBUG wkmp_ai::matching::album_matcher: Metadata: artist=Allman Brothers, album=Eat a Peach
+2026-01-16T22:20:03.453428Z  INFO wkmp_ai::matching::album_matcher: Starting parallel: decode + MusicBrainz lookup for artist=Allman Brothers, album=Eat a Peach
+2026-01-16T22:20:03.453873Z DEBUG wkmp_ai::services::musicbrainz_client: Album search cache hit artist=Allman Brothers album=Eat a Peach count=25 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.454222Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=1a67d99f-f789-3343-b4da-4a364a98f3be cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.454393Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=5ce0b66f-0f17-4b53-a614-1d5523c733ba cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.454635Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=7cb2fcca-3e69-4c95-9448-f9295d803e0c cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.455034Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=581f2ffb-fc8c-375c-a702-277d41edc01e cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.455128Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=bf8885b2-39f8-344e-b860-4be1623de283 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.455224Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=24b20f28-6a09-4c6e-9f5a-d683f366da74 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.455363Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=a98b623b-209d-4fb9-a243-71c37fff7590 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.455493Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=678635d5-7635-48f8-9cde-f3d4a78f02d1 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.455586Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=715dce23-7c5f-3dd7-a7ef-457d01202f2b cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.455667Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=fbaff7d3-5708-360b-9a50-63978ecd0d26 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.455742Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=fa9b7174-263b-4c3c-838f-f54c7bb42035 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.455800Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=2c626cb9-cb4f-4884-aa77-588e448614c3 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.455869Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=9d4a39ee-79ec-49bd-8658-0f317708acb4 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.455934Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=0b85df94-15d9-480e-a5f9-ad458e1e0be1 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456002Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=9cf8257a-a55f-43f7-896c-3eb06714541b cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456057Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=8bb447f3-7acf-41d3-9a60-57fd7d1192f8 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456125Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=16710444-11a2-40a7-9ca3-74b8821b4504 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456180Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=f2b85dbd-a65b-4a09-867f-beb32118b9a0 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456244Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=defded84-8f8d-4bef-87eb-d4195b13f4d0 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456297Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=a782fbf9-6e1d-4940-842b-2700b92ffea0 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456375Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=aa51762d-c1f1-49a3-8d5f-2f57237551e8 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456429Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=b561085f-0dd4-4e40-ba04-ee28ad32de8f cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456495Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=83c67de9-79ff-4dd9-ab7f-6b0ddb207dfd cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456548Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=f2694702-1f97-4b2f-bdaf-e9c7b1482913 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456616Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=07414908-a9b1-48fe-9d38-1a20f21fc843 cached_at=2025-12-30 20:21:09
+2026-01-16T22:20:03.456623Z  INFO wkmp_ai::services::musicbrainz_client: Comprehensive search completed (with caching) artist=Allman Brothers album=Eat a Peach found=25
+2026-01-16T22:20:12.512724Z  INFO wkmp_ai::workflow::memory_tracker: MEMORY: +1544.3 MB [album_matcher decode] → Total: 6184.1 MB (6.18 GB) | 386087040 samples
+2026-01-16T22:20:12.512756Z DEBUG wkmp_ai::matching::album_matcher: Decoded 386087040 samples at 44100Hz (8754.8s, 8754808ms)
+2026-01-16T22:20:12.512762Z  INFO wkmp_ai::matching::album_matcher: Found 25 MusicBrainz releases
+2026-01-16T22:20:12.512862Z  INFO wkmp_ai::matching::album_matcher: Grouped into 15 unique editions
+2026-01-16T22:20:12.512881Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=1a67d99f-f789-3343-b4da-4a364a98f3be similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512889Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=9cf8257a-a55f-43f7-896c-3eb06714541b similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512894Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=678635d5-7635-48f8-9cde-f3d4a78f02d1 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512898Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=b561085f-0dd4-4e40-ba04-ee28ad32de8f similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512907Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=16710444-11a2-40a7-9ca3-74b8821b4504 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512913Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=bf8885b2-39f8-344e-b860-4be1623de283 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512918Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=0b85df94-15d9-480e-a5f9-ad458e1e0be1 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512923Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers mb_title=At Fillmore East source_artist=Allman Brothers source_album=Eat a Peach release_mbid=07414908-a9b1-48fe-9d38-1a20f21fc843 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512927Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=a98b623b-209d-4fb9-a243-71c37fff7590 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512933Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Then… Again… Live: Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=f2694702-1f97-4b2f-bdaf-e9c7b1482913 similarity=1.000 threshold=0.50 reason=" (live album)"
+2026-01-16T22:20:12.512938Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=9d4a39ee-79ec-49bd-8658-0f317708acb4 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512942Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=f2b85dbd-a65b-4a09-867f-beb32118b9a0 similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512947Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=7cb2fcca-3e69-4c95-9448-f9295d803e0c similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512951Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=5ce0b66f-0f17-4b53-a614-1d5523c733ba similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512955Z DEBUG wkmp_ai::matching::editions::filtering: Artist filter: PASS mb_artist=The Allman Brothers Band mb_title=Eat a Peach source_artist=Allman Brothers source_album=Eat a Peach release_mbid=581f2ffb-fc8c-375c-a702-277d41edc01e similarity=1.000 threshold=0.60 reason=""
+2026-01-16T22:20:12.512975Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=1a67d99f-f789-3343-b4da-4a364a98f3be artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=4197024 file_duration_ms=8754808 ratio=47.9% reason="edition too short (< 85%)"
+2026-01-16T22:20:12.512979Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=9cf8257a-a55f-43f7-896c-3eb06714541b artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=4235000 file_duration_ms=8754808 ratio=48.4% reason="edition too short (< 85%)"
+2026-01-16T22:20:12.512982Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=678635d5-7635-48f8-9cde-f3d4a78f02d1 artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=8434490 file_duration_ms=8754808 ratio=96.3%
+2026-01-16T22:20:12.512986Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=b561085f-0dd4-4e40-ba04-ee28ad32de8f artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=4164000 file_duration_ms=8754808 ratio=47.6% reason="edition too short (< 85%)"
+2026-01-16T22:20:12.512989Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=16710444-11a2-40a7-9ca3-74b8821b4504 artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=4136000 file_duration_ms=8754808 ratio=47.2% reason="edition too short (< 85%)"
+2026-01-16T22:20:12.512992Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: PASS release_mbid=bf8885b2-39f8-344e-b860-4be1623de283 artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=8784474 file_duration_ms=8754808 ratio=100.3%
+2026-01-16T22:20:12.512994Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=0b85df94-15d9-480e-a5f9-ad458e1e0be1 artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=4191000 file_duration_ms=8754808 ratio=47.9% reason="edition too short (< 85%)"
+2026-01-16T22:20:12.512998Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=a98b623b-209d-4fb9-a243-71c37fff7590 artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=12591072 file_duration_ms=8754808 ratio=143.8% reason="edition too long (> 125%)"
+2026-01-16T22:20:12.513001Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=9d4a39ee-79ec-49bd-8658-0f317708acb4 artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=4915000 file_duration_ms=8754808 ratio=56.1% reason="edition too short (< 85%)"
+2026-01-16T22:20:12.513004Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=f2b85dbd-a65b-4a09-867f-beb32118b9a0 artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=4182997 file_duration_ms=8754808 ratio=47.8% reason="edition too short (< 85%)"
+2026-01-16T22:20:12.513006Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=7cb2fcca-3e69-4c95-9448-f9295d803e0c artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=4241000 file_duration_ms=8754808 ratio=48.4% reason="edition too short (< 85%)"
+2026-01-16T22:20:12.513009Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=5ce0b66f-0f17-4b53-a614-1d5523c733ba artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=4181840 file_duration_ms=8754808 ratio=47.8% reason="edition too short (< 85%)"
+2026-01-16T22:20:12.513012Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=581f2ffb-fc8c-375c-a702-277d41edc01e artist=The Allman Brothers Band title=Eat a Peach edition_duration_ms=4181693 file_duration_ms=8754808 ratio=47.8% reason="edition too short (< 85%)"
+2026-01-16T22:20:12.513015Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT release_mbid=07414908-a9b1-48fe-9d38-1a20f21fc843 artist=The Allman Brothers title=At Fillmore East edition_duration_ms=3394999 file_duration_ms=8754808 ratio=38.8% reason="edition too short (< 85%)"
+2026-01-16T22:20:12.513018Z DEBUG wkmp_ai::matching::editions::filtering: Duration filter: REJECT (zero or missing track durations) release_mbid=f2694702-1f97-4b2f-bdaf-e9c7b1482913 artist=The Allman Brothers Band title=Then… Again… Live: Eat a Peach
+2026-01-16T22:20:12.513022Z  INFO wkmp_ai::matching::album_matcher: Testing 2 editions (top by name similarity)
+2026-01-16T22:20:12.513065Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT START: 19 boundaries, 18 expected tracks, 386087040 samples (8754.8s)
+2026-01-16T22:20:12.513069Z DEBUG wkmp_ai::matching::stages::boundary_refinement: REFINEMENT ITERATION 1/3
+2026-01-16T22:20:12.513071Z DEBUG wkmp_ai::matching::stages::boundary_refinement: Split failure detected at track 14: errors=-77.67s/+80.85s, residual=3.17s (0.6% of 525.00s), combined_error=158.52s
+2026-01-16T22:20:12.513076Z DEBUG wkmp_ai::matching::stages::boundary_refinement: SEARCHING for boundary 14: window=[217309040, 218632040] (30.0s range), expected=217970540
+2026-01-16T22:20:12.513079Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH START (track 14): 1300950 iterations over 30.0s
+2026-01-16T22:20:13.851866Z DEBUG wkmp_ai::matching::stages::boundary_refinement: RMS SEARCH PROGRESS (track 14): 10% (130095/1300950 iterations)

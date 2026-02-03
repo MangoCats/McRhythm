@@ -87,8 +87,11 @@ pub struct AuthRequest {
 /// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct AuthErrorResponse {
+    /// Error type identifier
     pub error: String,
+    /// Human-readable error message
     pub message: String,
+    /// Additional error details (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<Value>,
 }

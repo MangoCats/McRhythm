@@ -17,15 +17,19 @@ use thiserror::Error;
 /// Metadata extraction errors
 #[derive(Debug, Error)]
 pub enum MetadataError {
+    /// Failed to read audio file with Symphonia
     #[error("Failed to read file: {0}")]
     ReadError(String),
 
+    /// Unsupported audio format
     #[error("Unsupported format: {0}")]
     UnsupportedFormat(String),
 
+    /// No ID3 or other metadata tags found in file
     #[error("No metadata found")]
     NoMetadata,
 
+    /// I/O error (file read)
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 }
@@ -77,6 +81,7 @@ pub struct AudioMetadata {
 pub struct MetadataExtractor {}
 
 impl MetadataExtractor {
+    /// Create new metadata extractor
     pub fn new() -> Self {
         Self {}
     }
@@ -117,7 +122,9 @@ impl MetadataExtractor {
         .to_string();
 
         // Try to get primary tag
-        let tag = tagged_file.primary_tag().or_else(|| tagged_file.first_tag());
+        let tag = tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag());
 
         let (artist, title, album, track_number, year) = if let Some(tag) = tag {
             let artist = tag.artist().map(|s| s.to_string());
@@ -158,7 +165,10 @@ impl MetadataExtractor {
     }
 
     /// Extract metadata from multiple files
-    pub fn extract_batch(&self, file_paths: &[impl AsRef<Path>]) -> Vec<Result<AudioMetadata, MetadataError>> {
+    pub fn extract_batch(
+        &self,
+        file_paths: &[impl AsRef<Path>],
+    ) -> Vec<Result<AudioMetadata, MetadataError>> {
         file_paths
             .iter()
             .map(|path| self.extract(path.as_ref()))

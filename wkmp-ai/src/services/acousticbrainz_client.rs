@@ -1,8 +1,19 @@
 //! AcousticBrainz API client
 //!
-//! **[AIA-INT-030]** AcousticBrainz musical flavor integration
+//! **[AIA-INT-030]** AcousticBrainz HIGH-LEVEL musical flavor integration
 //!
-//! Queries AcousticBrainz API for pre-computed musical flavor vectors.
+//! **DATA CAPTURED:** HIGH-LEVEL musical characteristics for passage selection:
+//! - Musical descriptors: key, scale, tempo (BPM)
+//! - Perceptual qualities: danceability
+//! - Spectral summaries: brightness (spectral centroid mean), energy
+//! - Harmonic features: dissonance (harmonic complexity mean)
+//! - Dynamic properties: amplitude variation
+//!
+//! **DATA NOT CAPTURED:** Raw audio, frame-level data, full spectral details
+//!
+//! These are AGGREGATED features computed by Essentia, suitable for
+//! Program Director's automatic passage selection based on musical similarity.
+//!
 //! Note: AcousticBrainz ceased accepting new submissions in 2022, so data
 //! is only available for recordings analyzed before that date.
 
@@ -19,15 +30,19 @@ const RATE_LIMIT_MS: u64 = 1000; // 1 request per second (conservative)
 /// AcousticBrainz client errors
 #[derive(Debug, Error)]
 pub enum ABError {
+    /// Network communication error
     #[error("Network error: {0}")]
     NetworkError(String),
 
+    /// Recording not found in AcousticBrainz database
     #[error("Recording not found in AcousticBrainz: {0}")]
     RecordingNotFound(String),
 
+    /// AcousticBrainz API returned error response
     #[error("API error {0}: {1}")]
     ApiError(u16, String),
 
+    /// Failed to parse API response JSON
     #[error("Parse error: {0}")]
     ParseError(String),
 }
@@ -38,91 +53,137 @@ pub enum ABError {
 /// the most relevant ones for musical flavor characterization.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABLowLevel {
+    /// Analysis metadata (version, audio properties)
     pub metadata: ABMetadata,
+    /// Tonal features (key, scale, chords)
     pub tonal: Option<ABTonal>,
+    /// Rhythm features (BPM, danceability)
     pub rhythm: Option<ABRhythm>,
+    /// Low-level audio features (spectral, dynamic)
     pub lowlevel: Option<ABLowLevelFeatures>,
 }
 
+/// AcousticBrainz metadata section
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABMetadata {
+    /// Essentia version information
     pub version: Option<ABVersion>,
+    /// Audio file properties
     pub audio_properties: Option<ABAudioProperties>,
 }
 
+/// Essentia version information
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABVersion {
+    /// Essentia library version string
     pub essentia: Option<String>,
 }
 
+/// Audio file properties
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABAudioProperties {
+    /// Track duration in seconds
     pub length: Option<f64>,
+    /// Sample rate in Hz
     pub sample_rate: Option<i32>,
+    /// Bit rate in kbps
     pub bit_rate: Option<i32>,
 }
 
 /// Tonal features (key, scale, chords)
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABTonal {
-    pub key_key: Option<String>,         // Key (e.g., "C", "A")
-    pub key_scale: Option<String>,       // Scale (e.g., "major", "minor")
-    pub key_strength: Option<f64>,       // Confidence
-    pub chords_key: Option<String>,      // Predominant chord
-    pub chords_scale: Option<String>,    // Predominant chord scale
+    /// Musical key (e.g., "C", "A")
+    pub key_key: Option<String>,
+    /// Musical scale (e.g., "major", "minor")
+    pub key_scale: Option<String>,
+    /// Key detection confidence (0.0-1.0)
+    pub key_strength: Option<f64>,
+    /// Predominant chord key
+    pub chords_key: Option<String>,
+    /// Predominant chord scale
+    pub chords_scale: Option<String>,
 }
 
 /// Rhythm features (BPM, beats)
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABRhythm {
+    /// Beats per minute
     pub bpm: Option<f64>,
+    /// Note onset rate (onsets per second)
     pub onset_rate: Option<f64>,
+    /// Danceability score (0.0-1.0)
     pub danceability: Option<f64>,
 }
 
 /// Low-level audio features
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABLowLevelFeatures {
+    /// Spectral centroid statistics (brightness)
     pub spectral_centroid: Option<ABStatistics>,
+    /// Spectral energy statistics
     pub spectral_energy: Option<ABStatistics>,
+    /// Spectral rolloff statistics
     pub spectral_rolloff: Option<ABStatistics>,
+    /// Dissonance statistics (harmonic complexity)
     pub dissonance: Option<ABStatistics>,
+    /// Dynamic complexity (amplitude variation)
     pub dynamic_complexity: Option<f64>,
 }
 
+/// Statistical summary of audio feature
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABStatistics {
+    /// Mean value
     pub mean: Option<f64>,
+    /// Median value
     pub median: Option<f64>,
+    /// Variance
     pub var: Option<f64>,
+    /// Minimum value
     pub min: Option<f64>,
+    /// Maximum value
     pub max: Option<f64>,
 }
 
-/// Musical flavor vector
+/// Musical flavor vector - HIGH-LEVEL musical characteristics
 ///
-/// Simplified representation of musical characteristics for passage selection
+/// **IMPORTANT:** This captures HIGH-LEVEL musical features, NOT raw audio data.
+///
+/// These are aggregated/computed features from Essentia analysis:
+/// - Musical descriptors (key, scale, tempo)
+/// - Perceptual qualities (danceability)
+/// - Spectral summaries (brightness, energy)
+/// - Harmonic characteristics (dissonance)
+/// - Dynamic properties (amplitude variation)
+///
+/// Used by Program Director for automatic passage selection based on musical similarity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MusicalFlavorVector {
-    // Tonal characteristics
+    /// Musical key (e.g., "C", "A")
     pub key: Option<String>,
+    /// Musical scale (e.g., "major", "minor")
     pub scale: Option<String>,
+    /// Key detection confidence (0.0-1.0)
     pub key_strength: Option<f64>,
 
-    // Rhythmic characteristics
+    /// Beats per minute
     pub bpm: Option<f64>,
+    /// Danceability score (0.0-1.0)
     pub danceability: Option<f64>,
 
-    // Spectral characteristics
-    pub spectral_centroid: Option<f64>,  // Brightness
-    pub spectral_energy: Option<f64>,     // Energy
-    pub dissonance: Option<f64>,          // Harmonic complexity
+    /// Spectral centroid (brightness)
+    pub spectral_centroid: Option<f64>,
+    /// Spectral energy (overall energy level)
+    pub spectral_energy: Option<f64>,
+    /// Dissonance (harmonic complexity)
+    pub dissonance: Option<f64>,
 
-    // Dynamic characteristics
+    /// Dynamic complexity (amplitude variation)
     pub dynamic_complexity: Option<f64>,
 
-    // Metadata
-    pub source: String,  // "acousticbrainz" or "essentia"
+    /// Data source ("acousticbrainz" or "essentia")
+    pub source: String,
 }
 
 impl MusicalFlavorVector {
@@ -138,7 +199,17 @@ impl MusicalFlavorVector {
             .map_err(|e| ABError::ParseError(format!("Failed to parse flavor vector: {}", e)))
     }
 
-    /// Extract flavor vector from AcousticBrainz low-level data
+    /// Extract HIGH-LEVEL musical flavor vector from AcousticBrainz data
+    ///
+    /// **Data Source:** AcousticBrainz "low-level" endpoint (misleading name)
+    /// **What We Extract:** HIGH-LEVEL aggregated musical features:
+    /// - Tonal: Musical key, scale, key strength (confidence)
+    /// - Rhythm: BPM, danceability score
+    /// - Spectral: Brightness (centroid mean), energy (mean), rolloff
+    /// - Harmonic: Dissonance (mean harmonic complexity)
+    /// - Dynamic: Amplitude variation complexity
+    ///
+    /// **What We DON'T Extract:** Raw audio samples, frame-level data, full spectrum
     pub fn from_acousticbrainz(data: &ABLowLevel) -> Self {
         Self {
             key: data.tonal.as_ref().and_then(|t| t.key_key.clone()),
@@ -204,6 +275,7 @@ pub struct AcousticBrainzClient {
 }
 
 impl AcousticBrainzClient {
+    /// Create new AcousticBrainz client
     pub fn new() -> Result<Self, ABError> {
         let http_client = reqwest::Client::builder()
             .user_agent(USER_AGENT)
@@ -217,9 +289,16 @@ impl AcousticBrainzClient {
         })
     }
 
-    /// Lookup low-level musical features by recording MBID
+    /// Lookup musical features by recording MBID
     ///
-    /// **[AIA-INT-030]** Query AcousticBrainz for musical flavor
+    /// **[AIA-INT-030]** Query AcousticBrainz for HIGH-LEVEL musical flavor
+    ///
+    /// **Note on Naming:** This queries the AcousticBrainz "low-level" endpoint,
+    /// but extracts HIGH-LEVEL aggregated musical features (key, BPM, danceability, etc.),
+    /// NOT raw audio data. The endpoint name is historical/misleading.
+    ///
+    /// **What We Get:** Essentia-computed summaries suitable for music selection
+    /// **What We DON'T Get:** Raw waveform data, frame-level spectrograms, detailed MFCC arrays
     pub async fn lookup_lowlevel(&self, recording_mbid: &str) -> Result<ABLowLevel, ABError> {
         // Rate limit
         self.rate_limiter.wait().await;

@@ -1,0 +1,1322 @@
+   Compiling zerocopy v0.8.27
+   Compiling either v1.15.0
+   Compiling tokio-stream v0.1.17
+   Compiling aho-corasick v1.1.3
+   Compiling regex-syntax v0.8.7
+   Compiling num-conv v0.1.0
+   Compiling sqlx-core v0.8.6
+   Compiling powerfmt v0.2.0
+   Compiling time-core v0.1.6
+   Compiling deranged v0.5.5
+   Compiling rayon v1.11.0
+   Compiling windows v0.54.0
+   Compiling wkmp-ai v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai)
+   Compiling time-macros v0.2.24
+   Compiling time v0.3.44
+   Compiling regex-automata v0.4.12
+   Compiling ppv-lite86 v0.2.21
+   Compiling rand_chacha v0.3.1
+   Compiling rand v0.8.5
+   Compiling governor v0.6.3
+   Compiling sqlx-sqlite v0.8.6
+   Compiling matchers v0.2.0
+   Compiling regex v1.12.2
+   Compiling tracing-subscriber v0.3.20
+   Compiling sqlx v0.8.6
+   Compiling wkmp-common v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-common)
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:498:1
+    |
+498 | pub fn set_unix_permissions_0600(_path: &Path) -> Result<()> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-common\src\lib.rs:13:9
+    |
+ 13 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:527:1
+    |
+527 | pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:14:5
+   |
+14 |     Scanning {
+   |     ^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:15:9
+   |
+15 |         potential_files_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:16:9
+   |
+16 |         is_scanning: bool,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:17:9
+   |
+17 |         audio_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:18:9
+   |
+18 |         image_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:19:9
+   |
+19 |         other_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:38:5
+   |
+38 |     Processing {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:39:9
+   |
+39 |         completed: usize,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:40:9
+   |
+40 |         started: usize,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:41:9
+   |
+41 |         total: usize,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:50:5
+   |
+50 |     FilenameMatching {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:51:9
+   |
+51 |         completed_filenames_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:54:5
+   |
+54 |     Hashing {
+   |     ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:55:9
+   |
+55 |         hashes_computed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:56:9
+   |
+56 |         matches_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:59:5
+   |
+59 |     Extracting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:60:9
+   |
+60 |         successful_extractions: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:61:9
+   |
+61 |         failures: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:64:5
+   |
+64 |     Segmenting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:65:9
+   |
+65 |         files_processed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:66:9
+   |
+66 |         potential_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:67:9
+   |
+67 |         finalized_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:68:9
+   |
+68 |         songs_identified: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:71:5
+   |
+71 |     Fingerprinting {
+   |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:72:9
+   |
+72 |         passages_fingerprinted: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:73:9
+   |
+73 |         successful_matches: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:76:5
+   |
+76 |     SongMatching {
+   |     ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:77:9
+   |
+77 |         high_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:78:9
+   |
+78 |         medium_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:79:9
+   |
+79 |         low_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:80:9
+   |
+80 |         no_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:83:5
+   |
+83 |     Recording {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:84:9
+   |
+84 |         recorded_passages: Vec<RecordedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:87:5
+   |
+87 |     Amplitude {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:88:9
+   |
+88 |         analyzed_passages: Vec<AnalyzedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:91:5
+   |
+91 |     Flavoring {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:92:9
+   |
+92 |         pre_existing: usize,
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:93:9
+   |
+93 |         acousticbrainz: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:94:9
+   |
+94 |         essentia: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:95:9
+   |
+95 |         failed: usize,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:98:5
+   |
+98 |     PassagesComplete {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:99:9
+   |
+99 |         passages_completed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+   --> wkmp-common\src\events\import_types.rs:102:5
+    |
+102 |     FilesComplete {
+    |     ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:103:9
+    |
+103 |         files_completed: usize,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:110:5
+    |
+110 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:111:5
+    |
+111 |     pub file_path: String,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:117:5
+    |
+117 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:118:5
+    |
+118 |     pub passage_length_seconds: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:119:5
+    |
+119 |     pub lead_in_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:120:5
+    |
+120 |     pub lead_out_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-common` (lib) generated 52 warnings
+   Compiling sysinfo v0.32.1
+warning: unused import: `ConfidenceLevel`
+  --> wkmp-ai\src\services\passage_recorder.rs:15:53
+   |
+15 | use super::passage_song_matcher::{PassageSongMatch, ConfidenceLevel};
+   |                                                     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `super::passage_segmenter::PassageBoundary`
+  --> wkmp-ai\src\services\passage_recorder.rs:16:5
+   |
+16 | use super::passage_segmenter::PassageBoundary;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Instant`
+  --> wkmp-ai\src\services\pool_manager.rs:16:27
+   |
+16 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused import: `crate::models::ImportSession`
+  --> wkmp-ai\src\services\progress_manager.rs:22:5
+   |
+22 | use crate::models::ImportSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::VecDeque`
+  --> wkmp-ai\src\services\write_queue.rs:24:5
+   |
+24 | use std::collections::VecDeque;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Extracting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:269:26
+    |
+269 |             ImportState::Extracting => "Calculating hashes and extracting basic metadata",
+    |                          ^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:270:26
+    |
+270 |             ImportState::Segmenting => "Detecting silence and passage boundaries",
+    |                          ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:271:26
+    |
+271 |             ImportState::Fingerprinting => "Generating audio fingerprints via Chromaprint",
+    |                          ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:272:26
+    |
+272 |             ImportState::Identifying => "Resolving music identity via MusicBrainz",
+    |                          ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:273:26
+    |
+273 |             ImportState::Analyzing => "Analyzing amplitude for crossfade timing",
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:274:26
+    |
+274 |             ImportState::Flavoring => "Extracting musical characteristics via Essentia",
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Extracting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:432:26
+    |
+432 |             ImportState::Extracting => format!("{}/{} extracted", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:433:26
+    |
+433 |             ImportState::Segmenting => format!("{} passages detected", self.progress_total),
+    |                          ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:434:26
+    |
+434 |             ImportState::Fingerprinting => format!("{}/{} fingerprinted", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:435:26
+    |
+435 |             ImportState::Identifying => format!("{}/{} identified", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:436:26
+    |
+436 |             ImportState::Analyzing => format!("{}/{} analyzed", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:437:26
+    |
+437 |             ImportState::Flavoring => format!("{}/{} characterized", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:569:99
+    |
+569 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Segmenting)).await {
+    |                                                                                             ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:580:99
+    |
+580 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Fingerprinting)).await {
+    |                                                                                             ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:587:99
+    |
+587 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Identifying)).await {
+    |                                                                                             ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:594:99
+    |
+594 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Analyzing)).await {
+    |                                                                                             ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:601:99
+    |
+601 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Flavoring)).await {
+    |                                                                                             ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:772:54
+    |
+772 |                         if new_state == ImportState::Segmenting && segmenting_start_time.is_none() {
+    |                                                      ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:800:101
+    |
+800 |                         if let Some(segmenting_phase) = session.progress.get_phase_mut(ImportState::Segmenting) {
+    |                                                                                                     ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:807:105
+    |
+807 |                         if let Some(fingerprinting_phase) = session.progress.get_phase_mut(ImportState::Fingerprinting) {
+    |                                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:814:102
+    |
+814 |                         if let Some(identifying_phase) = session.progress.get_phase_mut(ImportState::Identifying) {
+    |                                                                                                      ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:847:100
+    |
+847 |                         if let Some(analyzing_phase) = session.progress.get_phase_mut(ImportState::Analyzing) {
+    |                                                                                                    ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:854:100
+    |
+854 |                         if let Some(flavoring_phase) = session.progress.get_phase_mut(ImportState::Flavoring) {
+    |                                                                                                    ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1283:109
+     |
+1283 | ...                   if let Some(segmenting_phase) = session.progress.get_phase_mut(ImportState::Segmenting) {
+     |                                                                                                   ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1289:113
+     |
+1289 | ...                   if let Some(fingerprinting_phase) = session.progress.get_phase_mut(ImportState::Fingerprinting) {
+     |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1295:110
+     |
+1295 | ...                   if let Some(identifying_phase) = session.progress.get_phase_mut(ImportState::Identifying) {
+     |                                                                                                    ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1307:108
+     |
+1307 | ...                   if let Some(analyzing_phase) = session.progress.get_phase_mut(ImportState::Analyzing) {
+     |                                                                                                  ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1313:108
+     |
+1313 | ...                   if let Some(flavoring_phase) = session.progress.get_phase_mut(ImportState::Flavoring) {
+     |                                                                                                  ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Extracting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_extraction.rs:27:44
+   |
+27 |         session.transition_to(ImportState::Extracting);
+   |                                            ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:31:44
+   |
+31 |         session.transition_to(ImportState::Fingerprinting);
+   |                                            ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:35:89
+   |
+35 |         if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+   |                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:227:89
+    |
+227 |         if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:274:117
+    |
+274 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:285:125
+    |
+285 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:506:117
+    |
+506 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:514:113
+    |
+514 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:522:109
+    |
+522 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:532:105
+    |
+532 |                         if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_segmenting.rs:27:44
+   |
+27 |         session.transition_to(ImportState::Segmenting);
+   |                                            ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_analyzing.rs:27:44
+   |
+27 |         session.transition_to(ImportState::Analyzing);
+   |                                            ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_flavoring.rs:29:44
+   |
+29 |         session.transition_to(ImportState::Flavoring);
+   |                                            ^^^^^^^^^
+
+warning: unused variable: `event_bus`
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_scanning.rs:72:13
+   |
+72 |         let event_bus = self.event_bus.clone();
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_event_bus`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: use of deprecated method `workflow::pipeline::Pipeline::extract`: Use extract_with_audio() to avoid re-decoding audio
+   --> wkmp-ai\src\workflow\pipeline.rs:342:43
+    |
+342 |         let mut extraction_results = self.extract(file_path, boundary, passage_index).await?;
+    |                                           ^^^^^^^
+
+warning: enum `StateCommand` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:49:6
+   |
+49 | enum StateCommand {
+   |      ^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: multiple fields are never read
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:76:5
+    |
+ 73 | pub struct WorkflowOrchestrator {
+    |            -------------------- fields in this struct
+...
+ 76 |     file_scanner: FileScanner,
+    |     ^^^^^^^^^^^^
+ 77 |     metadata_extractor: MetadataExtractor,
+    |     ^^^^^^^^^^^^^^^^^^
+ 78 |     fingerprinter: Fingerprinter,
+    |     ^^^^^^^^^^^^^
+ 79 |     amplitude_analyzer: AmplitudeAnalyzer,
+    |     ^^^^^^^^^^^^^^^^^^
+ 80 |     mb_client: Option<MusicBrainzClient>,
+    |     ^^^^^^^^^
+...
+ 83 |     essentia_client: Option<EssentiaClient>,
+    |     ^^^^^^^^^^^^^^^
+...
+102 |     processing_thread_count: usize,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `phase_processing_plan024` and `set_worker_phase_with_passage` are never used
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:492:14
+     |
+ 105 | impl WorkflowOrchestrator {
+     | ------------------------- methods in this implementation
+...
+ 492 |     async fn phase_processing_plan024(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2471 |     async fn set_worker_phase_with_passage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `phase_extracting` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_extraction.rs:21:25
+   |
+14 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+21 |     pub(super) async fn phase_extracting(
+   |                         ^^^^^^^^^^^^^^^^
+
+warning: method `phase_fingerprinting` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:25:25
+   |
+18 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+25 |     pub(super) async fn phase_fingerprinting(
+   |                         ^^^^^^^^^^^^^^^^^^^^
+
+warning: method `phase_segmenting` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_segmenting.rs:21:25
+   |
+14 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+21 |     pub(super) async fn phase_segmenting(
+   |                         ^^^^^^^^^^^^^^^^
+
+warning: method `phase_analyzing` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_analyzing.rs:21:25
+   |
+14 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+21 |     pub(super) async fn phase_analyzing(
+   |                         ^^^^^^^^^^^^^^^
+
+warning: methods `phase_flavoring` and `get_passage_recording_mbid` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_flavoring.rs:23:25
+    |
+ 16 | impl WorkflowOrchestrator {
+    | ------------------------- methods in this implementation
+...
+ 23 |     pub(super) async fn phase_flavoring(
+    |                         ^^^^^^^^^^^^^^^
+...
+236 |     async fn get_passage_recording_mbid(&self, passage_id: &Uuid) -> Result<Option<String>> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:44:12
+   |
+43 | impl ScanningStats {
+   | ------------------ method in this implementation
+44 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:70:12
+   |
+69 | impl ProcessingStats {
+   | -------------------- method in this implementation
+70 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:85:12
+   |
+84 | impl FilenameMatchingStats {
+   | -------------------------- method in this implementation
+85 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:102:12
+    |
+101 | impl HashingStats {
+    | ----------------- method in this implementation
+102 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:119:12
+    |
+118 | impl ExtractingStats {
+    | -------------------- method in this implementation
+119 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:143:12
+    |
+142 | impl SegmentingStats {
+    | -------------------- method in this implementation
+143 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:163:12
+    |
+162 | impl FingerprintingStats {
+    | ------------------------ method in this implementation
+163 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:187:12
+    |
+186 | impl SongMatchingStats {
+    | ---------------------- method in this implementation
+187 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:207:12
+    |
+206 | impl RecordingStats {
+    | ------------------- method in this implementation
+207 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:233:12
+    |
+232 | impl AmplitudeStats {
+    | ------------------- method in this implementation
+233 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:264:12
+    |
+263 | impl FlavoringStats {
+    | ------------------- method in this implementation
+264 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:282:12
+    |
+281 | impl PassagesCompleteStats {
+    | -------------------------- method in this implementation
+282 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:297:12
+    |
+296 | impl FilesCompleteStats {
+    | ----------------------- method in this implementation
+297 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: methods `update_processing` and `update_scanning` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:439:12
+    |
+322 | impl ImportStatistics {
+    | --------------------- methods in this implementation
+...
+439 |     pub fn update_processing(&self, completed: usize, started: usize, total: usize) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+447 |     pub fn update_scanning(&self, is_scanning: bool, files_found: usize) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: methods `process_passage` and `extract` are never used
+   --> wkmp-ai\src\workflow\pipeline.rs:322:14
+    |
+ 78 | impl Pipeline {
+    | ------------- methods in this implementation
+...
+322 |     async fn process_passage(
+    |              ^^^^^^^^^^^^^^^
+...
+455 |     async fn extract(
+    |              ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:86:5
+   |
+86 |     pub audio_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> wkmp-ai\src\lib.rs:5:9
+   |
+ 5 | #![warn(missing_docs)]
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:87:5
+   |
+87 |     pub image_confirmed: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:88:5
+   |
+88 |     pub image_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:22:9
+   |
+22 |         hash: String,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:23:9
+   |
+23 |         original_file_id: Uuid,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+  --> wkmp-ai\src\services\passage_flavor_fetcher.rs:44:5
+   |
+44 |     pub fn as_str(&self) -> &'static str {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:40:9
+   |
+40 |         session: ImportSession,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:41:9
+   |
+41 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:45:9
+   |
+45 |         passages: Vec<PassageData>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:46:9
+   |
+46 |         response_tx: oneshot::Sender<Result<Vec<Uuid>>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:50:9
+   |
+50 |         file_id: Uuid,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:51:9
+   |
+51 |         status: String,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:52:9
+   |
+52 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:63:5
+   |
+63 |     pub file_id: Uuid,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:64:5
+   |
+64 |     pub start_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:65:5
+   |
+65 |     pub end_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:66:5
+   |
+66 |     pub song_id: Option<Uuid>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (lib) generated 88 warnings (run `cargo fix --lib -p wkmp-ai` to apply 5 suggestions)
+warning: unused import: `std::cmp::Ordering as CmpOrdering`
+  --> wkmp-ai\examples\album_matcher_24.rs:10:5
+   |
+10 | use std::cmp::Ordering as CmpOrdering;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+  --> wkmp-ai\examples\album_matcher_24.rs:79:7
+   |
+79 | const QUIET_SPOT_TOP_EDITIONS: usize = 5;        // Try top N editions for guided search
+   |       ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\album_matcher_24.rs:217:7
+    |
+217 | const VARIOUS_ARTISTS: &str = "Various Artists";
+    |       ^^^^^^^^^^^^^^^
+
+warning: field `title` is never read
+   --> wkmp-ai\examples\album_matcher_24.rs:909:5
+    |
+905 | struct MBRecording {
+    |        ----------- field in this struct
+...
+909 |     title: Option<String>,
+    |     ^^^^^
+    |
+    = note: `MBRecording` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `status` is never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1221:5
+     |
+1220 | struct AcoustIDLookupResponse {
+     |        ---------------------- field in this struct
+1221 |     status: String,
+     |     ^^^^^^
+     |
+     = note: `AcoustIDLookupResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `id` and `score` are never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1228:5
+     |
+1227 | struct AcoustIDLookupResult {
+     |        -------------------- fields in this struct
+1228 |     id: String,
+     |     ^^
+1229 |     score: f64,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `title` is never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1238:5
+     |
+1235 | struct AcoustIDLookupRecording {
+     |        ----------------------- field in this struct
+...
+1238 |     title: Option<String>,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupRecording` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `mbid` and `expected_durations` are never read
+    --> wkmp-ai\examples\album_matcher_24.rs:3343:5
+     |
+3335 | struct CandidateTestResult {
+     |        ------------------- fields in this struct
+...
+3343 |     mbid: String,
+     |     ^^^^
+3344 |     /// Expected track durations from MusicBrainz (seconds).
+3345 |     expected_durations: Vec<u32>,
+     |     ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `wkmp-ai` (example "album_matcher_24") generated 8 warnings (run `cargo fix --example "album_matcher_24"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 1m 24s
+     Running `target\release\examples\album_matcher_24.exe`
+[2m2025-11-24T08:45:20.400270-05:00[0m [32m INFO[0m ThreadId(01) [2m4869:[0m === Comprehensive Album Matcher (Run 22 - Load Balanced) ===
+[2m2025-11-24T08:45:20.400660-05:00[0m [32m INFO[0m ThreadId(01) [2m4924:[0m === Pre-scanning file sizes for load balancing ===
+[2m2025-11-24T08:45:20.404996-05:00[0m [32m INFO[0m ThreadId(01) [2m4985:[0m   Pre-scan completed in 4.327ms
+[2m2025-11-24T08:45:20.405012-05:00[0m [32m INFO[0m ThreadId(01) [2m4986:[0m   File sizes: min=9.5MB, max=340.5MB, avg=89.0MB, total=17.8GB
+[2m2025-11-24T08:45:20.405022-05:00[0m [32m INFO[0m ThreadId(01) [2m4991:[0m   Processing order: shortest/middle/longest/middle interleave for load balancing
+[2m2025-11-24T08:45:20.405025-05:00[0m [32m INFO[0m ThreadId(01) [2m4994:[0m   First 8 files (interleaved):
+[2m2025-11-24T08:45:20.405048-05:00[0m [32m INFO[0m ThreadId(01) [2m4997:[0m     [1] 9.5MB - 04 - Fillmore East.mp3
+[2m2025-11-24T08:45:20.405066-05:00[0m [32m INFO[0m ThreadId(01) [2m4997:[0m     [2] 75.3MB - BecomingX.mp3
+[2m2025-11-24T08:45:20.405080-05:00[0m [32m INFO[0m ThreadId(01) [2m4997:[0m     [3] 340.5MB - GoodbyeYellowBrickRoad.mp3
+[2m2025-11-24T08:45:20.405094-05:00[0m [32m INFO[0m ThreadId(01) [2m4997:[0m     [4] 74.8MB - CityToCity.mp3
+[2m2025-11-24T08:45:20.405108-05:00[0m [32m INFO[0m ThreadId(01) [2m4997:[0m     [5] 10.5MB - 08 - The Call of Ktulu.mp3
+[2m2025-11-24T08:45:20.405122-05:00[0m [32m INFO[0m ThreadId(01) [2m4997:[0m     [6] 75.8MB - DaylightAgain.mp3
+[2m2025-11-24T08:45:20.405137-05:00[0m [32m INFO[0m ThreadId(01) [2m4997:[0m     [7] 243.8MB - WhatsTheStoryMorningGlory.mp3
+[2m2025-11-24T08:45:20.405150-05:00[0m [32m INFO[0m ThreadId(01) [2m4997:[0m     [8] 73.4MB - AstroLounge.mp3
+[2m2025-11-24T08:45:20.405153-05:00[0m [32m INFO[0m ThreadId(01) [2m5001:[0m === Parameter Validation ===
+[2m2025-11-24T08:45:20.405155-05:00[0m [32m INFO[0m ThreadId(01) [2m5002:[0m Testing optimal parameters on 200 albums from combined set
+[2m2025-11-24T08:45:20.405157-05:00[0m [32m INFO[0m ThreadId(01) [2m5003:[0m   (21 training set + 179 from long files list)
+
+[2m2025-11-24T08:45:20.405164-05:00[0m [32m INFO[0m ThreadId(01) [2m5022:[0m === Run 22: Multi-Album Parallel + Load Balanced File Order ===
+[2m2025-11-24T08:45:20.405166-05:00[0m [32m INFO[0m ThreadId(01) [2m5023:[0m   Max concurrent albums: 8
+[2m2025-11-24T08:45:20.405168-05:00[0m [32m INFO[0m ThreadId(01) [2m5024:[0m   Album-prefixed logging: [A{num}] for parallel debugging
+[2m2025-11-24T08:45:20.405171-05:00[0m [32m INFO[0m ThreadId(01) [2m5025:[0m   Shared rate limiter ensures MB API compliance
+
+[2m2025-11-24T08:45:20.405216-05:00[0m [32m INFO[0m ThreadId(01) [2m4268:[0m [A1] === Album 1/200 ===
+[2m2025-11-24T08:45:20.405221-05:00[0m [32m INFO[0m ThreadId(01) [2m4269:[0m [A1] File: C:\Users\Mango Cat\Music\Santana\Santana IV\04 - Fillmore East.mp3
+[2m2025-11-24T08:45:20.406215-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T08:45:20.406469-05:00[0m [32m INFO[0m ThreadId(01) [2m3069:[0m [A1]   Phase 0 Reconciliation:
+[2m2025-11-24T08:45:20.406479-05:00[0m [32m INFO[0m ThreadId(01) [2m3070:[0m [A1]     Strategy: Conflict
+[2m2025-11-24T08:45:20.406489-05:00[0m [32m INFO[0m ThreadId(01) [2m3071:[0m [A1]     Confidence: Low
+[2m2025-11-24T08:45:20.406492-05:00[0m [32m INFO[0m ThreadId(01) [2m3072:[0m [A1]     Artist: Santana (source: ID3)
+[2m2025-11-24T08:45:20.406494-05:00[0m [32m INFO[0m ThreadId(01) [2m3074:[0m [A1]       Alternate: Santana IV
+[2m2025-11-24T08:45:20.406496-05:00[0m [32m INFO[0m ThreadId(01) [2m3076:[0m [A1]     Album: Santana IV (source: ID3)
+[2m2025-11-24T08:45:20.406498-05:00[0m [32m INFO[0m ThreadId(01) [2m3078:[0m [A1]       Alternate: 04 - Fillmore East
+[2m2025-11-24T08:45:20.406501-05:00[0m [32m INFO[0m ThreadId(01) [2m3081:[0m [A1]     Has MusicBrainz IDs in tags: Yes
+[2m2025-11-24T08:45:20.407210-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T08:45:20.407254-05:00[0m [32m INFO[0m ThreadId(01) [2m686:[0m [A1] 🔍 Single-track analysis (pre-decode) for "04 - Fillmore East.mp3":
+[2m2025-11-24T08:45:20.407261-05:00[0m [32m INFO[0m ThreadId(01) [2m690:[0m [A1]     Filename pattern: +1.00 (matched "04 - ")
+[2m2025-11-24T08:45:20.407272-05:00[0m [32m INFO[0m ThreadId(01) [2m698:[0m [A1]     Directory files:  +0.80 (16 audio files in dir, threshold=4)
+[2m2025-11-24T08:45:20.407275-05:00[0m [32m INFO[0m ThreadId(01) [2m703:[0m [A1]     ID3 track tag:    +1.00 (track 4/16)
+[2m2025-11-24T08:45:20.407278-05:00[0m [32m INFO[0m ThreadId(01) [2m715:[0m [A1]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T08:45:20.407280-05:00[0m [32m INFO[0m ThreadId(01) [2m720:[0m [A1]     PRE-DECODE TOTAL: 2.80 (High confidence - LIKELY SINGLE TRACK)
+[2m2025-11-24T08:45:20.407285-05:00[0m [32m INFO[0m ThreadId(01) [2m4314:[0m [A1]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T08:45:20.407358-05:00[0m [32m INFO[0m ThreadId(01) [2m2624:[0m [A1]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T08:45:20.407485-05:00[0m [32m INFO[0m ThreadId(22) [2m4323:[0m [A1]   Decoding...
+[2m2025-11-24T08:45:20.407672-05:00[0m [32m INFO[0m ThreadId(22) [2m324:[0m unsupported frame UFID
+[2m2025-11-24T08:45:20.407994-05:00[0m [32m INFO[0m ThreadId(01) [2m4260:[0m [A2] Staggered start: waiting 46s (1 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T08:45:20.408016-05:00[0m [32m INFO[0m ThreadId(01) [2m4260:[0m [A3] Staggered start: waiting 93s (2 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T08:45:20.408019-05:00[0m [32m INFO[0m ThreadId(01) [2m4260:[0m [A4] Staggered start: waiting 139s (3 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T08:45:20.408022-05:00[0m [32m INFO[0m ThreadId(01) [2m4260:[0m [A5] Staggered start: waiting 186s (4 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T08:45:20.408025-05:00[0m [32m INFO[0m ThreadId(01) [2m4260:[0m [A6] Staggered start: waiting 232s (5 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T08:45:20.408027-05:00[0m [32m INFO[0m ThreadId(01) [2m4260:[0m [A7] Staggered start: waiting 279s (6 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T08:45:20.408030-05:00[0m [32m INFO[0m ThreadId(01) [2m4260:[0m [A8] Staggered start: waiting 325s (7 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T08:45:34.332344-05:00[0m [32m INFO[0m ThreadId(01) [2m2365:[0m [A1]   Reached 150 release limit
+[2m2025-11-24T08:45:34.332370-05:00[0m [32m INFO[0m ThreadId(01) [2m2633:[0m [A1]   Found 150 unique releases across all search strategies
+[2m2025-11-24T08:45:34.332520-05:00[0m [32m INFO[0m ThreadId(01) [2m2471:[0m [A1]   Run 24 ratio filter: skipping 60 releases (artist<50% OR album<50%), 90 remain
+[2m2025-11-24T08:45:34.332573-05:00[0m [32m INFO[0m ThreadId(01) [2m2506:[0m [A1]   Early NDR filter: skipping 40 releases (NDR > 50), fetching details for 50
+[2m2025-11-24T08:46:06.920186-05:00[0m [32m INFO[0m ThreadId(01) [2m4268:[0m [A2] === Album 2/200 ===
+[2m2025-11-24T08:46:06.920244-05:00[0m [32m INFO[0m ThreadId(01) [2m4269:[0m [A2] File: C:\Users\Mango Cat\Music\Sneaker Pimps\BecomingX.mp3
+[2m2025-11-24T08:46:06.925530-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T08:46:06.926344-05:00[0m [32m INFO[0m ThreadId(01) [2m3069:[0m [A2]   Phase 0 Reconciliation:
+[2m2025-11-24T08:46:06.926377-05:00[0m [32m INFO[0m ThreadId(01) [2m3070:[0m [A2]     Strategy: PartialMatch
+[2m2025-11-24T08:46:06.926390-05:00[0m [32m INFO[0m ThreadId(01) [2m3071:[0m [A2]     Confidence: Medium
+[2m2025-11-24T08:46:06.926399-05:00[0m [32m INFO[0m ThreadId(01) [2m3072:[0m [A2]     Artist: Sneaker Pimps (source: Both)
+[2m2025-11-24T08:46:06.926410-05:00[0m [32m INFO[0m ThreadId(01) [2m3076:[0m [A2]     Album: Becoming X (source: ID3)
+[2m2025-11-24T08:46:06.926420-05:00[0m [32m INFO[0m ThreadId(01) [2m3078:[0m [A2]       Alternate: BecomingX
+[2m2025-11-24T08:46:06.926433-05:00[0m [32m INFO[0m ThreadId(01) [2m3084:[0m [A2]     Estimated track count from ID3: 12
+[2m2025-11-24T08:46:06.926941-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T08:46:06.927073-05:00[0m [32m INFO[0m ThreadId(01) [2m686:[0m [A2] 🔍 Single-track analysis (pre-decode) for "BecomingX.mp3":
+[2m2025-11-24T08:46:06.927088-05:00[0m [32m INFO[0m ThreadId(01) [2m693:[0m [A2]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T08:46:06.927099-05:00[0m [32m INFO[0m ThreadId(01) [2m698:[0m [A2]     Directory files:  -0.50 (1 audio files in dir, threshold=4)
+[2m2025-11-24T08:46:06.927113-05:00[0m [32m INFO[0m ThreadId(01) [2m706:[0m [A2]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T08:46:06.927122-05:00[0m [32m INFO[0m ThreadId(01) [2m715:[0m [A2]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T08:46:06.927131-05:00[0m [32m INFO[0m ThreadId(01) [2m720:[0m [A2]     PRE-DECODE TOTAL: -0.50 (Unlikely confidence)
+[2m2025-11-24T08:46:06.927147-05:00[0m [32m INFO[0m ThreadId(01) [2m4314:[0m [A2]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T08:46:06.927350-05:00[0m [32m INFO[0m ThreadId(01) [2m2624:[0m [A2]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T08:46:06.927924-05:00[0m [32m INFO[0m ThreadId(24) [2m4323:[0m [A2]   Decoding...
+[2m2025-11-24T08:46:21.944618-05:00[0m [32m INFO[0m ThreadId(01) [2m2633:[0m [A2]   Found 150 unique releases across all search strategies
+[2m2025-11-24T08:46:21.945163-05:00[0m [32m INFO[0m ThreadId(01) [2m2471:[0m [A2]   Run 24 ratio filter: skipping 132 releases (artist<50% OR album<50%), 18 remain
+[2m2025-11-24T08:46:53.420760-05:00[0m [32m INFO[0m ThreadId(01) [2m4268:[0m [A3] === Album 3/200 ===
+[2m2025-11-24T08:46:53.420854-05:00[0m [32m INFO[0m ThreadId(01) [2m4269:[0m [A3] File: C:\Users\Mango Cat\Music\John, Elton\GoodbyeYellowBrickRoad.mp3
+[2m2025-11-24T08:46:53.426770-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T08:46:53.427707-05:00[0m [32m INFO[0m ThreadId(01) [2m3069:[0m [A3]   Phase 0 Reconciliation:
+[2m2025-11-24T08:46:53.427751-05:00[0m [32m INFO[0m ThreadId(01) [2m3070:[0m [A3]     Strategy: Conflict
+[2m2025-11-24T08:46:53.427762-05:00[0m [32m INFO[0m ThreadId(01) [2m3071:[0m [A3]     Confidence: Low
+[2m2025-11-24T08:46:53.427772-05:00[0m [32m INFO[0m ThreadId(01) [2m3072:[0m [A3]     Artist: Elton John (source: ID3)
+[2m2025-11-24T08:46:53.427782-05:00[0m [32m INFO[0m ThreadId(01) [2m3074:[0m [A3]       Alternate: John Elton
+[2m2025-11-24T08:46:53.427791-05:00[0m [32m INFO[0m ThreadId(01) [2m3076:[0m [A3]     Album: Goodbye Yellow Brick Road (source: ID3)
+[2m2025-11-24T08:46:53.427803-05:00[0m [32m INFO[0m ThreadId(01) [2m3078:[0m [A3]       Alternate: GoodbyeYellowBrickRoad
+[2m2025-11-24T08:46:53.427814-05:00[0m [32m INFO[0m ThreadId(01) [2m3084:[0m [A3]     Estimated track count from ID3: 52
+[2m2025-11-24T08:46:53.428308-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T08:46:53.428449-05:00[0m [32m INFO[0m ThreadId(01) [2m686:[0m [A3] 🔍 Single-track analysis (pre-decode) for "GoodbyeYellowBrickRoad.mp3":
+[2m2025-11-24T08:46:53.428465-05:00[0m [32m INFO[0m ThreadId(01) [2m693:[0m [A3]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T08:46:53.428479-05:00[0m [32m INFO[0m ThreadId(01) [2m698:[0m [A3]     Directory files:  +0.30 (3 audio files in dir, threshold=4)
+[2m2025-11-24T08:46:53.428492-05:00[0m [32m INFO[0m ThreadId(01) [2m706:[0m [A3]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T08:46:53.428503-05:00[0m [32m INFO[0m ThreadId(01) [2m715:[0m [A3]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T08:46:53.428514-05:00[0m [32m INFO[0m ThreadId(01) [2m720:[0m [A3]     PRE-DECODE TOTAL: 0.30 (Unlikely confidence)
+[2m2025-11-24T08:46:53.428531-05:00[0m [32m INFO[0m ThreadId(01) [2m4314:[0m [A3]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T08:46:53.428751-05:00[0m [32m INFO[0m ThreadId(01) [2m2624:[0m [A3]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T08:46:53.429337-05:00[0m [32m INFO[0m ThreadId(26) [2m4323:[0m [A3]   Decoding...
+[2m2025-11-24T08:47:20.422344-05:00[0m [32m INFO[0m ThreadId(03) [2m1063:[0m [A1] [HEARTBEAT] 120s elapsed | Queries: 51 (51 ok, 0 failed) | Retries: 0 | Rate waits: 50 | fetching details: Santana (rank 43)
+[2m2025-11-24T08:47:28.455653-05:00[0m [32m INFO[0m ThreadId(01) [2m4347:[0m [A2]   Decoded: 141568128 samples at 44100 Hz (53.50 mins)
+[2m2025-11-24T08:47:29.092754-05:00[0m [32m INFO[0m ThreadId(26) [2m4379:[0m [A2]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T08:47:29.493369-05:00[0m [32m INFO[0m ThreadId(26) [2m4389:[0m [A2]   Silence cache ready (180 entries)
+[2m2025-11-24T08:47:29.536439-05:00[0m [32m INFO[0m ThreadId(01) [2m729:[0m [A2] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T08:47:29.536487-05:00[0m [32m INFO[0m ThreadId(01) [2m733:[0m [A2]     Decoded duration: -0.30 (53.50 min)
+[2m2025-11-24T08:47:29.536499-05:00[0m [32m INFO[0m ThreadId(01) [2m740:[0m [A2]     Silence gaps:     -0.50 (10 gaps detected, threshold=3)
+[2m2025-11-24T08:47:29.536511-05:00[0m [32m INFO[0m ThreadId(01) [2m745:[0m [A2]     FINAL TOTAL:      -1.30 (Unlikely confidence)
+[2m2025-11-24T08:47:29.536593-05:00[0m [32m INFO[0m ThreadId(01) [2m2695:[0m [A2]   Grouped into 8 unique editions
+[2m2025-11-24T08:47:29.536605-05:00[0m [32m INFO[0m ThreadId(01) [2m4005:[0m [A2]   Sorted editions by likelihood (file: 3210s)
+[2m2025-11-24T08:47:29.536614-05:00[0m [32m INFO[0m ThreadId(01) [2m4021:[0m [A2]   Filtered out 1 editions (runtime >25% different from file)
+[2m2025-11-24T08:47:29.536624-05:00[0m [32m INFO[0m ThreadId(01) [2m4022:[0m [A2]   Acceptable range: 2408s - 4013s
+[2m2025-11-24T08:47:29.536632-05:00[0m [32m INFO[0m ThreadId(01) [2m4425:[0m [A2] Found 7 unique editions to test
+[2m2025-11-24T08:47:29.536639-05:00[0m [32m INFO[0m ThreadId(01) [2m4445:[0m [A2]   Edition Details (sorted by match likelihood):
+[2m2025-11-24T08:47:29.536645-05:00[0m [32m INFO[0m ThreadId(01) [2m4449:[0m [A2]     [0] Sneaker Pimps - Becoming X (12 tracks, 3177s, 2 MBIDs, score: 33s, NDR:11,0.3)
+[2m2025-11-24T08:47:29.536656-05:00[0m [32m INFO[0m ThreadId(01) [2m4449:[0m [A2]     [1] Sneaker Pimps - Becoming X (12 tracks, 3075s, 2 MBIDs, score: 135s, NDR:1,0.3)
+[2m2025-11-24T08:47:29.536663-05:00[0m [32m INFO[0m ThreadId(01) [2m4449:[0m [A2]     [2] Sneaker Pimps - Becoming X (12 tracks, 3015s, 1 MBIDs, score: 195s, NDR:7,0.3)
+[2m2025-11-24T08:47:29.536670-05:00[0m [32m INFO[0m ThreadId(01) [2m4449:[0m [A2]     [3] Sneaker Pimps - Becoming X (11 tracks, 2788s, 5 MBIDs, score: 482s, NDR:5,0.3)
+[2m2025-11-24T08:47:29.536677-05:00[0m [32m INFO[0m ThreadId(01) [2m4449:[0m [A2]     [4] Sneaker Pimps - Becoming X (11 tracks, 2778s, 4 MBIDs, score: 492s, NDR:2,0.3)
+[2m2025-11-24T08:47:29.536684-05:00[0m [32m INFO[0m ThreadId(01) [2m4449:[0m [A2]     [5] Sneaker Pimps - Becoming X (11 tracks, 2762s, 1 MBIDs, score: 508s, NDR:12,0.3)
+[2m2025-11-24T08:47:29.536690-05:00[0m [32m INFO[0m ThreadId(01) [2m4449:[0m [A2]     [6] Sneaker Pimps - Becoming RemiXed (10 tracks, 3562s, 2 MBIDs, score: 472s, NDR:17,3.8)
+[2m2025-11-24T08:47:29.912748-05:00[0m [32m INFO[0m ThreadId(01) [2m4489:[0m [A2]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===
+[2m2025-11-24T08:47:29.912785-05:00[0m [32m INFO[0m ThreadId(01) [2m4490:[0m [A2]   Testing 7 editions through Stages 2-5 (4s between feeds, 20s grace period)...
+
+[2m2025-11-24T08:47:29.912863-05:00[0m [32m INFO[0m ThreadId(28) [2m4516:[0m [A2]   Starting Edition 1/7: Sneaker Pimps - Becoming X
+[2m2025-11-24T08:47:33.913148-05:00[0m [32m INFO[0m ThreadId(28) [2m4506:[0m [A2]   Stopping feed: 100% match found, 6 editions not started
+[2m2025-11-24T08:48:06.933157-05:00[0m [32m INFO[0m ThreadId(01) [2m4598:[0m [A2]   Completed: 1 editions started, 6 skipped
+[2m2025-11-24T08:48:06.933353-05:00[0m [32m INFO[0m ThreadId(01) [2m4116:[0m [A2]   ✅ Name match OK:
+[2m2025-11-24T08:48:06.933378-05:00[0m [32m INFO[0m ThreadId(01) [2m4117:[0m [A2]       Artist: 'Sneaker Pimps'→'Sneaker Pimps' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T08:48:06.933416-05:00[0m [32m INFO[0m ThreadId(01) [2m4119:[0m [A2]       Album: 'Becoming X'→'Becoming X' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T08:48:06.933450-05:00[0m [32m INFO[0m ThreadId(01) [2m4642:[0m [A2]   Parallel processing complete. Best: 100.0% from edition 1 (mean error: 2.88s)
+[2m2025-11-24T08:48:06.933503-05:00[0m [32m INFO[0m ThreadId(01) [2m4701:[0m [A2]   FINAL RESULT:
+[2m2025-11-24T08:48:06.933522-05:00[0m [32m INFO[0m ThreadId(01) [2m4702:[0m [A2]     Artist: Sneaker Pimps
+[2m2025-11-24T08:48:06.933541-05:00[0m [32m INFO[0m ThreadId(01) [2m4703:[0m [A2]     Album: Becoming X
+[2m2025-11-24T08:48:06.933648-05:00[0m [32m INFO[0m ThreadId(01) [2m4704:[0m [A2]     Matching stage: album_extractor_2_optimization
+[2m2025-11-24T08:48:06.933675-05:00[0m [32m INFO[0m ThreadId(01) [2m4705:[0m [A2]     MusicBrainz: https://musicbrainz.org/release/0e60ad28-3654-464b-befc-96eb7ee0ff88
+[2m2025-11-24T08:48:06.933695-05:00[0m [32m INFO[0m ThreadId(01) [2m4706:[0m [A2]     Track count: 12/12 ✓
+[2m2025-11-24T08:48:06.933714-05:00[0m [32m INFO[0m ThreadId(01) [2m4708:[0m [A2]     Matched tracks: 12/12 (100.0%)
+[2m2025-11-24T08:48:06.933735-05:00[0m [32m INFO[0m ThreadId(01) [2m4709:[0m [A2]     Mean error: 2.88s
+[2m2025-11-24T08:48:06.933756-05:00[0m [32m INFO[0m ThreadId(01) [2m4710:[0m [A2]     Confidence: Excellent
+[2m2025-11-24T08:48:06.933775-05:00[0m [32m INFO[0m ThreadId(01) [2m4713:[0m [A2]     Best parameters: -50dB, 2s
+[2m2025-11-24T08:48:06.933832-05:00[0m [32m INFO[0m ThreadId(01) [2m4718:[0m [A2]   All tracks:
+[2m2025-11-24T08:48:06.933850-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     1.  275.5s vs    278s  error=  2.5s  ✓
+[2m2025-11-24T08:48:06.933874-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     2.  224.8s vs    228s  error=  3.2s  ✓
+[2m2025-11-24T08:48:06.933895-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     3.  245.6s vs    246s  error=  0.4s  ✓
+[2m2025-11-24T08:48:06.933915-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     4.  252.6s vs    255s  error=  2.4s  ✓
+[2m2025-11-24T08:48:06.933936-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     5.  260.3s vs    261s  error=  0.7s  ✓
+[2m2025-11-24T08:48:06.933955-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     6.  306.4s vs    312s  error=  5.6s  ✓
+[2m2025-11-24T08:48:06.934081-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     7.  249.7s vs    252s  error=  2.3s  ✓
+[2m2025-11-24T08:48:06.934199-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     8.  263.7s vs    268s  error=  4.3s  ✓
+[2m2025-11-24T08:48:06.934229-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     9.  264.4s vs    269s  error=  4.6s  ✓
+[2m2025-11-24T08:48:06.934252-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     10.  271.0s vs    271s  error=  0.0s  ✓
+[2m2025-11-24T08:48:06.934279-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     11.  299.5s vs    303s  error=  3.5s  ✓
+[2m2025-11-24T08:48:06.934305-05:00[0m [32m INFO[0m ThreadId(01) [2m4721:[0m [A2]     12.  229.0s vs    234s  error=  5.0s  ✓
+[2m2025-11-24T08:48:06.934334-05:00[0m [32m INFO[0m ThreadId(01) [2m4753:[0m [A2] 
+[2m2025-11-24T08:48:06.934368-05:00[0m [32m INFO[0m ThreadId(01) [2m2192:[0m [A2]   🔬 Running AcoustID verification...
+[2m2025-11-24T08:48:07.040717-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 1: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.151066-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 2: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.233165-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 3: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.309698-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 4: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.387600-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 5: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.470560-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 6: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.539773-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 7: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.613212-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 8: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.685787-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 9: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.762391-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 10: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.840398-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 11: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.901029-05:00[0m [33m WARN[0m ThreadId(01) [2m2249:[0m [A2]     Track 12: Fingerprint failed: fpcalc execution failed: program not found
+[2m2025-11-24T08:48:07.901067-05:00[0m [32m INFO[0m ThreadId(01) [2m2327:[0m [A2]   🔬 AcoustID verification complete: 0/12 matched, 0 mismatched, 0 no-match, 12 failed
+[2m2025-11-24T08:48:07.945874-05:00[0m [32m INFO[0m ThreadId(01) [2m4268:[0m [A4] === Album 4/200 ===
+[2m2025-11-24T08:48:07.945903-05:00[0m [32m INFO[0m ThreadId(01) [2m4269:[0m [A4] File: C:\Users\Mango Cat\Music\Rafferty, Gerry\CityToCity.mp3
+[2m2025-11-24T08:48:07.946774-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T08:48:07.947424-05:00[0m [32m INFO[0m ThreadId(01) [2m3069:[0m [A4]   Phase 0 Reconciliation:
+[2m2025-11-24T08:48:07.947442-05:00[0m [32m INFO[0m ThreadId(01) [2m3070:[0m [A4]     Strategy: Conflict
+[2m2025-11-24T08:48:07.947450-05:00[0m [32m INFO[0m ThreadId(01) [2m3071:[0m [A4]     Confidence: Low
+[2m2025-11-24T08:48:07.947457-05:00[0m [32m INFO[0m ThreadId(01) [2m3072:[0m [A4]     Artist: Gerry Rafferty (source: ID3)
+[2m2025-11-24T08:48:07.947465-05:00[0m [32m INFO[0m ThreadId(01) [2m3074:[0m [A4]       Alternate: Rafferty Gerry
+[2m2025-11-24T08:48:07.947472-05:00[0m [32m INFO[0m ThreadId(01) [2m3076:[0m [A4]     Album: City To City (source: ID3)
+[2m2025-11-24T08:48:07.947479-05:00[0m [32m INFO[0m ThreadId(01) [2m3078:[0m [A4]       Alternate: CityToCity
+[2m2025-11-24T08:48:07.947486-05:00[0m [32m INFO[0m ThreadId(01) [2m3084:[0m [A4]     Estimated track count from ID3: 10
+[2m2025-11-24T08:48:07.947842-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T08:48:07.947935-05:00[0m [32m INFO[0m ThreadId(01) [2m686:[0m [A4] 🔍 Single-track analysis (pre-decode) for "CityToCity.mp3":
+[2m2025-11-24T08:48:07.947947-05:00[0m [32m INFO[0m ThreadId(01) [2m693:[0m [A4]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T08:48:07.947956-05:00[0m [32m INFO[0m ThreadId(01) [2m698:[0m [A4]     Directory files:  -0.50 (1 audio files in dir, threshold=4)
+[2m2025-11-24T08:48:07.947967-05:00[0m [32m INFO[0m ThreadId(01) [2m706:[0m [A4]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T08:48:07.947974-05:00[0m [32m INFO[0m ThreadId(01) [2m715:[0m [A4]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T08:48:07.947981-05:00[0m [32m INFO[0m ThreadId(01) [2m720:[0m [A4]     PRE-DECODE TOTAL: -0.50 (Unlikely confidence)
+[2m2025-11-24T08:48:07.947992-05:00[0m [32m INFO[0m ThreadId(01) [2m4314:[0m [A4]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T08:48:07.948142-05:00[0m [32m INFO[0m ThreadId(01) [2m2624:[0m [A4]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T08:48:07.948189-05:00[0m [32m INFO[0m ThreadId(01) [2m4268:[0m [A9] === Album 9/200 ===
+[2m2025-11-24T08:48:07.948199-05:00[0m [32m INFO[0m ThreadId(01) [2m4269:[0m [A9] File: C:\Users\Mango Cat\Music\Brubeck, Dave\We're All Together Again For The First Time\01 - Truth.mp3
+[2m2025-11-24T08:48:07.948312-05:00[0m [32m INFO[0m ThreadId(49) [2m4323:[0m [A4]   Decoding...
+[2m2025-11-24T08:48:07.950067-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T08:48:07.950270-05:00[0m [32m INFO[0m ThreadId(01) [2m3069:[0m [A9]   Phase 0 Reconciliation:
+[2m2025-11-24T08:48:07.950283-05:00[0m [32m INFO[0m ThreadId(01) [2m3070:[0m [A9]     Strategy: Conflict
+[2m2025-11-24T08:48:07.950290-05:00[0m [32m INFO[0m ThreadId(01) [2m3071:[0m [A9]     Confidence: Low
+[2m2025-11-24T08:48:07.950297-05:00[0m [32m INFO[0m ThreadId(01) [2m3072:[0m [A9]     Artist: Dave Brubeck (source: ID3)
+[2m2025-11-24T08:48:07.950303-05:00[0m [32m INFO[0m ThreadId(01) [2m3074:[0m [A9]       Alternate: We're All Together Again For The First Time
+[2m2025-11-24T08:48:07.950310-05:00[0m [32m INFO[0m ThreadId(01) [2m3076:[0m [A9]     Album: We're All Together Again for the First Time (source: ID3)
+[2m2025-11-24T08:48:07.950316-05:00[0m [32m INFO[0m ThreadId(01) [2m3078:[0m [A9]       Alternate: 01 - Truth
+[2m2025-11-24T08:48:07.950322-05:00[0m [32m INFO[0m ThreadId(01) [2m3081:[0m [A9]     Has MusicBrainz IDs in tags: Yes
+[2m2025-11-24T08:48:07.950704-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T08:48:07.950804-05:00[0m [32m INFO[0m ThreadId(01) [2m686:[0m [A9] 🔍 Single-track analysis (pre-decode) for "01 - Truth.mp3":
+[2m2025-11-24T08:48:07.950815-05:00[0m [32m INFO[0m ThreadId(01) [2m690:[0m [A9]     Filename pattern: +1.00 (matched "01 - ")
+[2m2025-11-24T08:48:07.950825-05:00[0m [32m INFO[0m ThreadId(01) [2m698:[0m [A9]     Directory files:  +0.80 (6 audio files in dir, threshold=4)
+[2m2025-11-24T08:48:07.950833-05:00[0m [32m INFO[0m ThreadId(01) [2m703:[0m [A9]     ID3 track tag:    +1.00 (track 1/6)
+[2m2025-11-24T08:48:07.950840-05:00[0m [32m INFO[0m ThreadId(01) [2m715:[0m [A9]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T08:48:07.950846-05:00[0m [32m INFO[0m ThreadId(01) [2m720:[0m [A9]     PRE-DECODE TOTAL: 2.80 (High confidence - LIKELY SINGLE TRACK)
+[2m2025-11-24T08:48:07.950855-05:00[0m [32m INFO[0m ThreadId(01) [2m4314:[0m [A9]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T08:48:07.950941-05:00[0m [32m INFO[0m ThreadId(01) [2m2624:[0m [A9]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T08:48:07.951048-05:00[0m [32m INFO[0m ThreadId(50) [2m4323:[0m [A9]   Decoding...
+[2m2025-11-24T08:48:07.951197-05:00[0m [32m INFO[0m ThreadId(50) [2m324:[0m unsupported frame UFID
+[2m2025-11-24T08:48:26.417130-05:00[0m [32m INFO[0m ThreadId(01) [2m4268:[0m [A5] === Album 5/200 ===
+[2m2025-11-24T08:48:26.417219-05:00[0m [32m INFO[0m ThreadId(01) [2m4269:[0m [A5] File: C:\Users\Mango Cat\Music\Metallica\Ride the Lightning\08 - The Call of Ktulu.mp3
+[2m2025-11-24T08:48:26.423118-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T08:48:26.423463-05:00[0m [32m INFO[0m ThreadId(01) [2m3069:[0m [A5]   Phase 0 Reconciliation:
+[2m2025-11-24T08:48:26.423478-05:00[0m [32m INFO[0m ThreadId(01) [2m3070:[0m [A5]     Strategy: Conflict
+[2m2025-11-24T08:48:26.423488-05:00[0m [32m INFO[0m ThreadId(01) [2m3071:[0m [A5]     Confidence: Low
+[2m2025-11-24T08:48:26.423496-05:00[0m [32m INFO[0m ThreadId(01) [2m3072:[0m [A5]     Artist: Metallica (source: ID3)
+[2m2025-11-24T08:48:26.423504-05:00[0m [32m INFO[0m ThreadId(01) [2m3074:[0m [A5]       Alternate: Ride the Lightning
+[2m2025-11-24T08:48:26.423512-05:00[0m [32m INFO[0m ThreadId(01) [2m3076:[0m [A5]     Album: Ride the Lightning (source: ID3)
+[2m2025-11-24T08:48:26.423520-05:00[0m [32m INFO[0m ThreadId(01) [2m3078:[0m [A5]       Alternate: 08 - The Call of Ktulu
+[2m2025-11-24T08:48:26.423528-05:00[0m [32m INFO[0m ThreadId(01) [2m3081:[0m [A5]     Has MusicBrainz IDs in tags: Yes
+[2m2025-11-24T08:48:26.424230-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T08:48:26.424364-05:00[0m [32m INFO[0m ThreadId(01) [2m686:[0m [A5] 🔍 Single-track analysis (pre-decode) for "08 - The Call of Ktulu.mp3":
+[2m2025-11-24T08:48:26.424381-05:00[0m [32m INFO[0m ThreadId(01) [2m690:[0m [A5]     Filename pattern: +1.00 (matched "08 - ")
+[2m2025-11-24T08:48:26.424397-05:00[0m [32m INFO[0m ThreadId(01) [2m698:[0m [A5]     Directory files:  +0.80 (8 audio files in dir, threshold=4)
+[2m2025-11-24T08:48:26.424410-05:00[0m [32m INFO[0m ThreadId(01) [2m703:[0m [A5]     ID3 track tag:    +1.00 (track 8/8)
+[2m2025-11-24T08:48:26.424420-05:00[0m [32m INFO[0m ThreadId(01) [2m715:[0m [A5]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T08:48:26.424429-05:00[0m [32m INFO[0m ThreadId(01) [2m720:[0m [A5]     PRE-DECODE TOTAL: 2.80 (High confidence - LIKELY SINGLE TRACK)
+[2m2025-11-24T08:48:26.424445-05:00[0m [32m INFO[0m ThreadId(01) [2m4314:[0m [A5]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T08:48:26.424642-05:00[0m [32m INFO[0m ThreadId(01) [2m2624:[0m [A5]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T08:48:26.425177-05:00[0m [32m INFO[0m ThreadId(51) [2m4323:[0m [A5]   Decoding...
+[2m2025-11-24T08:48:26.425470-05:00[0m [32m INFO[0m ThreadId(51) [2m324:[0m unsupported frame UFID
+[2m2025-11-24T08:48:38.424507-05:00[0m [32m INFO[0m ThreadId(01) [2m2633:[0m [A4]   Found 150 unique releases across all search strategies
+[2m2025-11-24T08:48:38.425232-05:00[0m [32m INFO[0m ThreadId(01) [2m2471:[0m [A4]   Run 24 ratio filter: skipping 132 releases (artist<50% OR album<50%), 18 remain
+[2m2025-11-24T08:48:39.890715-05:00[0m [32m INFO[0m ThreadId(01) [2m2633:[0m [A9]   Found 150 unique releases across all search strategies
+[2m2025-11-24T08:48:39.892481-05:00[0m [32m INFO[0m ThreadId(01) [2m2471:[0m [A9]   Run 24 ratio filter: skipping 146 releases (artist<50% OR album<50%), 4 remain
+[2m2025-11-24T08:48:43.992523-05:00[0m [32m INFO[0m ThreadId(01) [2m4347:[0m [A1]   Decoded: 20476800 samples at 44100 Hz (7.74 mins)
+[2m2025-11-24T08:48:44.033738-05:00[0m [32m INFO[0m ThreadId(52) [2m4379:[0m [A1]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T08:48:44.056263-05:00[0m [32m INFO[0m ThreadId(52) [2m4389:[0m [A1]   Silence cache ready (180 entries)
+[2m2025-11-24T08:48:44.059093-05:00[0m [32m INFO[0m ThreadId(01) [2m729:[0m [A1] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T08:48:44.059112-05:00[0m [32m INFO[0m ThreadId(01) [2m733:[0m [A1]     Decoded duration: +0.70 (7.74 min)
+[2m2025-11-24T08:48:44.059116-05:00[0m [32m INFO[0m ThreadId(01) [2m740:[0m [A1]     Silence gaps:     +1.00 (0 gaps detected, threshold=3)
+[2m2025-11-24T08:48:44.059120-05:00[0m [32m INFO[0m ThreadId(01) [2m745:[0m [A1]     FINAL TOTAL:      4.50 (High confidence)
+[2m2025-11-24T08:48:44.059125-05:00[0m [33m WARN[0m ThreadId(01) [2m749:[0m [A1]     ⚠️ SINGLE TRACK DETECTED - Results may be invalid (score=4.50 >= threshold=1.5)
+[2m2025-11-24T08:48:44.059209-05:00[0m [32m INFO[0m ThreadId(01) [2m2695:[0m [A1]   Grouped into 29 unique editions
+[2m2025-11-24T08:48:44.059223-05:00[0m [32m INFO[0m ThreadId(01) [2m4005:[0m [A1]   Sorted editions by likelihood (file: 464s)
+[2m2025-11-24T08:48:44.059249-05:00[0m [32m INFO[0m ThreadId(01) [2m4021:[0m [A1]   Filtered out 29 editions (runtime >25% different from file)
+[2m2025-11-24T08:48:44.059252-05:00[0m [32m INFO[0m ThreadId(01) [2m4022:[0m [A1]   Acceptable range: 348s - 580s
+[2m2025-11-24T08:48:44.059257-05:00[0m [31mERROR[0m ThreadId(01) [2m311:[0m [A1] FAILED: FAILED: All editions filtered out (29 by runtime)
+[2m2025-11-24T08:48:44.059259-05:00[0m [32m INFO[0m ThreadId(01) [2m312:[0m [A1] 
+[2m2025-11-24T08:48:44.061734-05:00[0m [32m INFO[0m ThreadId(01) [2m4268:[0m [A10] === Album 10/200 ===
+[2m2025-11-24T08:48:44.061751-05:00[0m [32m INFO[0m ThreadId(01) [2m4269:[0m [A10] File: C:\Users\Mango Cat\Music\Nova, Heather\South.mp3
+[2m2025-11-24T08:48:44.062367-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T08:48:44.062638-05:00[0m [32m INFO[0m ThreadId(01) [2m3069:[0m [A10]   Phase 0 Reconciliation:
+[2m2025-11-24T08:48:44.062646-05:00[0m [32m INFO[0m ThreadId(01) [2m3070:[0m [A10]     Strategy: PartialMatch
+[2m2025-11-24T08:48:44.062649-05:00[0m [32m INFO[0m ThreadId(01) [2m3071:[0m [A10]     Confidence: Medium
+[2m2025-11-24T08:48:44.062652-05:00[0m [32m INFO[0m ThreadId(01) [2m3072:[0m [A10]     Artist: Heather Nova (source: ID3)
+[2m2025-11-24T08:48:44.062654-05:00[0m [32m INFO[0m ThreadId(01) [2m3074:[0m [A10]       Alternate: Nova Heather
+[2m2025-11-24T08:48:44.062657-05:00[0m [32m INFO[0m ThreadId(01) [2m3076:[0m [A10]     Album: South (source: Both)
+[2m2025-11-24T08:48:44.062659-05:00[0m [32m INFO[0m ThreadId(01) [2m3084:[0m [A10]     Estimated track count from ID3: 13
+[2m2025-11-24T08:48:44.062784-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T08:48:44.062813-05:00[0m [32m INFO[0m ThreadId(01) [2m686:[0m [A10] 🔍 Single-track analysis (pre-decode) for "South.mp3":
+[2m2025-11-24T08:48:44.062817-05:00[0m [32m INFO[0m ThreadId(01) [2m693:[0m [A10]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T08:48:44.062820-05:00[0m [32m INFO[0m ThreadId(01) [2m698:[0m [A10]     Directory files:  +0.80 (4 audio files in dir, threshold=4)
+[2m2025-11-24T08:48:44.062830-05:00[0m [32m INFO[0m ThreadId(01) [2m706:[0m [A10]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T08:48:44.062843-05:00[0m [32m INFO[0m ThreadId(01) [2m715:[0m [A10]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T08:48:44.062849-05:00[0m [32m INFO[0m ThreadId(01) [2m720:[0m [A10]     PRE-DECODE TOTAL: 0.80 (Low confidence)
+[2m2025-11-24T08:48:44.062853-05:00[0m [32m INFO[0m ThreadId(01) [2m4314:[0m [A10]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T08:48:44.062871-05:00[0m [32m INFO[0m ThreadId(01) [2m2624:[0m [A10]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T08:48:44.062884-05:00[0m [32m INFO[0m ThreadId(52) [2m4323:[0m [A10]   Decoding...

@@ -4,7 +4,7 @@
 
 Defines Rust implementation for amplitude-based lead-in/lead-out detection. Derived from [SPEC025](SPEC025-amplitude_analysis.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related:** [Amplitude Analysis](SPEC025-amplitude_analysis.md) | [Audio Ingest Architecture](SPEC024-audio_ingest_architecture.md)
+> **Related:** [Amplitude Analysis](SPEC025-amplitude_analysis.md) | [Audio Ingest Architecture](SPEC032-audio_ingest_architecture.md)
 
 ---
 

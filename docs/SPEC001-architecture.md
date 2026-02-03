@@ -133,7 +133,7 @@ WKMP consists of 6 independent microservices + 1 shared library:
 
 **Key Capabilities:**
 - Euclidean distance calculation in musical flavor space
-- Multi-level cooldowns (song: 14d, artist: 30min, work: 2d)
+- Multi-level cooldowns (song: 14d, artist: 30min, work: 2d) - See [SPEC005:282-336 § Cooldown System](SPEC005-program_director.md#cooldown-system)
 - Weighted random selection with flavor distance scoring
 
 **Port:** 5722
@@ -156,7 +156,7 @@ WKMP consists of 6 independent microservices + 1 shared library:
 **Port:** 5723 (on-demand)
 **Technology:** Rust, Tokio, Axum, symphonia
 
-**See:** [SPEC024: Audio Ingest Architecture](SPEC024-audio_ingest_architecture.md) for import workflow details
+**See:** [SPEC032: Audio Ingest Architecture](SPEC032-audio_ingest_architecture.md) for import workflow details
 
 #### wkmp-le: Lyric Editor (Lyric Timing Editor)
 

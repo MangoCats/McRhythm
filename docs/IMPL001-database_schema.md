@@ -4,7 +4,7 @@
 
 Defines data structures and schema. Derived from Tier 2 design documents. See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Settings Reference](IMPL016-settings_reference.md)
 
 ---
 
@@ -17,6 +17,94 @@ WKMP uses SQLite as its database engine. The schema is designed to support:
 - Playback history and cooldown tracking
 - User preferences and time-based flavor targets
 - Queue state persistence
+
+### Conceptual Foundation
+
+This database schema implements the entity model defined in [REQ002:90-189 § Entity Relationships](REQ002-entity_definitions.md#20-entity-relationship-overview).
+
+**Key Relationships:**
+- `audio_files` (1) → (N) `passages` via `file_id` foreign key
+- `passages` (N) ↔ (M) `songs` via `passage_songs` join table
+- `songs` (N) → (1) `recordings` via `recording_mbid` foreign key
+- `recordings` (N) ↔ (M) `artists` via `credits` join table
+- `recordings` (N) ↔ (M) `works` via `work_credits` join table
+
+See [REQ002:90-189 § Entity Relationship Diagram](REQ002-entity_definitions.md#20-entity-relationship-overview) for visual representation.
+
+## Database Connection Management - CRITICAL ARCHITECTURAL PRINCIPLE
+
+**[ARCH-DB-CONN-001] CPU-Intensive Work MUST NOT Hold Database Connections**
+
+**Principle:** All CPU-intensive operations (audio decoding, amplitude analysis, fingerprinting, network API calls) SHALL complete and prepare data BEFORE acquiring database connections. Connections are acquired ONLY when data is ready to write, written immediately, and released immediately.
+
+**Rationale:**
+- SQLite connection pool has finite size (default: 20 connections)
+- CPU-intensive work holding connections causes pool exhaustion
+- Pool exhaustion forces other tasks to wait 10+ seconds for connections
+- Long waits exceed retry timeouts → "database is locked" errors
+- **Correct pattern:** Compute → Acquire → Write → Release (milliseconds)
+- **Incorrect pattern:** Acquire → Compute → Write → Release (minutes)
+
+**Implementation Requirements:**
+1. **Prepare data first:** Complete all computation, I/O, network calls
+2. **Batch writes:** Collect multiple records, write in single transaction
+3. **Minimize transaction scope:** Only INSERT/UPDATE/SELECT within transaction
+4. **No await points during transaction:** Avoid async calls that might yield
+5. **Use tokio::task::unconstrained():** Prevent task switching during critical sections
+
+**Example - Audio Ingest Pipeline:**
+```rust
+// ✅ CORRECT: Compute outside transaction
+let decoded_audio = decode_audio_file(path).await?;  // CPU-intensive, NO connection
+let amplitude = analyze_amplitude(&decoded_audio)?;   // CPU-intensive, NO connection
+let fingerprint = generate_fingerprint(&decoded_audio)?;  // CPU-intensive, NO connection
+
+// Only NOW acquire connection and write
+let mut tx = pool.begin().await?;
+sqlx::query("INSERT INTO passages ...").bind(amplitude).execute(&mut tx).await?;
+tx.commit().await?;  // Released immediately
+
+// ❌ INCORRECT: Holding connection during CPU work
+let mut tx = pool.begin().await?;  // Connection acquired
+let decoded = decode_audio_file(path).await?;  // CPU work holding connection for MINUTES
+sqlx::query("INSERT ...").execute(&mut tx).await?;
+tx.commit().await?;  // Finally released
+```
+
+**Verification:**
+- Monitor connection hold times via pool_monitor logs
+- Connection hold time MUST be <100ms for write operations
+- Connection hold time >1000ms indicates architectural violation
+
+**WKMP-AI Implementation Compliance:**
+
+All wkmp-ai pipeline phases comply with [ARCH-DB-CONN-001]:
+
+| Phase | CPU-Intensive Work | Database Write | Compliant |
+|-------|-------------------|----------------|-----------|
+| 1. Filename Matching | N/A (database query only) | CREATE file record | ✅ |
+| 2. Hash Deduplication | SHA-256 hash computation (spawn_blocking) | UPDATE file.hash | ✅ |
+| 3. Metadata Extraction | ID3 tag parsing | UPDATE file metadata | ✅ |
+| 4. Passage Segmentation | Symphonia decode + amplitude scan | INSERT passages batch | ✅ |
+| 5. Fingerprinting | Chromaprint (spawn_blocking) + AcoustID API | (no writes) | ✅ |
+| 6. Song Matching | Metadata comparison | (no writes) | ✅ |
+| 7. Recording | N/A (batch INSERT only) | INSERT passages/songs | ✅ |
+| 8. Amplitude Analysis | Symphonia decode + RMS analysis | UPDATE passages (lead-in/out) | ✅ |
+| 9. Flavor Fetching | AcousticBrainz API + Essentia | UPDATE songs.flavor_vector | ✅ |
+| 10. Finalization | N/A (status update only) | UPDATE files.status | ✅ |
+
+**Pattern Used:**
+```rust
+// Phase 4 Example (Passage Segmentation)
+let passages = passage_segmenter.segment_file(file_path).await?;  // CPU work
+passage_recorder.record(file_id, &passages).await?;  // Database write
+```
+
+**Key Safeguards:**
+1. `passage_recorder::record()` pre-fetches existing songs BEFORE transaction
+2. All transactions wrapped in `tokio::task::unconstrained()` to prevent interruption
+3. Connection acquisition occurs only when data is ready to write
+4. No `.await` points during transaction except INSERT/UPDATE operations
 
 ## Global vs User-Scoped Data Design
 
@@ -118,6 +206,18 @@ Stores user account information for both Anonymous and registered users.
 
 ## Core Entities
 
+### Common Constraints for Cooldown Entities
+
+The following constraints apply to `songs`, `artists`, and `works` tables (all entities tracked for cooldown purposes):
+
+- **CHECK:** `base_probability >= 0.0 AND base_probability <= 1000.0` - Selection probability multiplier
+- **CHECK:** `min_cooldown >= 0` - Minimum cooldown must be non-negative
+- **CHECK:** `ramping_cooldown >= 0` - Ramping cooldown must be non-negative
+
+These constraints ensure valid probability values and cooldown configurations. See [SPEC005:282-336 § Cooldown System](SPEC005-program_director.md#cooldown-system) for cooldown algorithm details.
+
+---
+
 ### `files`
 
 Audio files discovered by the library scanner.
@@ -133,8 +233,23 @@ Audio files discovered by the library scanner.
 | channels | INTEGER | | Number of audio channels (1=mono, 2=stereo, 6=5.1, etc.) |
 | file_size_bytes | INTEGER | | File size in bytes |
 | modification_time | TIMESTAMP | NOT NULL | File last modified timestamp |
+| status | TEXT | DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'INGEST COMPLETE', 'DUPLICATE HASH', 'NO AUDIO')) | Import processing status (Phase 1-10 tracking) |
+| matching_hashes | TEXT | | JSON array of file UUIDs with matching content hash (bidirectional duplicate links) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
+
+**Status Field Enumeration:**
+- `'PENDING'` - File discovered, not yet processed
+- `'PROCESSING'` - File currently in 10-phase pipeline
+- `'INGEST COMPLETE'` - All passages and songs complete (Phase 10)
+- `'DUPLICATE HASH'` - Duplicate content detected via hash matching (Phase 2)
+- `'NO AUDIO'` - File has <100ms non-silence (Phase 4)
+
+**Matching Hashes Field:**
+- JSON array format: `["uuid1", "uuid2", ...]`
+- Contains UUIDs of other files with identical content hash
+- Bidirectional: If A links to B, then B links to A
+- Used for duplicate detection and file reorganization tracking
 
 **Constraints:**
 - CHECK: `duration_ticks IS NULL OR duration_ticks > 0`
@@ -183,8 +298,45 @@ Audio passages (playable segments) extracted from files.
 | musical_flavor_vector | TEXT | | JSON blob of AcousticBrainz characterization values (see Musical Flavor Vector Storage) |
 | import_metadata | TEXT | | JSON blob of import analysis data (RMS profile, parameters used, timestamps) |
 | additional_metadata | TEXT | | JSON blob for extensible metadata (seasonal_holiday, profanity_level, etc.) |
+| decode_status | TEXT | DEFAULT 'pending' CHECK (decode_status IN ('pending', 'successful', 'unsupported_codec', 'failed')) | Audio decode status (used by wkmp-ap for error handling) |
+
+**Extended Import Provenance Columns (wkmp-ai):**
+
+These columns track the quality and confidence of data fusion during import. Populated by wkmp-ai's 3-tier hybrid fusion pipeline.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| flavor_source_blend | TEXT | | JSON array of flavor data sources used (e.g., `["AcousticBrainz", "Essentia"]`) |
+| flavor_confidence_map | TEXT | | JSON map of confidence scores per flavor component |
+| flavor_completeness | REAL | | Completeness score for flavor data (0.0-1.0) |
+| title_source | TEXT | | Data source for title (e.g., "ID3", "MusicBrainz", "AcoustID") |
+| title_confidence | REAL | | Confidence score for title (0.0-1.0) |
+| artist_source | TEXT | | Data source for artist |
+| artist_confidence | REAL | | Confidence score for artist (0.0-1.0) |
+| album_source | TEXT | | Data source for album |
+| album_confidence | REAL | | Confidence score for album (0.0-1.0) |
+| mbid_source | TEXT | | Data source for MusicBrainz recording ID |
+| mbid_confidence | REAL | | Confidence score for MBID (0.0-1.0) |
+| identity_confidence | REAL | | Overall identity resolution confidence (0.0-1.0) |
+| identity_posterior_probability | REAL | | Bayesian posterior probability for identity match (0.0-1.0) |
+| identity_conflicts | TEXT | | JSON array of conflicting identity candidates |
+| overall_quality_score | REAL | | Overall quality score from validation tier (0.0-1.0) |
+| metadata_completeness | REAL | | Metadata completeness score (0.0-1.0) |
+| validation_status | TEXT | | Validation result: "passed", "warning", "failed" |
+| validation_report | TEXT | | JSON validation report with detailed findings |
+| validation_issues | TEXT | | JSON array of validation issues detected |
+| import_session_id | TEXT | | UUID of import session that created this passage |
+| import_timestamp | TIMESTAMP | | When this passage was imported |
+| import_strategy | TEXT | | Import strategy used: "PLAN024" (hybrid fusion) or "PLAN025" (segmentation-first) |
+| status | TEXT | DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'INGEST COMPLETE')) | Import processing status (Phase 7-8 tracking) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
+
+**Status Field Enumeration:**
+- `'PENDING'` - Passage detected/created, amplitude analysis not yet complete
+- `'INGEST COMPLETE'` - Amplitude analysis complete (Phase 8), passage ready for playback
+
+**Note:** fade_in and fade_out timing fields remain NULL after import (future wkmp-pe microservice responsibility)
 
 **Constraints:**
 - CHECK: `start_time_ticks >= 0`
@@ -258,6 +410,28 @@ Stores extensible metadata parameters (JSON). Schema-less design allows arbitrar
 - New parameters can be added without schema changes
 - NULL column value = no additional metadata defined
 
+### `import_provenance`
+
+Tracks the origin and confidence of data extracted during passage import. Used for debugging import quality and providing audit trails.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | TEXT | PRIMARY KEY | Unique log entry identifier (UUID) |
+| passage_id | TEXT | NOT NULL REFERENCES passages(guid) ON DELETE CASCADE | Passage this data was extracted for |
+| source_type | TEXT | NOT NULL | Extractor type (e.g., "metadata_extractor", "identity_extractor", "flavor_extractor") |
+| data_extracted | TEXT | | JSON blob of extracted data |
+| confidence | REAL | | Confidence score for this extraction (0.0-1.0) |
+| timestamp | INTEGER | | Unix timestamp when extraction occurred |
+
+**Purpose:**
+- Audit trail for multi-source data fusion
+- Debugging import quality issues
+- Understanding which extractors contributed to final passage data
+- Populated by wkmp-ai's PLAN024 hybrid fusion pipeline
+
+**Indexes:**
+- `idx_import_provenance_passage_id` on `passage_id` (for querying all extractions for a passage)
+
 ### `songs`
 
 Songs are unique combinations of a recording and a weighted set of artists. Each Song has exactly one Recording, but may be closely related to other Songs of the same Work (either by the same artist or other artists).
@@ -273,13 +447,16 @@ Songs are unique combinations of a recording and a weighted set of artists. Each
 | min_cooldown | INTEGER | NOT NULL DEFAULT 604800 | Minimum cooldown in seconds (default 7 days). **SPEC024:** Display as `7d-0:00:00` in wkmp-dr |
 | ramping_cooldown | INTEGER | NOT NULL DEFAULT 1209600 | Ramping cooldown in seconds (default 14 days). **SPEC024:** Display as `14d-0:00:00` in wkmp-dr |
 | last_played_at | TIMESTAMP | | Last time any passage with this song was played |
+| status | TEXT | DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'FLAVOR READY', 'FLAVORING FAILED')) | Musical flavor retrieval status (Phase 9 tracking) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
-**Constraints:**
-- CHECK: `base_probability >= 0.0 AND base_probability <= 1000.0`
-- CHECK: `min_cooldown >= 0`
-- CHECK: `ramping_cooldown >= 0`
+**Status Field Enumeration:**
+- `'PENDING'` - Song created, musical flavor data not yet retrieved
+- `'FLAVOR READY'` - Musical flavor data successfully retrieved from AcousticBrainz or Essentia (Phase 9)
+- `'FLAVORING FAILED'` - Flavor retrieval failed from both AcousticBrainz and Essentia fallback
+
+**Constraints:** See [IMPL001:209-217 § Common Constraints for Cooldown Entities](#common-constraints-for-cooldown-entities)
 
 **Indexes:**
 - `idx_songs_recording_mbid` on `recording_mbid`
@@ -315,10 +492,7 @@ Performing artists from MusicBrainz.
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
-**Constraints:**
-- CHECK: `base_probability >= 0.0 AND base_probability <= 1000.0`
-- CHECK: `min_cooldown >= 0`
-- CHECK: `ramping_cooldown >= 0`
+**Constraints:** See [IMPL001:209-217 § Common Constraints for Cooldown Entities](#common-constraints-for-cooldown-entities)
 
 **Indexes:**
 - `idx_artists_mbid` on `artist_mbid`
@@ -340,10 +514,7 @@ Musical works from MusicBrainz (compositions that can have multiple recordings).
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
-**Constraints:**
-- CHECK: `base_probability >= 0.0 AND base_probability <= 1000.0`
-- CHECK: `min_cooldown >= 0`
-- CHECK: `ramping_cooldown >= 0`
+**Constraints:** See [IMPL001:209-217 § Common Constraints for Cooldown Entities](#common-constraints-for-cooldown-entities)
 
 **Indexes:**
 - `idx_works_mbid` on `work_mbid`
@@ -817,6 +988,8 @@ The database is initialized with default module configurations on first run:
 
 All runtime configuration is stored in the `settings` table using a key-value pattern. Settings are typed in application code but stored as TEXT in the database.
 
+> **💡 Comprehensive Reference:** See [IMPL016-settings_reference.md](IMPL016-settings_reference.md) for complete documentation of ALL settings parameters including units, valid ranges, modification impact, interdependencies, and conversion formulas. The table below provides a summary; consult IMPL016 for detailed specifications.
+
 **[DB-SET-040] Configuration Philosophy:**
 - **Database-first**: All runtime settings in `settings` table (per architecture.md)
 - **TOML files**: Bootstrap only (root folder path, logging)
@@ -868,7 +1041,17 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | **[DB-SET-140] Session Management** |
 | `session_timeout_seconds` | INTEGER | 31536000 | Session timeout duration (default: 1 year) | wkmp-ui | All |
 | **[DB-SET-150] File Ingest** |
-| `ingest_max_concurrent_jobs` | INTEGER | 4 | Maximum concurrent file processing jobs | wkmp-ai | Full |
+| `ai_database_connection_pool_size` | INTEGER | 96 | **[ARCH-PERF-020]** SQLite connection pool size (supports 12 workers × 8 connections per worker). Cached in TOML for startup, database is source of truth. Requires restart to take effect. | wkmp-ai | Full |
+| `ingest_max_concurrent_jobs` | INTEGER | 12 | **[ARCH-ASYNC-020]** Maximum concurrent import worker threads. Cached in TOML for startup, database is source of truth. Balanced for modern multi-core CPUs. | wkmp-ai | Full |
+| `ai_database_max_lock_wait_ms` | INTEGER | 5000 | Maximum total time for retry logic to attempt database operations before giving up (milliseconds) | wkmp-ai | Full |
+| `ai_database_lock_retry_ms` | INTEGER | 250 | SQLite busy_timeout - time to wait for lock before returning error to retry logic (milliseconds) | wkmp-ai | Full |
+| `silence_threshold_dB` | REAL | 60.0 | Silence detection threshold for passage segmentation (Phase 4, empirically optimized) | wkmp-ai | Full |
+| `silence_min_duration_ticks` | INTEGER | 56448000 | Minimum silence duration to detect passage boundary (2000ms = 56,448,000 ticks, empirically optimized) | wkmp-ai | Full |
+| `minimum_passage_audio_duration_ticks` | INTEGER | 2822400 | Minimum non-silence duration for valid audio (100ms = 2,822,400 ticks, <100ms = NO AUDIO) | wkmp-ai | Full |
+| `lead_in_threshold_dB` | REAL | 45.0 | Amplitude threshold for lead-in detection (Phase 8) | wkmp-ai | Full |
+| `lead_out_threshold_dB` | REAL | 40.0 | Amplitude threshold for lead-out detection (Phase 8) | wkmp-ai | Full |
+| `acoustid_api_key` | TEXT | NULL | AcoustID API key for fingerprinting (Phase 5), validated at workflow start | wkmp-ai | Full |
+| `ai_processing_thread_count` | INTEGER | NULL | Parallel processing thread count (auto-initialized: CPU_core_count + 1) | wkmp-ai | Full |
 | **[DB-SET-160] Library** |
 | `music_directories` | TEXT (JSON) | `[]` | JSON array of directories to scan | wkmp-ai | Full |
 | `temporary_flavor_override` | TEXT (JSON) | NULL | JSON with target flavor and expiration | wkmp-pd | Full, Lite |
@@ -1082,16 +1265,51 @@ Cached metadata from MusicBrainz API.
 
 ### `acousticbrainz_cache`
 
-Cached musical characterization data from AcousticBrainz.
+Cached musical characterization data from AcousticBrainz API.
+
+**Purpose:** Cache AcousticBrainz responses to avoid re-querying rate-limited API (1 req/sec). AcousticBrainz ceased accepting new submissions in 2022, so cached data is static and never expires.
+
+**Performance Impact:**
+- Cache hit: <1ms database query
+- Cache miss: ~1000ms API query + rate limiting
+- Expected hit rate: 91.1% for popular music (per coverage analysis)
+
+**Migration:** `008_acousticbrainz_cache.sql`
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| recording_mbid | TEXT | PRIMARY KEY | MusicBrainz Recording ID (UUID) |
-| high_level_data | TEXT | NOT NULL | JSON blob of high-level characterization |
-| cached_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | When response was cached |
+| recording_mbid | TEXT | PRIMARY KEY NOT NULL | MusicBrainz recording MBID (UUID format) |
+| lowlevel_json | TEXT | NOT NULL | Full JSON response from AcousticBrainz "low-level" endpoint (contains: metadata, tonal, rhythm, lowlevel features) |
+| has_tonal | BOOLEAN | NOT NULL DEFAULT 0 | Quick flag: recording has tonal features available |
+| has_rhythm | BOOLEAN | NOT NULL DEFAULT 0 | Quick flag: recording has rhythm features available |
+| fetched_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | When data was fetched from API |
+| essentia_version | TEXT | | Essentia library version (extracted from response metadata) |
+
+**Constraints:**
+- CHECK: `length(recording_mbid) = 36` (UUID format validation)
+- CHECK: `json_valid(lowlevel_json)` (ensure valid JSON storage)
 
 **Indexes:**
-- `idx_acousticbrainz_mbid` on `recording_mbid`
+- `idx_acousticbrainz_cache_fetched_at` on `fetched_at` (for analytics)
+- `idx_acousticbrainz_cache_availability` on `(has_tonal, has_rhythm)` WHERE `has_tonal = 1 AND has_rhythm = 1` (find complete data)
+
+**Usage Pattern:**
+```rust
+// Create cached client
+let cache = AcousticBrainzCache::new(db_pool)?;
+
+// Query (checks cache first, falls back to API on miss)
+let flavor = cache.get_flavor_vector(recording_mbid).await?;
+
+// Cache statistics
+let (total, both, tonal_only, rhythm_only, neither) = cache.cache_stats().await?;
+```
+
+**Cache Strategy:**
+- Indefinite caching (AcousticBrainz data is static since 2022 shutdown)
+- No expiration or invalidation needed
+- Upsert on duplicate (ON CONFLICT DO UPDATE) for re-imports
+- Automatic population during Phase 9 (Flavoring) of import workflow
 
 ## Triggers
 
@@ -1252,27 +1470,60 @@ The `passages.musical_flavor_vector` field stores a JSON blob containing all Aco
 
 ### Migration Strategy
 
-**Current Schema Version:** `0.1` (Development)
+**Current Schema Version:** `4` (Production)
 
-**Development Phase:**
-- During development, the database schema version is established as `0.1`
-- Any changes to the database schema during development are addressed by deletion of existing databases and rebuild from scratch with default values
-- No migration scripts are maintained during the development phase
+**Automatic Schema Maintenance:**
 
-**Post-Release Strategy:**
-1. Schema version is tracked in `schema_version` table
-2. Migration scripts are numbered sequentially (001_initial.sql, 002_add_works.sql, etc.)
-3. On startup, application checks current version and applies pending migrations
-4. Each migration is wrapped in a transaction
-5. Database is backed up before applying migrations
+WKMP implements a **data-driven schema maintenance system** that eliminates manual migrations for most schema changes. See [SPEC031-data_driven_schema_maintenance.md](SPEC031-data_driven_schema_maintenance.md) for complete specification.
 
-**Breaking Changes:**
-- After initial release, breaking changes are to be avoided
-- If a breaking change must be implemented for release, migration strategies shall be developed and implemented before release of the breaking change
+**Four-Phase Database Initialization:**
+
+1. **Phase 1: CREATE TABLE IF NOT EXISTS** - Create missing tables with current schema
+2. **Phase 2: Automatic Schema Synchronization** - Add missing columns via ALTER TABLE (NEW)
+3. **Phase 3: Manual Migrations** - Complex transformations (v1-v4 migrations)
+4. **Phase 4: Default Settings** - Initialize settings with defaults
+
+**What Happens Automatically:**
+- ✅ **Missing columns added** - System introspects database schema on startup
+- ✅ **Type mismatches detected** - Warns if column types differ from expected
+- ✅ **Concurrent-safe** - Handles duplicate column errors gracefully
+- ✅ **Comprehensive logging** - All changes documented
+
+**When Manual Migrations Still Required:**
+- Type changes (e.g., `duration REAL` → `duration_ticks INTEGER`)
+- Data transformations (populating new columns from existing data)
+- Column removal (SQLite limitation)
+- Constraint changes (PRIMARY KEY, UNIQUE, NOT NULL without DEFAULT)
+
+**Schema Version Tracking:**
+- Schema version tracked in `schema_version` table
+- Current version: 4
+- Migration v1: Add import_metadata column to passages
+- Migration v2: Add title column to songs
+- Migration v3: Add duration_ticks column to files
+- Migration v4: Add audio metadata columns (format, sample_rate, channels, file_size_bytes)
+
+**Development Workflow:**
+
+Adding a new column (automatic):
+```rust
+// Update schema definition in table_schemas.rs
+ColumnDefinition::new("new_column", "TEXT"),  // DONE!
+// System automatically adds column on next startup
+```
+
+Complex schema change (manual migration required):
+```rust
+// Write migration in migrations.rs
+async fn migrate_vN(pool: &SqlitePool) -> Result<()> {
+    // Complex transformation logic
+}
+```
 
 **Version Upgrade Paths (Minimal → Lite → Full):**
 - Minimal, Lite, and Full versions are implemented by launching different subsets of the modules (microservices)
 - Each module creates database tables it requires if they are missing
+- Automatic schema sync adds missing columns regardless of version
 - Each module initializes missing values it requires with default values encoded in the module
 - See [architecture.md#module-launching-process](SPEC001-architecture.md#module-launching-process) for module initialization details
 
@@ -1281,6 +1532,8 @@ The `passages.musical_flavor_vector` field stores a JSON blob containing all Aco
 - Once a schema migration is applied, reverting to an earlier version is not supported
 - Users must backup their database before upgrading if they need to preserve the ability to use an older version
 
+**Reference:** [SPEC031-data_driven_schema_maintenance.md](SPEC031-data_driven_schema_maintenance.md)
+
 ### Performance Considerations
 
 - All foreign keys have corresponding indexes
@@ -1288,6 +1541,35 @@ The `passages.musical_flavor_vector` field stores a JSON blob containing all Aco
 - Musical flavor vectors are stored as JSON for flexibility (can normalize to columns if performance requires)
 - Query plans should be analyzed with `EXPLAIN QUERY PLAN` for selection algorithm queries
 - Consider periodic `VACUUM` and `ANALYZE` for optimal performance
+
+#### Database Lock Retry Mechanism
+
+**Purpose:** Handle transient SQLite write lock contention during concurrent operations (especially multi-threaded import).
+
+**Two-Layer Timeout Strategy:**
+
+1. **SQLite busy_timeout** (`ai_database_lock_retry_ms`, default 250ms):
+   - Applied via `PRAGMA busy_timeout` during database initialization
+   - Controls how long SQLite waits for a lock before returning "database is locked" error
+   - Short timeout (250ms) allows quick failure, enabling retry logic to handle contention
+
+2. **Application retry logic** (`ai_database_max_lock_wait_ms`, default 5000ms):
+   - Wraps database operations with exponential backoff retry
+   - Total retry duration: up to 5000ms (configurable)
+   - Backoff pattern: 10ms → 20ms → 40ms → 80ms → 160ms → 320ms → 640ms → 1000ms (max)
+   - Allows ~20 retry attempts within 5-second window
+
+**Why Two Timeouts:**
+- If SQLite busy_timeout matches retry timeout, operations block too long before returning errors
+- Short SQLite timeout (250ms) + longer retry timeout (5000ms) allows multiple retry attempts
+- Retry logic can use exponential backoff for better contention handling
+
+**Configuration:**
+- Both timeouts fully adjustable via database settings
+- To disable retry logic: Set `ai_database_lock_retry_ms` = `ai_database_max_lock_wait_ms`
+- To increase retry attempts: Increase `ai_database_max_lock_wait_ms` (e.g., 10000ms for ~40 attempts)
+
+**Implementation:** See `wkmp-ai/src/utils/db_retry.rs` for retry logic details.
 
 ### Version-Specific Tables
 

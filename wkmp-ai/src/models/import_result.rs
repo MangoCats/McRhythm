@@ -105,7 +105,10 @@ impl ImportResult {
 
     /// Count errors by severity
     pub fn count_by_severity(&self, severity: ErrorSeverity) -> usize {
-        self.errors.iter().filter(|e| e.severity == severity).count()
+        self.errors
+            .iter()
+            .filter(|e| e.severity == severity)
+            .count()
     }
 }
 

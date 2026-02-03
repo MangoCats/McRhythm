@@ -2,7 +2,7 @@
 
 **Purpose:** Track document number assignments and maintain next-available counters
 **Maintained by:** /doc-name workflow (automated)
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-12-13
 
 ---
 
@@ -12,15 +12,15 @@
 |----------|------|-------------|
 | GOV | 004 | Governance (document hierarchy, conventions, requirements enumeration) |
 | REQ | 003 | Requirements (authoritative requirements, entity definitions) |
-| SPEC | 029 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
-| IMPL | 008 | Implementation (database schema, coding conventions, structure, deployment) |
+| SPEC | 033 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
+| IMPL | 012 | Implementation (database schema, coding conventions, structure, deployment) |
 | EXEC | 002 | Execution (implementation order, schedules) |
 | REV | 005 | Reviews (design reviews, architecture updates) |
 | GUIDE | 004 | Guides (implementation guides, tutorials) |
 | RPT | 001 | Reports & Analysis (/think outputs, research, investigations) |
 | DWI | 001 | Developer Work Instructions (workflow procedures, process documentation) |
 | TMPL | 001 | Templates (reusable document templates, patterns) |
-| PLAN | 024 | Implementation Plans (/plan outputs, project plans) |
+| PLAN | 027 | Implementation Plans (/plan outputs, project plans) |
 | LOG | 001 | Operational Logs (feedback logs, execution logs, metrics) |
 | REG | 003 | Registries (this file, archive index, category definitions) |
 
@@ -112,10 +112,12 @@
 | SPEC021 | SPEC021-error_handling.md | 2025-10-25 | SPEC | Manual | Comprehensive error handling strategy specification |
 | SPEC022 | SPEC022-performance_targets.md | 2025-10-25 | SPEC | Manual | Performance targets for wkmp-ap (Pi Zero 2W deployment) |
 | SPEC023 | SPEC023-timing_terminology.md | 2025-10-26 | SPEC | Manual | Timing terminology and conventions across WKMP |
-| SPEC024 | SPEC024-audio_ingest_architecture.md | 2025-10-26 | SPEC | Manual | Architecture for Audio Ingest module (wkmp-ai) |
+| SPEC032 | SPEC032-audio_ingest_architecture.md | 2025-11-09 | SPEC | Manual | Architecture for Audio Ingest module (wkmp-ai) with per-file pipeline processing |
 | SPEC025 | SPEC025-amplitude_analysis.md | 2025-10-26 | SPEC | Manual | Amplitude analysis for crossfade timing |
 | SPEC026 | SPEC026-api_key_configuration.md | 2025-10-30 | SPEC | Manual | Multi-tier API key configuration system (migrated from wip/) |
 | SPEC029 | SPEC029-queue_handling_resilience.md | 2025-11-06 | SPEC | Auto | Queue handling resilience specification (idempotency, deduplication, cleanup ordering) |
+| SPEC030 | (reserved) | - | SPEC | - | Reserved for document being developed on another branch |
+| SPEC031 | SPEC031-data_driven_schema_maintenance.md | 2025-11-09 | SPEC | Manual | Data-driven schema maintenance system (automatic column addition, zero manual migrations) |
 | GUIDE003 | audio_pipeline_diagrams.md | 2025-10-27 | GUIDE | Auto | Visual reference for audio processing pipeline with DBD-PARAM mapping |
 | PLAN006 | wkmp_ai_ui_spec_updates | 2025-10-28 | PLAN | Manual | Specification updates to define wkmp-ai's dedicated web UI and on-demand microservice pattern |
 | PLAN007 | wkmp_ai_implementation | 2025-10-28 | PLAN | Auto | Implementation plan for complete wkmp-ai microservice (import wizard, MusicBrainz ID, passage detection, Musical Flavor extraction) |
@@ -146,7 +148,7 @@
 |----------|-------|--------------|
 | GOV | 3 | Existing |
 | REQ | 2 | Existing |
-| SPEC | 27 | 2025-11-06 |
+| SPEC | 28 | 2025-11-09 |
 | IMPL | 7 | Existing |
 | EXEC | 1 | Existing |
 | REV | 4 | Existing |

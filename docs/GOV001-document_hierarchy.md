@@ -593,7 +593,7 @@ See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-pa
 - Import workflow user experience
 
 **Update Policy:**
-- ✅ Update to support Audio Ingest requirements
+- ✅ Update to improve developer UX for Audio Ingest workflows
 - ❌ Must not contradict requirements.md
 
 **Maintained By:** UI lead, UX designer
@@ -640,7 +640,7 @@ See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-pa
 
 **Maintained By:** Audio engineer, technical lead
 
-#### SPEC024-audio_ingest_architecture.md
+#### SPEC032-audio_ingest_architecture.md
 **Purpose:** Defines architecture for Audio Ingest module (wkmp-ai)
 
 **Contains:**

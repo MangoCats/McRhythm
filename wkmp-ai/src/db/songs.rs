@@ -9,15 +9,25 @@ use uuid::Uuid;
 /// Song record (MusicBrainz recording)
 #[derive(Debug, Clone)]
 pub struct Song {
+    /// Unique identifier (UUID)
     pub guid: Uuid,
+    /// MusicBrainz Recording MBID
     pub recording_mbid: String,
+    /// Song title
     pub title: Option<String>,
+    /// Associated work UUID (foreign key to works table)
     pub work_id: Option<Uuid>,
+    /// Related songs as JSON array of UUIDs
     pub related_songs: Option<String>,
+    /// Song lyrics text
     pub lyrics: Option<String>,
+    /// Base selection probability (0.0-1.0+, default 1.0)
     pub base_probability: f64,
+    /// Minimum cooldown period in seconds
     pub min_cooldown: i64,
+    /// Ramping cooldown period in seconds
     pub ramping_cooldown: i64,
+    /// ISO 8601 timestamp when last played
     pub last_played_at: Option<String>,
 }
 
@@ -33,7 +43,7 @@ impl Song {
             lyrics: None,
             base_probability: 1.0,
             min_cooldown: 604800,      // 7 days in seconds
-            ramping_cooldown: 1209600,  // 14 days in seconds
+            ramping_cooldown: 1209600, // 14 days in seconds
             last_played_at: None,
         }
     }
@@ -73,6 +83,126 @@ pub async fn save_song(pool: &SqlitePool, song: &Song) -> Result<()> {
     .await?;
 
     Ok(())
+}
+
+/// **[PLAN026]** Batch query existing songs by MBIDs (outside transaction)
+///
+/// Pre-fetches all existing songs for given recording MBIDs to minimize
+/// transaction duration. Returns HashMap for O(1) lookup during batch insert.
+///
+/// # Arguments
+/// * `pool` - Database connection pool
+/// * `recording_mbids` - MBIDs to query
+///
+/// # Returns
+/// HashMap mapping recording_mbid → Song (only for songs that exist)
+pub async fn batch_query_existing_songs(
+    pool: &SqlitePool,
+    recording_mbids: &[String],
+) -> Result<std::collections::HashMap<String, Song>> {
+    use futures::TryStreamExt;
+
+    if recording_mbids.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    // Build IN clause with placeholders
+    let placeholders = (0..recording_mbids.len())
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let query_str = format!(
+        r#"
+        SELECT guid, recording_mbid, title, work_id, related_songs, lyrics,
+               base_probability, min_cooldown, ramping_cooldown, last_played_at
+        FROM songs
+        WHERE recording_mbid IN ({})
+        "#,
+        placeholders
+    );
+
+    let mut query = sqlx::query(&query_str);
+    for mbid in recording_mbids {
+        query = query.bind(mbid);
+    }
+
+    let mut songs = std::collections::HashMap::new();
+    let mut rows = query.fetch(pool);
+
+    while let Some(row) = rows.try_next().await? {
+        let guid_str: String = row.get("guid");
+        let work_id_str: Option<String> = row.get("work_id");
+        let recording_mbid: String = row.get("recording_mbid");
+
+        let song = Song {
+            guid: Uuid::parse_str(&guid_str)?,
+            recording_mbid: recording_mbid.clone(),
+            title: row.get("title"),
+            work_id: work_id_str.and_then(|s| Uuid::parse_str(&s).ok()),
+            related_songs: row.get("related_songs"),
+            lyrics: row.get("lyrics"),
+            base_probability: row.get("base_probability"),
+            min_cooldown: row.get("min_cooldown"),
+            ramping_cooldown: row.get("ramping_cooldown"),
+            last_played_at: row.get("last_played_at"),
+        };
+
+        songs.insert(recording_mbid, song);
+    }
+
+    Ok(songs)
+}
+
+/// **[PLAN026]** Batch insert/update songs within a transaction
+///
+/// Inserts or updates multiple songs in a single database transaction.
+/// Uses ON CONFLICT to upsert existing songs.
+///
+/// # Arguments
+/// * `tx` - Database transaction (caller manages transaction lifecycle)
+/// * `songs` - Songs to insert/update
+///
+/// # Returns
+/// Number of songs processed
+pub async fn batch_save_songs(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    songs: &[Song],
+) -> Result<usize> {
+    for song in songs {
+        sqlx::query(
+            r#"
+            INSERT INTO songs (
+                guid, recording_mbid, title, work_id, related_songs, lyrics,
+                base_probability, min_cooldown, ramping_cooldown, last_played_at,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(recording_mbid) DO UPDATE SET
+                title = excluded.title,
+                work_id = excluded.work_id,
+                related_songs = excluded.related_songs,
+                lyrics = excluded.lyrics,
+                base_probability = excluded.base_probability,
+                min_cooldown = excluded.min_cooldown,
+                ramping_cooldown = excluded.ramping_cooldown,
+                updated_at = CURRENT_TIMESTAMP
+            "#,
+        )
+        .bind(song.guid.to_string())
+        .bind(&song.recording_mbid)
+        .bind(&song.title)
+        .bind(song.work_id.map(|id| id.to_string()))
+        .bind(&song.related_songs)
+        .bind(&song.lyrics)
+        .bind(song.base_probability)
+        .bind(song.min_cooldown)
+        .bind(song.ramping_cooldown)
+        .bind(&song.last_played_at)
+        .execute(&mut **tx)
+        .await?;
+    }
+
+    Ok(songs.len())
 }
 
 /// Load song by recording MBID
@@ -149,8 +279,12 @@ mod tests {
             .expect("Failed to create in-memory database");
 
         // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-        sqlx::query(r#"
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS songs (
                 guid TEXT PRIMARY KEY,
                 recording_mbid TEXT UNIQUE NOT NULL,
@@ -165,9 +299,16 @@ mod tests {
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-        "#).execute(&pool).await.unwrap();
+        "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
 
-        let song = Song::new("recording-mbid-123".to_string(), Some("Test Song".to_string()));
+        let song = Song::new(
+            "recording-mbid-123".to_string(),
+            Some("Test Song".to_string()),
+        );
 
         save_song(&pool, &song).await.expect("Failed to save song");
 

@@ -490,11 +490,17 @@ pub fn ticks_per_sample(sample_rate: u32) -> i64 {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PassageTimingMs {
+    /// Start time in milliseconds
     pub start_time_ms: u64,
+    /// End time in milliseconds
     pub end_time_ms: u64,
+    /// Fade-in point in milliseconds
     pub fade_in_point_ms: u64,
+    /// Fade-out point in milliseconds
     pub fade_out_point_ms: u64,
+    /// Lead-in point in milliseconds
     pub lead_in_point_ms: u64,
+    /// Lead-out point in milliseconds
     pub lead_out_point_ms: u64,
 }
 
@@ -525,11 +531,17 @@ pub struct PassageTimingMs {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PassageTimingTicks {
+    /// Start time in ticks
     pub start_time_ticks: i64,
+    /// End time in ticks
     pub end_time_ticks: i64,
+    /// Fade-in point in ticks
     pub fade_in_point_ticks: i64,
+    /// Fade-out point in ticks
     pub fade_out_point_ticks: i64,
+    /// Lead-in point in ticks
     pub lead_in_point_ticks: i64,
+    /// Lead-out point in ticks
     pub lead_out_point_ticks: i64,
 }
 

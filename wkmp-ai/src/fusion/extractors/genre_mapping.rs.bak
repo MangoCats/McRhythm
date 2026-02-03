@@ -1,0 +1,381 @@
+// Genre → Musical Flavor Characteristics Mapping
+//
+// Maps ID3 genre strings to AcousticBrainz-compatible musical flavor characteristics.
+// This is a coarse mapping used when AcousticBrainz and Essentia data are unavailable.
+//
+// Confidence: 0.3 (low quality compared to computed features)
+//
+// Based on common genre characteristics and AcousticBrainz schema structure.
+
+use std::collections::HashMap;
+
+/// Maps a genre string to musical flavor characteristics
+///
+/// Returns a HashMap of characteristic paths to values (0.0-1.0).
+/// Characteristics are normalized within their categories (sum to 1.0).
+///
+/// # Arguments
+/// * `genre` - ID3 genre string (case-insensitive)
+///
+/// # Returns
+/// * HashMap of "category.subcategory.value" → probability
+/// * Empty HashMap if genre not recognized
+///
+/// # Example
+/// ```
+/// let characteristics = map_genre_to_characteristics("rock");
+/// // Returns: {"danceability.danceable": 0.3, "danceability.not_danceable": 0.7, ...}
+/// ```
+pub fn map_genre_to_characteristics(genre: &str) -> HashMap<String, f64> {
+    let genre_lower = genre.to_lowercase();
+
+    match genre_lower.as_str() {
+        // Rock and variants
+        "rock" | "classic rock" => hashmap! {
+            "danceability.danceable" => 0.3,
+            "danceability.not_danceable" => 0.7,
+            "mood_aggressive.aggressive" => 0.7,
+            "mood_aggressive.not_aggressive" => 0.3,
+            "voice_instrumental.instrumental" => 0.2,
+            "voice_instrumental.voice" => 0.8,
+        },
+
+        "hard rock" | "metal" | "heavy metal" => hashmap! {
+            "danceability.danceable" => 0.2,
+            "danceability.not_danceable" => 0.8,
+            "mood_aggressive.aggressive" => 0.9,
+            "mood_aggressive.not_aggressive" => 0.1,
+            "voice_instrumental.instrumental" => 0.3,
+            "voice_instrumental.voice" => 0.7,
+        },
+
+        "progressive rock" | "art rock" => hashmap! {
+            "danceability.danceable" => 0.2,
+            "danceability.not_danceable" => 0.8,
+            "mood_aggressive.aggressive" => 0.5,
+            "mood_aggressive.not_aggressive" => 0.5,
+            "voice_instrumental.instrumental" => 0.5,
+            "voice_instrumental.voice" => 0.5,
+        },
+
+        "punk" | "punk rock" => hashmap! {
+            "danceability.danceable" => 0.5,
+            "danceability.not_danceable" => 0.5,
+            "mood_aggressive.aggressive" => 0.8,
+            "mood_aggressive.not_aggressive" => 0.2,
+            "voice_instrumental.instrumental" => 0.1,
+            "voice_instrumental.voice" => 0.9,
+        },
+
+        // Electronic and variants
+        "electronic" | "edm" => hashmap! {
+            "danceability.danceable" => 0.85,
+            "danceability.not_danceable" => 0.15,
+            "mood_aggressive.aggressive" => 0.4,
+            "mood_aggressive.not_aggressive" => 0.6,
+            "voice_instrumental.instrumental" => 0.7,
+            "voice_instrumental.voice" => 0.3,
+            "genre_electronic.house" => 0.3,
+            "genre_electronic.techno" => 0.2,
+            "genre_electronic.trance" => 0.2,
+            "genre_electronic.dnb" => 0.15,
+            "genre_electronic.ambient" => 0.15,
+        },
+
+        "house" => hashmap! {
+            "danceability.danceable" => 0.95,
+            "danceability.not_danceable" => 0.05,
+            "mood_aggressive.aggressive" => 0.3,
+            "mood_aggressive.not_aggressive" => 0.7,
+            "voice_instrumental.instrumental" => 0.8,
+            "voice_instrumental.voice" => 0.2,
+            "genre_electronic.house" => 0.9,
+            "genre_electronic.techno" => 0.05,
+            "genre_electronic.trance" => 0.025,
+            "genre_electronic.dnb" => 0.0125,
+            "genre_electronic.ambient" => 0.0125,
+        },
+
+        "techno" => hashmap! {
+            "danceability.danceable" => 0.95,
+            "danceability.not_danceable" => 0.05,
+            "mood_aggressive.aggressive" => 0.5,
+            "mood_aggressive.not_aggressive" => 0.5,
+            "voice_instrumental.instrumental" => 0.95,
+            "voice_instrumental.voice" => 0.05,
+            "genre_electronic.techno" => 0.9,
+            "genre_electronic.house" => 0.05,
+            "genre_electronic.trance" => 0.025,
+            "genre_electronic.dnb" => 0.0125,
+            "genre_electronic.ambient" => 0.0125,
+        },
+
+        "trance" => hashmap! {
+            "danceability.danceable" => 0.9,
+            "danceability.not_danceable" => 0.1,
+            "mood_aggressive.aggressive" => 0.3,
+            "mood_aggressive.not_aggressive" => 0.7,
+            "voice_instrumental.instrumental" => 0.85,
+            "voice_instrumental.voice" => 0.15,
+            "genre_electronic.trance" => 0.85,
+            "genre_electronic.house" => 0.075,
+            "genre_electronic.techno" => 0.05,
+            "genre_electronic.ambient" => 0.0125,
+            "genre_electronic.dnb" => 0.0125,
+        },
+
+        "drum and bass" | "dnb" | "jungle" => hashmap! {
+            "danceability.danceable" => 0.9,
+            "danceability.not_danceable" => 0.1,
+            "mood_aggressive.aggressive" => 0.7,
+            "mood_aggressive.not_aggressive" => 0.3,
+            "voice_instrumental.instrumental" => 0.8,
+            "voice_instrumental.voice" => 0.2,
+            "genre_electronic.dnb" => 0.85,
+            "genre_electronic.techno" => 0.05,
+            "genre_electronic.house" => 0.05,
+            "genre_electronic.trance" => 0.025,
+            "genre_electronic.ambient" => 0.025,
+        },
+
+        "ambient" | "drone" | "soundscape" => hashmap! {
+            "danceability.danceable" => 0.1,
+            "danceability.not_danceable" => 0.9,
+            "mood_relaxed.relaxed" => 0.9,
+            "mood_relaxed.not_relaxed" => 0.1,
+            "mood_aggressive.aggressive" => 0.05,
+            "mood_aggressive.not_aggressive" => 0.95,
+            "voice_instrumental.instrumental" => 0.95,
+            "voice_instrumental.voice" => 0.05,
+            "genre_electronic.ambient" => 0.85,
+            "genre_electronic.trance" => 0.075,
+            "genre_electronic.house" => 0.025,
+            "genre_electronic.techno" => 0.025,
+            "genre_electronic.dnb" => 0.025,
+        },
+
+        // Pop and variants
+        "pop" => hashmap! {
+            "danceability.danceable" => 0.7,
+            "danceability.not_danceable" => 0.3,
+            "mood_aggressive.aggressive" => 0.2,
+            "mood_aggressive.not_aggressive" => 0.8,
+            "voice_instrumental.instrumental" => 0.1,
+            "voice_instrumental.voice" => 0.9,
+        },
+
+        "dance" | "dance-pop" => hashmap! {
+            "danceability.danceable" => 0.95,
+            "danceability.not_danceable" => 0.05,
+            "mood_aggressive.aggressive" => 0.3,
+            "mood_aggressive.not_aggressive" => 0.7,
+            "voice_instrumental.instrumental" => 0.2,
+            "voice_instrumental.voice" => 0.8,
+        },
+
+        // Hip-Hop and R&B
+        "hip-hop" | "hip hop" | "rap" => hashmap! {
+            "danceability.danceable" => 0.75,
+            "danceability.not_danceable" => 0.25,
+            "mood_aggressive.aggressive" => 0.6,
+            "mood_aggressive.not_aggressive" => 0.4,
+            "voice_instrumental.instrumental" => 0.15,
+            "voice_instrumental.voice" => 0.85,
+        },
+
+        "r&b" | "rnb" | "soul" => hashmap! {
+            "danceability.danceable" => 0.65,
+            "danceability.not_danceable" => 0.35,
+            "mood_relaxed.relaxed" => 0.6,
+            "mood_relaxed.not_relaxed" => 0.4,
+            "voice_instrumental.instrumental" => 0.1,
+            "voice_instrumental.voice" => 0.9,
+        },
+
+        // Jazz and variants
+        "jazz" => hashmap! {
+            "danceability.danceable" => 0.4,
+            "danceability.not_danceable" => 0.6,
+            "mood_relaxed.relaxed" => 0.6,
+            "mood_relaxed.not_relaxed" => 0.4,
+            "voice_instrumental.instrumental" => 0.7,
+            "voice_instrumental.voice" => 0.3,
+        },
+
+        "bebop" | "hard bop" => hashmap! {
+            "danceability.danceable" => 0.3,
+            "danceability.not_danceable" => 0.7,
+            "mood_aggressive.aggressive" => 0.4,
+            "mood_aggressive.not_aggressive" => 0.6,
+            "voice_instrumental.instrumental" => 0.9,
+            "voice_instrumental.voice" => 0.1,
+        },
+
+        "smooth jazz" => hashmap! {
+            "danceability.danceable" => 0.45,
+            "danceability.not_danceable" => 0.55,
+            "mood_relaxed.relaxed" => 0.8,
+            "mood_relaxed.not_relaxed" => 0.2,
+            "voice_instrumental.instrumental" => 0.85,
+            "voice_instrumental.voice" => 0.15,
+        },
+
+        // Classical
+        "classical" | "symphonic" => hashmap! {
+            "danceability.danceable" => 0.15,
+            "danceability.not_danceable" => 0.85,
+            "mood_relaxed.relaxed" => 0.6,
+            "mood_relaxed.not_relaxed" => 0.4,
+            "voice_instrumental.instrumental" => 0.95,
+            "voice_instrumental.voice" => 0.05,
+        },
+
+        "opera" => hashmap! {
+            "danceability.danceable" => 0.1,
+            "danceability.not_danceable" => 0.9,
+            "mood_aggressive.aggressive" => 0.3,
+            "mood_aggressive.not_aggressive" => 0.7,
+            "voice_instrumental.instrumental" => 0.3,
+            "voice_instrumental.voice" => 0.7,
+        },
+
+        // Country
+        "country" => hashmap! {
+            "danceability.danceable" => 0.5,
+            "danceability.not_danceable" => 0.5,
+            "mood_relaxed.relaxed" => 0.5,
+            "mood_relaxed.not_relaxed" => 0.5,
+            "voice_instrumental.instrumental" => 0.2,
+            "voice_instrumental.voice" => 0.8,
+        },
+
+        // Blues
+        "blues" => hashmap! {
+            "danceability.danceable" => 0.4,
+            "danceability.not_danceable" => 0.6,
+            "mood_relaxed.relaxed" => 0.4,
+            "mood_relaxed.not_relaxed" => 0.6,
+            "voice_instrumental.instrumental" => 0.4,
+            "voice_instrumental.voice" => 0.6,
+        },
+
+        // Reggae
+        "reggae" => hashmap! {
+            "danceability.danceable" => 0.7,
+            "danceability.not_danceable" => 0.3,
+            "mood_relaxed.relaxed" => 0.7,
+            "mood_relaxed.not_relaxed" => 0.3,
+            "voice_instrumental.instrumental" => 0.2,
+            "voice_instrumental.voice" => 0.8,
+        },
+
+        // Folk and Acoustic
+        "folk" | "folk rock" => hashmap! {
+            "danceability.danceable" => 0.3,
+            "danceability.not_danceable" => 0.7,
+            "mood_relaxed.relaxed" => 0.6,
+            "mood_relaxed.not_relaxed" => 0.4,
+            "voice_instrumental.instrumental" => 0.3,
+            "voice_instrumental.voice" => 0.7,
+        },
+
+        "acoustic" => hashmap! {
+            "danceability.danceable" => 0.25,
+            "danceability.not_danceable" => 0.75,
+            "mood_relaxed.relaxed" => 0.7,
+            "mood_relaxed.not_relaxed" => 0.3,
+            "voice_instrumental.instrumental" => 0.3,
+            "voice_instrumental.voice" => 0.7,
+        },
+
+        // Latin
+        "latin" | "salsa" => hashmap! {
+            "danceability.danceable" => 0.9,
+            "danceability.not_danceable" => 0.1,
+            "mood_aggressive.aggressive" => 0.4,
+            "mood_aggressive.not_aggressive" => 0.6,
+            "voice_instrumental.instrumental" => 0.3,
+            "voice_instrumental.voice" => 0.7,
+        },
+
+        // Indie
+        "indie" | "indie rock" | "alternative" => hashmap! {
+            "danceability.danceable" => 0.4,
+            "danceability.not_danceable" => 0.6,
+            "mood_aggressive.aggressive" => 0.5,
+            "mood_aggressive.not_aggressive" => 0.5,
+            "voice_instrumental.instrumental" => 0.3,
+            "voice_instrumental.voice" => 0.7,
+        },
+
+        // Instrumental
+        "instrumental" => hashmap! {
+            "danceability.danceable" => 0.4,
+            "danceability.not_danceable" => 0.6,
+            "voice_instrumental.instrumental" => 0.95,
+            "voice_instrumental.voice" => 0.05,
+        },
+
+        // Unknown/default: return empty (no assumptions)
+        _ => HashMap::new(),
+    }
+}
+
+/// Helper macro for creating hashmaps
+macro_rules! hashmap {
+    ($($key:expr => $val:expr),* $(,)?) => {{
+        let mut map = HashMap::new();
+        $(map.insert($key.to_string(), $val);)*
+        map
+    }};
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_genre_mapping_normalization() {
+        let genres = vec!["rock", "house", "jazz", "classical", "hip-hop"];
+
+        for genre in genres {
+            let chars = map_genre_to_characteristics(genre);
+
+            // Group by category
+            let mut categories: HashMap<String, Vec<f64>> = HashMap::new();
+            for (key, value) in chars {
+                let parts: Vec<&str> = key.split('.').collect();
+                if parts.len() >= 2 {
+                    let category = parts[0].to_string();
+                    categories.entry(category).or_insert_with(Vec::new).push(value);
+                }
+            }
+
+            // Verify each category sums to ~1.0
+            for (category, values) in categories {
+                let sum: f64 = values.iter().sum();
+                assert!(
+                    (sum - 1.0).abs() < 0.0001,
+                    "Genre '{}' category '{}' does not sum to 1.0 (sum = {})",
+                    genre, category, sum
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_unknown_genre_returns_empty() {
+        let chars = map_genre_to_characteristics("unknown_genre_xyz");
+        assert!(chars.is_empty());
+    }
+
+    #[test]
+    fn test_case_insensitivity() {
+        let lower = map_genre_to_characteristics("rock");
+        let upper = map_genre_to_characteristics("ROCK");
+        let mixed = map_genre_to_characteristics("RoCk");
+
+        assert_eq!(lower, upper);
+        assert_eq!(lower, mixed);
+    }
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "file_path": "C:\\Users\\Mango Cat\\Music\\Jackson, Michael\\Thriller.mp3",
+    "detected_tracks": 8,
+    "detected_durations": [
+      361.15,
+      259.0,
+      220.75,
+      356.05,
+      256.85,
+      292.55,
+      244.1,
+      238.25
+    ],
+    "total_detected_duration": 2228.7,
+    "best_match_mbid": "4e2bfe06-f483-4f7b-b12a-f74e2d1aa3f2",
+    "best_match_title": "Thriller",
+    "best_match_artist": "Michael Jackson",
+    "best_match_track_count": 9,
+    "mean_duration_error": 150.4291765686513,
+    "confidence": "Poor",
+    "status": "Success"
+  }
+]

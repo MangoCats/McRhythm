@@ -1,0 +1,30 @@
+2026-01-27T16:39:05.720162Z  INFO wkmp_ai::matching::album_matcher: Starting album match for: C:\Users\Mango Cat\Music\38 Special/Anthology.mp3
+2026-01-27T16:39:05.721826Z DEBUG wkmp_ai::matching::album_matcher: Metadata: artist=38 Special, album=Anthology
+2026-01-27T16:39:05.724170Z  INFO wkmp_ai::matching::album_matcher: Starting parallel: decode + MusicBrainz lookup for artist=38 Special, album=Anthology
+2026-01-27T16:39:05.725545Z DEBUG wkmp_ai::services::musicbrainz_client: Album search cache hit artist=38 Special album=Anthology count=25 cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.726668Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.727745Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=4a81fc08-f915-49fc-9aa2-5b708c18f07a cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.728466Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=67832e22-bcd2-40e6-a1c3-7865a4af62f1 cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.729024Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=3b03bfe4-87f8-443e-989c-40d38b2cadc3 cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.731245Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=8da40fa0-70b5-4730-85cc-20ebce1912d2 cached_at=2025-12-31 02:23:42
+2026-01-27T16:39:05.731815Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=f6193694-b4f4-4e2e-948c-3493b0bcef8b cached_at=2025-12-31 02:23:42
+2026-01-27T16:39:05.732277Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=e62d8846-b1a0-449e-8242-d0a782eb87d4 cached_at=2025-12-31 02:23:42
+2026-01-27T16:39:05.732767Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=d30a13a4-df96-4b42-91ee-fdf7676136b9 cached_at=2025-12-31 02:23:42
+2026-01-27T16:39:05.733298Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=7a726db3-acfd-4020-9295-cbd81804ef39 cached_at=2025-12-31 02:23:42
+2026-01-27T16:39:05.733954Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=18141d7c-2a02-46f9-b98b-302546b4da67 cached_at=2025-12-31 02:23:42
+2026-01-27T16:39:05.734543Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=ae435b3f-8984-4fd2-aaa9-4b7b5538b1c7 cached_at=2025-12-31 02:23:42
+2026-01-27T16:39:05.735556Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=9d54e652-8dcb-41b5-a812-304d050c917d cached_at=2025-12-31 02:23:42
+2026-01-27T16:39:05.735939Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=95a27f35-126f-416f-acd4-48ed5bea6a0e cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.736234Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=ae7b7427-9680-49ac-bcee-24cd952fa6fb cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.736677Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=5bd74dc5-cb19-4d29-96ce-f7a7f754d13a cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.737004Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=e6322cdc-ff5e-4381-a1e0-d1513c1b5733 cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.737451Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=a3f25b8c-1243-406b-bcfb-d7a92dcfb0cd cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.737913Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=5520ef8a-4cf4-459a-81e4-b72863406b5e cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.738517Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=709cd3f0-2746-4c76-bbf0-0a6759e9e107 cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.739149Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=9d286a68-b7e3-486e-bdc0-083efd875de1 cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.739770Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=20f4f11b-51de-4672-867d-295525993ab2 cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.740274Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=5dc8468a-fc86-4270-8c89-6b1359e875cd cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.740736Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=eadab0eb-ec28-4977-8ee0-8100cd4c9f2e cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.741203Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=d8016dc1-5e99-440b-9eb3-a583a006305f cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.741868Z DEBUG wkmp_ai::services::musicbrainz_client: Release details cache hit mbid=bd9b1327-7d70-4803-bea4-4dc3bdfd7104 cached_at=2025-12-30 19:31:00
+2026-01-27T16:39:05.741963Z  INFO wkmp_ai::services::musicbrainz_client: Comprehensive search completed (with caching) artist=38 Special album=Anthology found=25

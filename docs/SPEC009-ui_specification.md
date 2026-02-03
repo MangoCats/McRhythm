@@ -504,7 +504,7 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 - If unavailable: Shows "Full version required" message
 
 **[UI-IMPORT-006]** Full import UI provided by wkmp-ai:
-- See [Audio Ingest Architecture - UI Architecture](SPEC024-audio_ingest_architecture.md#ui-architecture)
+- See [Audio Ingest Architecture - UI Architecture](SPEC032-audio_ingest_architecture.md#ui-architecture)
 - See [Audio File Segmentation](IMPL005-audio_file_segmentation.md#ui-implementation)
 - wkmp-ui does NOT embed import wizard
 - User navigates to http://localhost:5723 for import operations

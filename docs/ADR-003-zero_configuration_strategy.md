@@ -211,82 +211,15 @@ if !root_folder.exists() {
 
 ---
 
-## Implementation Details
+## Implementation Guidance
 
-### RootFolderResolver (wkmp_common::config)
+**Implementation Code:** See [IMPL003:700-807 § Zero-Config Startup Pattern](IMPL003-project_structure.md#zero-config-startup-pattern) for complete Rust implementation template.
 
-```rust
-pub struct RootFolderResolver {
-    module_name: String,
-}
+**Key Components:**
+- `wkmp_common::config::RootFolderResolver` - Implements 4-tier priority resolution
+- `wkmp_common::config::RootFolderInitializer` - Handles directory creation and path management
 
-impl RootFolderResolver {
-    pub fn new(module_name: &str) -> Self {
-        Self {
-            module_name: module_name.to_string(),
-        }
-    }
-
-    pub fn resolve(&self) -> PathBuf {
-        // Tier 1: CLI args (via clap)
-        if let Some(path) = self.check_cli_args() {
-            return path;
-        }
-
-        // Tier 2: Environment variables
-        if let Ok(path) = env::var("WKMP_ROOT_FOLDER") {
-            return PathBuf::from(path);
-        }
-        if let Ok(path) = env::var("WKMP_ROOT") {
-            return PathBuf::from(path);
-        }
-
-        // Tier 3: TOML config file
-        if let Some(path) = self.check_toml_config() {
-            return path;
-        }
-
-        // Tier 4: Compiled default
-        self.default_root_folder()
-    }
-
-    fn default_root_folder(&self) -> PathBuf {
-        if cfg!(target_os = "windows") {
-            PathBuf::from(env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\Default".to_string()))
-                .join("Music")
-        } else {
-            PathBuf::from(env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()))
-                .join("Music")
-        }
-    }
-}
-```
-
-### RootFolderInitializer (wkmp_common::config)
-
-```rust
-pub struct RootFolderInitializer {
-    root_folder: PathBuf,
-}
-
-impl RootFolderInitializer {
-    pub fn new(root_folder: PathBuf) -> Self {
-        Self { root_folder }
-    }
-
-    pub fn ensure_directory_exists(&self) -> Result<()> {
-        if !self.root_folder.exists() {
-            fs::create_dir_all(&self.root_folder)?;
-            info!("Created root folder: {}", self.root_folder.display());
-        }
-        Ok(())
-    }
-
-    pub fn database_path(&self) -> PathBuf {
-        self.root_folder.join("wkmp.db")
-    }
-}
-```
+**Integration Pattern:** All six modules use identical zero-config startup pattern (see [IMPL003:700-807](IMPL003-project_structure.md#zero-config-startup-pattern) for code template).
 
 ---
 

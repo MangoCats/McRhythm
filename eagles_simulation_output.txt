@@ -1,0 +1,160 @@
+================================================================================
+Stage 6 Overlap Resolution Simulation: Eagles - The Long Run
+================================================================================
+
+================================================================================
+ORIGINAL (before Stage 6)
+================================================================================
+Track  Name                                      Expected  Detected    Error
+--------------------------------------------------------------------------------
+[OK] 1    The Long Run                                225.68    227.34   +1.65s
+[OK] 2    I Can't Tell You Why                        290.52    289.13   -1.39s
+[OK] 3    In the City                                 236.85    237.28   +0.43s
+[OK] 4    The Disco Strangler                         162.32    163.30   +0.98s
+[ER] 5    King of Hollywood                           397.71    381.87  -15.84s
+[OK] 6    Heartache Tonight                           268.59    269.00   +0.41s
+[OK] 7    Those Shoes                                 294.26    293.41   -0.85s
+[ER] 8    Teenage Jail                                223.99    147.27  -76.72s
+[ER] 9    The Greeks Don't Want No Freaks             138.40    209.70  +71.31s
+[OK] 10   The Sad Café                                336.95    336.95   +0.00s
+--------------------------------------------------------------------------------
+Tracks within tolerance: 7/10 (70.0%)
+
+
+================================================================================
+PATTERN DETECTION
+================================================================================
+
+Cascade pattern detected:
+  - Tracks 8-9: Both have >30s timing errors
+  - Count: 2 consecutive tracks
+
+Complementary pair detected:
+  - Track 8: -76.72s (under-allocated)
+  - Track 9: +71.31s (over-allocated)
+  - Magnitude difference: 5.41s (within 20s threshold)
+
+OVERLAP DETECTED:
+  - Cascade affects tracks 8-9
+  - Complementary pair affects tracks 8-9
+  - SAME LOCATION -> Use overlap resolution
+
+
+================================================================================
+SEQUENTIAL STRATEGY (OLD BEHAVIOR)
+================================================================================
+
+Step 1: Apply cascade refinement FIRST
+
+================================================================================
+After Cascade Refinement
+================================================================================
+Track  Name                                      Expected  Detected    Error
+--------------------------------------------------------------------------------
+[OK] 1    The Long Run                                225.68    227.34   +1.65s
+[OK] 2    I Can't Tell You Why                        290.52    289.13   -1.39s
+[OK] 3    In the City                                 236.85    237.28   +0.43s
+[OK] 4    The Disco Strangler                         162.32    163.30   +0.98s
+[ER] 5    King of Hollywood                           397.71    381.87  -15.84s
+[OK] 6    Heartache Tonight                           268.59    269.00   +0.41s
+[ER] 7    Those Shoes                                 294.26    369.41  +75.15s
+[ER] 8    Teenage Jail                                223.99    197.27  -26.72s
+[OK] 9    The Greeks Don't Want No Freaks             138.40    138.70   +0.30s
+[OK] 10   The Sad Café                                336.95    336.95   +0.00s
+--------------------------------------------------------------------------------
+Tracks within tolerance: 7/10 (70.0%)
+
+Step 2: Apply complementary refinement on modified boundaries
+(Complementary now sees different error pattern, may fail validation)
+
+
+================================================================================
+OVERLAP RESOLUTION (NEW BEHAVIOR)
+================================================================================
+
+Step 1: Try CASCADE approach
+  -> Match percentage: 70.0%
+
+Step 2: Try COMPLEMENTARY approach
+  -> Match percentage: 90.0%
+
+Step 3: Pick the BETTER approach
+  -> Winner: COMPLEMENTARY (90.0% vs 70.0%)
+
+================================================================================
+CASCADE Approach Result
+================================================================================
+Track  Name                                      Expected  Detected    Error
+--------------------------------------------------------------------------------
+[OK] 1    The Long Run                                225.68    227.34   +1.65s
+[OK] 2    I Can't Tell You Why                        290.52    289.13   -1.39s
+[OK] 3    In the City                                 236.85    237.28   +0.43s
+[OK] 4    The Disco Strangler                         162.32    163.30   +0.98s
+[ER] 5    King of Hollywood                           397.71    381.87  -15.84s
+[OK] 6    Heartache Tonight                           268.59    269.00   +0.41s
+[ER] 7    Those Shoes                                 294.26    369.41  +75.15s
+[ER] 8    Teenage Jail                                223.99    197.27  -26.72s
+[OK] 9    The Greeks Don't Want No Freaks             138.40    138.70   +0.30s
+[OK] 10   The Sad Café                                336.95    336.95   +0.00s
+--------------------------------------------------------------------------------
+Tracks within tolerance: 7/10 (70.0%)
+
+================================================================================
+COMPLEMENTARY Approach Result
+================================================================================
+Track  Name                                      Expected  Detected    Error
+--------------------------------------------------------------------------------
+[OK] 1    The Long Run                                225.68    227.34   +1.65s
+[OK] 2    I Can't Tell You Why                        290.52    289.13   -1.39s
+[OK] 3    In the City                                 236.85    237.28   +0.43s
+[OK] 4    The Disco Strangler                         162.32    163.30   +0.98s
+[ER] 5    King of Hollywood                           397.71    381.87  -15.84s
+[OK] 6    Heartache Tonight                           268.59    269.00   +0.41s
+[OK] 7    Those Shoes                                 294.26    293.41   -0.85s
+[OK] 8    Teenage Jail                                223.99    221.27   -2.72s
+[OK] 9    The Greeks Don't Want No Freaks             138.40    135.70   -2.70s
+[OK] 10   The Sad Café                                336.95    336.95   +0.00s
+--------------------------------------------------------------------------------
+Tracks within tolerance: 9/10 (90.0%)
+
+================================================================================
+FINAL RESULT (COMPLEMENTARY approach selected)
+================================================================================
+Track  Name                                      Expected  Detected    Error
+--------------------------------------------------------------------------------
+[OK] 1    The Long Run                                225.68    227.34   +1.65s
+[OK] 2    I Can't Tell You Why                        290.52    289.13   -1.39s
+[OK] 3    In the City                                 236.85    237.28   +0.43s
+[OK] 4    The Disco Strangler                         162.32    163.30   +0.98s
+[ER] 5    King of Hollywood                           397.71    381.87  -15.84s
+[OK] 6    Heartache Tonight                           268.59    269.00   +0.41s
+[OK] 7    Those Shoes                                 294.26    293.41   -0.85s
+[OK] 8    Teenage Jail                                223.99    221.27   -2.72s
+[OK] 9    The Greeks Don't Want No Freaks             138.40    135.70   -2.70s
+[OK] 10   The Sad Café                                336.95    336.95   +0.00s
+--------------------------------------------------------------------------------
+Tracks within tolerance: 9/10 (90.0%)
+
+
+================================================================================
+SUMMARY
+================================================================================
+
+Original match:       70.0%
+Cascade approach:     70.0%
+Complementary approach: 90.0%
+
+Selected approach:    COMPLEMENTARY
+Final match:          90.0%
+Improvement:          +20.0 percentage points
+
+================================================================================
+CONCLUSION
+================================================================================
+
+The overlap resolution algorithm correctly identifies that the
+COMPLEMENTARY approach (moving single boundary 8-9) produces a
+better result than the CASCADE approach (moving boundaries 7-8 and 8-9).
+
+This validates the user's insight: 'The algorithm should simply move
+the single boundary between tracks 8 and 9 by approximately 74 seconds.'

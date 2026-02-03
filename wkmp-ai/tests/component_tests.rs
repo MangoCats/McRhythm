@@ -30,13 +30,25 @@ fn create_test_music_dir() -> TempDir {
 
     // Create audio files with proper magic bytes
     // MP3 with ID3 tag
-    fs::write(root.join("artist1/album1/track01.mp3"), b"ID3\x03\x00\x00\x00\x00\x00\x00").unwrap();
+    fs::write(
+        root.join("artist1/album1/track01.mp3"),
+        b"ID3\x03\x00\x00\x00\x00\x00\x00",
+    )
+    .unwrap();
 
     // FLAC file
-    fs::write(root.join("artist1/album1/track02.flac"), b"fLaC\x00\x00\x00\x00").unwrap();
+    fs::write(
+        root.join("artist1/album1/track02.flac"),
+        b"fLaC\x00\x00\x00\x00",
+    )
+    .unwrap();
 
     // OGG file
-    fs::write(root.join("artist1/album2/track03.ogg"), b"OggS\x00\x00\x00\x00").unwrap();
+    fs::write(
+        root.join("artist1/album2/track03.ogg"),
+        b"OggS\x00\x00\x00\x00",
+    )
+    .unwrap();
 
     // WAV file
     fs::write(root.join("artist2/single.wav"), b"RIFF\x00\x00\x00\x00WAVE").unwrap();
@@ -104,7 +116,11 @@ fn tc_comp_002_symlink_cycle_detection() {
 
     fs::create_dir_all(root.join("real_folder")).unwrap();
     // Create MP3 file with proper magic bytes
-    fs::write(root.join("real_folder/track.mp3"), b"ID3\x03\x00\x00\x00\x00\x00\x00").unwrap();
+    fs::write(
+        root.join("real_folder/track.mp3"),
+        b"ID3\x03\x00\x00\x00\x00\x00\x00",
+    )
+    .unwrap();
 
     // Create symlink (may fail on Windows without admin)
     #[cfg(unix)]
@@ -156,9 +172,21 @@ fn tc_comp_003_id3_tag_parsing() {
     match extractor.extract(fixture_path) {
         Ok(metadata) => {
             // Verify expected metadata
-            assert_eq!(metadata.title, Some("Test Track".to_string()), "Title mismatch");
-            assert_eq!(metadata.artist, Some("Test Artist".to_string()), "Artist mismatch");
-            assert_eq!(metadata.album, Some("Test Album".to_string()), "Album mismatch");
+            assert_eq!(
+                metadata.title,
+                Some("Test Track".to_string()),
+                "Title mismatch"
+            );
+            assert_eq!(
+                metadata.artist,
+                Some("Test Artist".to_string()),
+                "Artist mismatch"
+            );
+            assert_eq!(
+                metadata.album,
+                Some("Test Album".to_string()),
+                "Album mismatch"
+            );
             println!("✓ ID3 tag parsing successful: {:?}", metadata);
         }
         Err(e) => {
@@ -188,9 +216,21 @@ fn tc_comp_004_vorbis_tag_parsing() {
     match extractor.extract(fixture_path) {
         Ok(metadata) => {
             // Verify expected metadata (Vorbis comments)
-            assert_eq!(metadata.title, Some("Test FLAC Track".to_string()), "Title mismatch");
-            assert_eq!(metadata.artist, Some("Test FLAC Artist".to_string()), "Artist mismatch");
-            assert_eq!(metadata.album, Some("Test FLAC Album".to_string()), "Album mismatch");
+            assert_eq!(
+                metadata.title,
+                Some("Test FLAC Track".to_string()),
+                "Title mismatch"
+            );
+            assert_eq!(
+                metadata.artist,
+                Some("Test FLAC Artist".to_string()),
+                "Artist mismatch"
+            );
+            assert_eq!(
+                metadata.album,
+                Some("Test FLAC Album".to_string()),
+                "Album mismatch"
+            );
             println!("✓ Vorbis tag parsing successful: {:?}", metadata);
         }
         Err(e) => {
@@ -212,7 +252,10 @@ fn tc_comp_005_chromaprint_generation() {
 
     // For unit test, verify chromaprint-sys-next is available
     // (actual fingerprinting tested in integration tests)
-    assert!(true, "Chromaprint library available (via chromaprint-sys-next)");
+    assert!(
+        true,
+        "Chromaprint library available (via chromaprint-sys-next)"
+    );
 }
 
 /// TC-COMP-006: Base64 Encoding
@@ -533,14 +576,32 @@ fn tc_comp_017_global_defaults() {
 
     // Then: Returns default values
     assert_eq!(params.parallelism, 4, "Default parallelism should be 4");
-    assert_eq!(params.scan_subdirectories, true, "Should scan subdirectories by default");
-    assert_eq!(params.skip_hidden_files, true, "Should skip hidden files by default");
-    assert!(params.file_extensions.contains(&".mp3".to_string()), "Should include MP3");
-    assert!(params.file_extensions.contains(&".flac".to_string()), "Should include FLAC");
+    assert_eq!(
+        params.scan_subdirectories, true,
+        "Should scan subdirectories by default"
+    );
+    assert_eq!(
+        params.skip_hidden_files, true,
+        "Should skip hidden files by default"
+    );
+    assert!(
+        params.file_extensions.contains(&".mp3".to_string()),
+        "Should include MP3"
+    );
+    assert!(
+        params.file_extensions.contains(&".flac".to_string()),
+        "Should include FLAC"
+    );
 
     // Verify amplitude parameters have defaults
-    assert!(params.amplitude.lead_in_threshold_db < 0.0, "Lead-in threshold should be negative dB");
-    assert_eq!(params.amplitude.max_lead_in_duration_s, 5.0, "Max lead-in should be 5s");
+    assert!(
+        params.amplitude.lead_in_threshold_db < 0.0,
+        "Lead-in threshold should be negative dB"
+    );
+    assert_eq!(
+        params.amplitude.max_lead_in_duration_s, 5.0,
+        "Max lead-in should be 5s"
+    );
 }
 
 /// TC-COMP-018: Per-File Overrides
@@ -558,6 +619,9 @@ fn tc_comp_018_per_file_overrides() {
 
     assert_eq!(override_params.amplitude.lead_in_threshold_db, -10.0);
     assert_eq!(override_params.parallelism, 2);
-    assert_ne!(params.amplitude.lead_in_threshold_db, override_params.amplitude.lead_in_threshold_db);
+    assert_ne!(
+        params.amplitude.lead_in_threshold_db,
+        override_params.amplitude.lead_in_threshold_db
+    );
     assert_ne!(params.parallelism, override_params.parallelism);
 }

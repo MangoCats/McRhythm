@@ -1,0 +1,32 @@
+= * 100
+Phase 1 Validation Test - All 9 Failed Albums
+= * 100
+
+Output directory: phase1_test_results_20260106_221711
+Music root: C:\Users\Mango Cat\Music
+
+Checking files...
+  All 9 files found
+
+Building album matcher...
+  Build successful
+
+= * 100
+TESTING ALBUMS
+= * 100
+
+[1/9] Testing: John Mayall - A Hard Road
+  File: Mayall, John\AHardRoad.mp3
+  Expected: SHOULD_MATCH
+  Reason: Artist suffix normalization
+  Extension: Extension 1 (normalization)
+  Running matcher...
+  Result: FAILED
+  Expectation: NOT MET (unexpected)
+
+[2/9] Testing: The Go-Go's - Beauty And The Beat
+  File: Go Gos, The\BeautyAndTheBeat.mp3
+  Expected: SHOULD_MATCH
+  Reason: Prefix + punctuation normalization
+  Extension: Extension 1 (normalization)
+  Running matcher...

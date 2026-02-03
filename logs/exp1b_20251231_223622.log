@@ -1,0 +1,18 @@
+[2025-12-31 22:36:22] [INFO] === Starting Experiment: exp1b ===
+[2025-12-31 22:36:22] [INFO] Branch: exp1b-floor-neg0.3
+[2025-12-31 22:36:22] [INFO] Working directory: C:\Users\Mango Cat\Dev\McRhythm
+[2025-12-31 22:36:22] [INFO] Current branch: exp1a-floor-0.0
+[2025-12-31 22:36:22] [INFO] Creating branch: exp1b-floor-neg0.3
+[2025-12-31 22:36:22] [INFO] Applying code changes...
+[2025-12-31 22:36:22] [INFO]   Modifying: wkmp-ai\src\matching\editions\scoring.rs
+[2025-12-31 22:36:22] [WARN] WARNING: Old text not found in wkmp-ai\src\matching\editions\scoring.rs
+[2025-12-31 22:36:22] [WARN]   Looking for: const MIN_QUALITY_FLOOR: f64 = -1.0;    // Negative penalty for catastrophic failures
+[2025-12-31 22:36:22] [INFO]     Changed: 'const MIN_QUALITY_FLOOR: f64 = -1.0;    // Negative penalty for catastrophic failures' -> 'const MIN_QUALITY_FLOOR: f64 = -0.3;    // Reduced negative floor - softer penalty'
+[2025-12-31 22:36:22] [INFO] Building release binary...
+[2025-12-31 22:36:42] [ERROR] ERROR: Build failed -     Blocking waiting for file lock on package cache
+[2025-12-31 22:36:42] [ERROR] FATAL ERROR:     Blocking waiting for file lock on package cache
+[2025-12-31 22:36:42] [ERROR] Stack trace: at <ScriptBlock>, C:\Users\Mango Cat\Dev\McRhythm\scripts\run_experiment.ps1: line 113
+at Invoke-SafeCommand, C:\Users\Mango Cat\Dev\McRhythm\scripts\run_experiment.ps1: line 46
+at <ScriptBlock>, C:\Users\Mango Cat\Dev\McRhythm\scripts\run_experiment.ps1: line 112
+at <ScriptBlock>, <No file>: line 5
+[2025-12-31 22:36:49] [ERROR] Failed to return to original branch

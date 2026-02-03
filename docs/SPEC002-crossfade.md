@@ -63,7 +63,7 @@ operation to take place.
   6. **[XFD-PT-060] End Time**: End of passage audio
 
   - **[XFD-PT-070] Lead-In/Lead-Out**: Define when this passage plays simultaneously with adjacent passages
-  - **[XFD-PT-080] Fade-In/Fade-Out**: Define volume envelope (independent of simultaneous playback)
+  - **[XFD-PT-080] Fade-In/Fade-Out**: Define volume envelope time end-points (independent of simultaneous playback)
 
 **Database storage:** All timing points stored as INTEGER ticks (not seconds). See [SPEC017 Database Storage](SPEC017-sample_rate_conversion.md#database-storage) for field definitions ([SRC-DB-011] through [SRC-DB-016]).
 

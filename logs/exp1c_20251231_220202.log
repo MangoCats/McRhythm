@@ -1,0 +1,8 @@
+[2025-12-31 22:02:02] [INFO] === Starting Experiment: exp1c ===
+[2025-12-31 22:02:02] [INFO] Branch: exp1c-floor-neg0.5
+[2025-12-31 22:02:02] [INFO] Current branch: exp1b-floor-neg0.3
+[2025-12-31 22:02:02] [INFO] Creating branch: exp1c-floor-neg0.5
+[2025-12-31 22:02:09] [ERROR] FATAL ERROR: fatal: a branch named 'exp1c-floor-neg0.5' already exists
+[2025-12-31 22:02:09] [ERROR] Stack trace: at <ScriptBlock>, C:\Users\Mango Cat\Dev\McRhythm\scripts\run_experiment.ps1: line 68
+at <ScriptBlock>, <No file>: line 5
+[2025-12-31 22:02:16] [ERROR] Failed to return to original branch
