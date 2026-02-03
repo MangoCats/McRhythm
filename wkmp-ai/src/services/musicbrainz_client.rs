@@ -836,6 +836,95 @@ impl MusicBrainzClient {
         Ok(details)
     }
 
+    /// Album-only search (artist-relaxed fallback)
+    ///
+    /// Used as fallback when primary search fails due to MusicBrainz artist credit
+    /// differing from file metadata (e.g., "Disney" vs "Lin-Manuel Miranda" for Moana,
+    /// "Jessita Reyes" vs "Various Artists" for Native American Flute Lullabies).
+    ///
+    /// Searches by album title only, ignoring artist constraint. Uses per-release
+    /// detail caching when a database pool is provided.
+    pub async fn album_only_search(
+        &self,
+        album: &str,
+        limit: Option<usize>,
+        pool: Option<&sqlx::SqlitePool>,
+    ) -> Result<Vec<MBReleaseDetails>, MBError> {
+        let limit = limit.unwrap_or(25);
+
+        let query = format!("type:album AND release:\"{}\"", escape_lucene(album));
+
+        tracing::info!(
+            album = %album,
+            query = %query,
+            "Album-only fallback search (artist-relaxed)"
+        );
+
+        let search_response = self.search_releases(&query, Some(limit as u32)).await?;
+
+        tracing::info!(
+            album = %album,
+            found = search_response.releases.len(),
+            "Album-only search returned results"
+        );
+
+        let mut all_releases = Vec::new();
+        let mut seen_mbids = std::collections::HashSet::new();
+
+        for release in search_response.releases {
+            if !seen_mbids.insert(release.id.clone()) {
+                continue;
+            }
+
+            // Try detail cache first
+            if let Some(p) = pool {
+                if let Ok(Some(cached)) =
+                    crate::db::release_cache::get_details_cached(p, &release.id).await
+                {
+                    if let Ok(details) = serde_json::from_str::<MBReleaseDetails>(&cached.details_json) {
+                        all_releases.push(details);
+                        if all_releases.len() >= limit {
+                            break;
+                        }
+                        continue;
+                    }
+                }
+            }
+
+            // Cache miss — fetch from API
+            match self.lookup_release(&release.id).await {
+                Ok(details) => {
+                    // Cache the result if pool available
+                    if let Some(p) = pool {
+                        if let Ok(json) = serde_json::to_string(&details) {
+                            let _ = crate::db::release_cache::cache_details(p, &release.id, &json).await;
+                        }
+                    }
+                    all_releases.push(details);
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        release_id = %release.id,
+                        error = %e,
+                        "Fallback: failed to fetch release details, skipping"
+                    );
+                }
+            }
+
+            if all_releases.len() >= limit {
+                break;
+            }
+        }
+
+        tracing::info!(
+            album = %album,
+            found = all_releases.len(),
+            "Album-only fallback search completed"
+        );
+
+        Ok(all_releases)
+    }
+
     /// Search releases and return basic search response
     ///
     /// **[PLAN030]** Wrapper returning MBSearchResponse type used by matching module.

@@ -22,8 +22,9 @@ use tracing::{debug, info, warn};
 
 use super::constants::{
     DEFAULT_MIN_DURATION_SECS, DEFAULT_THRESHOLD_DB, EARLY_EXIT_GRACE_PERIOD_SECS,
-    MATCH_TOLERANCE_SECS, MAX_NAME_DISTANCE_RANK, MIN_ARTIST_SIMILARITY, MIN_DURATION_VALUES,
-    STAGE4_PENALTY_PERCENT, THRESHOLD_VALUES,
+    FALLBACK_SEARCH_LIMIT, LAST_TRACK_ERROR_THRESHOLD, MATCH_TOLERANCE_SECS,
+    MAX_NAME_DISTANCE_RANK, MIN_ARTIST_SIMILARITY, MIN_DURATION_VALUES,
+    NAME_OVERRIDE_LOW_THRESHOLD, STAGE4_PENALTY_PERCENT, THRESHOLD_VALUES,
 };
 use super::editions::{
     calculate_name_distance, filter_and_sort_editions, filter_editions_by_artist,
@@ -796,7 +797,7 @@ impl AlbumMatcher {
             .count();
 
         // **[Top-5 Ranking]** Generate ranked candidates with passage comparison tables
-        let ranked_candidates = super::orchestrator::rank_top_candidates(
+        let mut ranked_candidates = super::orchestrator::rank_top_candidates(
             &result.stage_results,
             self.config.match_tolerance_secs,
             5, // Top 5 candidates
@@ -807,6 +808,110 @@ impl AlbumMatcher {
         // and the winner shows suspicious indicators (Stage4 last-track overflow
         // or very low name score), override to the better-named candidate.
         super::orchestrator::apply_name_sanity_check(&mut result, &ranked_candidates);
+
+        // **[PLAN031]** Artist-relaxed fallback search
+        // If primary result is suspicious, try album-only search without artist constraint.
+        // Addresses MusicBrainz artist credit mismatches (e.g., "Disney" vs "Lin-Manuel Miranda").
+        let should_try_fallback = if !result.success {
+            true
+        } else {
+            let last_track_error = result.track_errors.last().copied().unwrap_or(0.0);
+            let winner_name_score = ranked_candidates.first()
+                .map(|c| c.name_score)
+                .unwrap_or(0.0);
+            last_track_error > LAST_TRACK_ERROR_THRESHOLD
+                || winner_name_score < NAME_OVERRIDE_LOW_THRESHOLD
+        };
+
+        if should_try_fallback {
+            info!(
+                artist = %artist,
+                album = %album,
+                primary_success = result.success,
+                "Trying artist-relaxed fallback search"
+            );
+
+            let fallback_releases = self.mb_client
+                .album_only_search(&album, Some(FALLBACK_SEARCH_LIMIT), self.db_pool.as_ref())
+                .await;
+
+            if let Ok(releases) = fallback_releases {
+                if !releases.is_empty() {
+                    let fallback_editions = group_into_editions(&releases);
+
+                    // Skip artist filter — that's the purpose of fallback
+                    let fallback_editions = filter_and_sort_editions(
+                        fallback_editions,
+                        &artist,
+                        &album,
+                        MAX_NAME_DISTANCE_RANK,
+                        Some(detected_track_count),
+                    );
+                    let fallback_editions = filter_editions_by_file_duration(
+                        fallback_editions,
+                        file_duration_ms,
+                    );
+
+                    // Deduplicate: remove editions already tested in primary run
+                    let primary_mbids: std::collections::HashSet<&str> =
+                        editions.iter().map(|e| e.release_mbid.as_str()).collect();
+                    let fallback_editions: Vec<_> = fallback_editions
+                        .into_iter()
+                        .filter(|e| !primary_mbids.contains(e.release_mbid.as_str()))
+                        .collect();
+
+                    if !fallback_editions.is_empty() {
+                        info!(
+                            new_editions = fallback_editions.len(),
+                            "Fallback found new editions, running orchestration"
+                        );
+
+                        let fallback_result = run_orchestration(
+                            &silence_cache,
+                            &rms_profile,
+                            &samples,
+                            total_samples,
+                            &fallback_editions,
+                            &orchestrator_config,
+                        );
+
+                        if fallback_result.success {
+                            let fallback_name = fallback_result.matched_edition.as_ref()
+                                .map(|e| calculate_name_distance(&e.artist, &e.title, &artist, &album))
+                                .unwrap_or(0.0);
+                            let original_name = result.matched_edition.as_ref()
+                                .map(|e| calculate_name_distance(&e.artist, &e.title, &artist, &album))
+                                .unwrap_or(0.0);
+
+                            let use_fallback = if !result.success {
+                                true
+                            } else {
+                                fallback_name > original_name
+                            };
+
+                            if use_fallback {
+                                info!(
+                                    fallback_album = fallback_result.matched_edition.as_ref()
+                                        .map(|e| e.title.as_str()).unwrap_or("?"),
+                                    fallback_match_pct = %format!("{:.1}%", fallback_result.match_percentage),
+                                    fallback_name_score = %format!("{:.4}", fallback_name),
+                                    original_name_score = %format!("{:.4}", original_name),
+                                    "Using fallback result (better name match)"
+                                );
+                                result = fallback_result;
+                                // Regenerate ranked candidates for the fallback result
+                                ranked_candidates = super::orchestrator::rank_top_candidates(
+                                    &result.stage_results,
+                                    self.config.match_tolerance_secs,
+                                    5,
+                                    file_duration_ms,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         let album_result = AlbumMatchResult {
             matched: result.success,

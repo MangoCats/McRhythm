@@ -255,6 +255,27 @@ pub const MB_MAX_RELEASES: usize = 150;
 pub const MAX_NAME_DISTANCE_RANK: usize = 50;
 
 // =============================================================================
+// Duration Filtering Constants
+// =============================================================================
+
+/// Minimum duration ratio for edition filtering (80%)
+/// Allows file to be up to 20% longer than edition's total duration.
+/// Lowered from 85% to 80% to capture borderline cases like
+/// Guardians of the Galaxy (84.95% ratio, rejected at 85%).
+pub const MIN_DURATION_RATIO: f64 = 0.80;
+
+/// Maximum duration ratio for edition filtering (125%)
+/// Rejects editions whose total duration exceeds 125% of file duration.
+pub const MAX_DURATION_RATIO: f64 = 1.25;
+
+// =============================================================================
+// Artist-Relaxed Fallback Search
+// =============================================================================
+
+/// Maximum releases to fetch in album-only fallback search
+pub const FALLBACK_SEARCH_LIMIT: usize = 25;
+
+// =============================================================================
 // Match Confidence Thresholds
 // =============================================================================
 

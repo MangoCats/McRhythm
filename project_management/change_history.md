@@ -6,6 +6,37 @@
 
 ---
 
+## 2026-02-03 08:37:09 -0500
+
+**Album Matching: Duration Filter Widening + Artist-Relaxed Fallback Search**
+
+Implements two strategies to fix albums rejected during edition filtering:
+
+**Strategy B — Duration Filter Widening:**
+- `MIN_DURATION_RATIO` changed from 85% to 80% in constants.rs
+- Allows borderline editions like Guardians of the Galaxy (84.95% ratio)
+- filtering.rs now imports constants instead of local values
+
+**Strategy A — Artist-Relaxed Fallback Search:**
+- New `album_only_search()` method in musicbrainz_client.rs (~90 lines)
+- Searches MusicBrainz by album title only, bypassing artist constraint
+- Addresses mismatches like "Disney" vs "Lin-Manuel Miranda" (Moana)
+- Triggers when: no match, last track error >60s, or name_score <0.60
+- Deduplicates against primary editions before orchestration
+- Uses fallback if better name_score (prioritizes name accuracy)
+
+**New constants in constants.rs:**
+- `MIN_DURATION_RATIO: f64 = 0.80`
+- `MAX_DURATION_RATIO: f64 = 1.25`
+- `FALLBACK_SEARCH_LIMIT: usize = 25`
+
+**Regression test (200 albums):** 0 regressions, 3 fixes
+- NativeAmericanFluteLullabies: 93.8% → 100% (fallback)
+- LiveAtTheAncienneBelgique: newly matched
+- TheGreatestShowman: newly matched
+
+---
+
 ## Instructions
 
 This file is automatically maintained by the `/commit` workflow. Each commit appends:

@@ -191,8 +191,8 @@ pub fn filter_and_sort_editions(
 /// - Whether edition passed or was filtered
 ///
 /// # Threshold Rationale
-/// - <85%: Edition too short (reject - missing tracks or wrong file)
-/// - 85-125%: Acceptable range (hidden tracks, padding, metadata errors)
+/// - <80%: Edition too short (reject - missing tracks or wrong file)
+/// - 80-125%: Acceptable range (hidden tracks, padding, metadata errors)
 /// - >125%: Impossible (reject - wrong edition, e.g., box set vs standard album)
 ///
 /// # Arguments
@@ -207,8 +207,7 @@ pub fn filter_editions_by_file_duration(
 ) -> Vec<Edition> {
     use tracing::debug;
 
-    const MIN_DURATION_RATIO: f64 = 0.85; // 85% - allow for truncated files
-    const MAX_DURATION_RATIO: f64 = 1.25; // 125% - allow for bonus content
+    use crate::matching::constants::{MIN_DURATION_RATIO, MAX_DURATION_RATIO};
 
     editions
         .into_iter()
