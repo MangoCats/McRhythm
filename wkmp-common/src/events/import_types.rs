@@ -224,3 +224,98 @@ pub enum FileState {
     /// File skipped due to no audio content
     NoAudio,
 }
+
+// =============================================================================
+// Analysis Log Types (PLAN032 - Real-Time Analysis Log UI)
+// =============================================================================
+
+/// **[PLAN032]** Detailed log message for UI display during import analysis
+///
+/// Provides timestamped, filterable log entries for album matching results,
+/// AcousticBrainz lookups, and other analysis events.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalysisLogEntry {
+    /// When this log entry was created
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    /// Current file index (1-based) in the import batch
+    pub file_index: u32,
+    /// Total files in the import batch
+    pub total_files: u32,
+    /// File path being processed
+    pub file_path: String,
+    /// Type of log message (for filtering)
+    pub message_type: AnalysisLogType,
+    /// Human-readable message
+    pub message: String,
+    /// Optional structured details
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<AnalysisLogDetails>,
+}
+
+/// **[PLAN032]** Log message type for filtering
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AnalysisLogType {
+    /// General informational message
+    Info,
+    /// Successful operation
+    Success,
+    /// Warning (non-fatal issue)
+    Warning,
+    /// Error (operation failed)
+    Error,
+    /// Album matching result
+    AlbumMatch,
+    /// AcousticBrainz/Essentia flavor lookup
+    FlavorLookup,
+}
+
+/// **[PLAN032]** Structured details for specific log types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum AnalysisLogDetails {
+    /// Album matching result with track-by-track timing errors
+    AlbumMatch {
+        /// Matched album title
+        album_title: String,
+        /// Matched artist name
+        artist: String,
+        /// Match percentage (0-100)
+        match_percentage: f64,
+        /// Number of tracks in the matched edition
+        track_count: u32,
+        /// Per-track timing errors
+        track_errors: Vec<TrackTimingError>,
+    },
+    /// Flavor lookup result (per passage/song)
+    FlavorLookup {
+        /// Passage index within file (1-based)
+        passage_index: u32,
+        /// Total passages in file
+        passage_total: u32,
+        /// Song title if known
+        #[serde(skip_serializing_if = "Option::is_none")]
+        song_title: Option<String>,
+        /// Source of flavor data ("AcousticBrainz", "Essentia", "PreExisting")
+        source: String,
+        /// Whether lookup succeeded
+        success: bool,
+        /// MusicBrainz recording ID if found
+        #[serde(skip_serializing_if = "Option::is_none")]
+        recording_mbid: Option<String>,
+    },
+}
+
+/// **[PLAN032]** Track timing error for album match details
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrackTimingError {
+    /// Track number (1-based)
+    pub track_number: u32,
+    /// Track title
+    pub track_title: String,
+    /// Expected duration from MusicBrainz (seconds)
+    pub expected_duration_secs: f64,
+    /// Detected duration from silence analysis (seconds)
+    pub detected_duration_secs: f64,
+    /// Timing error (detected - expected, seconds)
+    pub error_secs: f64,
+}

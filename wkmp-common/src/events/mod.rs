@@ -12,8 +12,9 @@ mod shared_types;
 pub use playback_types::{BufferStatus, DecoderState, FadeStage, PlaybackState};
 pub use queue_types::{EnqueueSource, QueueChangeTrigger, UserActionType};
 pub use import_types::{
-    AnalyzedPassageInfo, FileProcessingStatus, FileState, PhaseProgressData, PhaseStatistics,
-    PhaseStatusData, RecordedPassageInfo, SubTaskData, WorkerActivity,
+    AnalysisLogDetails, AnalysisLogEntry, AnalysisLogType, AnalyzedPassageInfo,
+    FileProcessingStatus, FileState, PhaseProgressData, PhaseStatistics, PhaseStatusData,
+    RecordedPassageInfo, SubTaskData, TrackTimingError, WorkerActivity,
 };
 pub use shared_types::{BufferChainInfo, PlaybackPositionInfo, QueueEntryInfo};
 
@@ -897,6 +898,17 @@ pub enum WkmpEvent {
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
+    /// **[PLAN032]** Analysis log entry for real-time UI feedback
+    ///
+    /// Provides detailed, timestamped log entries during import analysis:
+    /// - Album matching results with track-by-track timing errors
+    /// - AcousticBrainz/Essentia flavor lookups per passage
+    /// - General info/warning/error messages
+    ///
+    /// Triggers:
+    /// - SSE: Append to scrolling log panel in import-progress UI
+    AnalysisLog(AnalysisLogEntry),
+
     /// **[PLAN020 Phase 5]** Watchdog intervention occurred
     ///
     /// Emitted when watchdog safety net must intervene due to event system failure.
@@ -981,6 +993,8 @@ impl WkmpEvent {
             WkmpEvent::ImportSessionCompleted { .. } => "ImportSessionCompleted",
             WkmpEvent::ImportSessionFailed { .. } => "ImportSessionFailed",
             WkmpEvent::ImportSessionCancelled { .. } => "ImportSessionCancelled",
+            // **[PLAN032]** Analysis log for real-time UI feedback
+            WkmpEvent::AnalysisLog(_) => "AnalysisLog",
             // **[PLAN020 Phase 5]** Watchdog monitoring event
             WkmpEvent::WatchdogIntervention { .. } => "WatchdogIntervention",
         }

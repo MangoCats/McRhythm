@@ -994,6 +994,43 @@ impl Pipeline {
                 })
                 .await;
 
+                // **[PLAN032]** Emit analysis log with track-by-track details
+                let track_errors: Vec<wkmp_common::events::TrackTimingError> = result
+                    .tracks
+                    .iter()
+                    .map(|t| wkmp_common::events::TrackTimingError {
+                        track_number: t.track_number as u32,
+                        track_title: t.title.clone(),
+                        expected_duration_secs: t.expected_duration,
+                        detected_duration_secs: t.detected_duration,
+                        error_secs: t.detected_duration - t.expected_duration,
+                    })
+                    .collect();
+
+                self.emit_event(WorkflowEvent::AnalysisLogEvent(
+                    wkmp_common::events::AnalysisLogEntry {
+                        timestamp: chrono::Utc::now(),
+                        file_index: 1,  // TODO: Pass from workflow orchestrator
+                        total_files: 1, // TODO: Pass from workflow orchestrator
+                        file_path: file_path.to_string_lossy().to_string(),
+                        message_type: wkmp_common::events::AnalysisLogType::AlbumMatch,
+                        message: format!(
+                            "Album matched: {} - {} ({:.1}%)",
+                            result.matched_artist.as_deref().unwrap_or("Unknown"),
+                            result.matched_album.as_deref().unwrap_or("Unknown"),
+                            result.match_percentage
+                        ),
+                        details: Some(wkmp_common::events::AnalysisLogDetails::AlbumMatch {
+                            album_title: result.matched_album.clone().unwrap_or_default(),
+                            artist: result.matched_artist.clone().unwrap_or_default(),
+                            match_percentage: result.match_percentage,
+                            track_count: result.tracks.len() as u32,
+                            track_errors,
+                        }),
+                    },
+                ))
+                .await;
+
                 // Step 3: Convert to passages (Increment 4)
                 self.convert_album_to_passages(file_path, result).await
             }
@@ -1010,6 +1047,20 @@ impl Pipeline {
                     reason: reason.clone(),
                     timestamp: chrono::Utc::now().timestamp(),
                 })
+                .await;
+
+                // **[PLAN032]** Emit warning log for failed match
+                self.emit_event(WorkflowEvent::AnalysisLogEvent(
+                    wkmp_common::events::AnalysisLogEntry {
+                        timestamp: chrono::Utc::now(),
+                        file_index: 1,  // TODO: Pass from workflow orchestrator
+                        total_files: 1, // TODO: Pass from workflow orchestrator
+                        file_path: file_path.to_string_lossy().to_string(),
+                        message_type: wkmp_common::events::AnalysisLogType::Warning,
+                        message: format!("Album not matched: {}", reason),
+                        details: None,
+                    },
+                ))
                 .await;
 
                 if self.config.album_match_fallback {

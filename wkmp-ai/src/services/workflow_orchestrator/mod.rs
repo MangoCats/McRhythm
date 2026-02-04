@@ -2269,6 +2269,61 @@ impl WorkflowOrchestrator {
             .fetch_flavors(file_path, &recording_result.passages)
             .await?;
 
+        // **[PLAN032]** Emit FlavorLookup analysis log events for each song
+        let passage_total = flavor_result.songs.len() as u32;
+        for (idx, song_result) in flavor_result.songs.iter().enumerate() {
+            // Query song title and recording_mbid from database
+            let song_info: Option<(String, String)> = sqlx::query_as(
+                "SELECT title, recording_mbid FROM songs WHERE guid = ?"
+            )
+            .bind(song_result.song_id.to_string())
+            .fetch_optional(&self.db)
+            .await?;
+
+            let (song_title, recording_mbid) = song_info
+                .map(|(t, m)| (Some(t), Some(m)))
+                .unwrap_or((None, None));
+
+            let source_str = song_result.flavor_source.as_str();
+            let message = if song_result.success {
+                format!(
+                    "Flavor fetched from {} for: {}",
+                    source_str,
+                    song_title.as_deref().unwrap_or("Unknown")
+                )
+            } else {
+                format!(
+                    "Flavor lookup failed for: {}",
+                    song_title.as_deref().unwrap_or("Unknown")
+                )
+            };
+
+            let log_type = if song_result.success {
+                wkmp_common::events::AnalysisLogType::Success
+            } else {
+                wkmp_common::events::AnalysisLogType::Warning
+            };
+
+            self.event_bus.emit_lossy(WkmpEvent::AnalysisLog(
+                wkmp_common::events::AnalysisLogEntry {
+                    timestamp: chrono::Utc::now(),
+                    file_index: file_index as u32,
+                    total_files: 1, // TODO: Pass from batch orchestration
+                    file_path: file_path.to_string_lossy().to_string(),
+                    message_type: log_type,
+                    message,
+                    details: Some(wkmp_common::events::AnalysisLogDetails::FlavorLookup {
+                        passage_index: idx as u32 + 1,
+                        passage_total,
+                        song_title,
+                        source: source_str.to_string(),
+                        success: song_result.success,
+                        recording_mbid,
+                    }),
+                },
+            ));
+        }
+
         tracing::info!(
             phase = "Flavor Fetching",
             duration_ms = phase9_start.elapsed().as_millis(),
@@ -2614,6 +2669,61 @@ impl WorkflowOrchestrator {
         let flavor_result = passage_flavor_fetcher
             .fetch_flavors(file_path, &recording_result.passages)
             .await?;
+
+        // **[PLAN032]** Emit FlavorLookup analysis log events for each song (single-song path)
+        let passage_total = flavor_result.songs.len() as u32;
+        for (idx, song_result) in flavor_result.songs.iter().enumerate() {
+            // Query song title and recording_mbid from database
+            let song_info: Option<(String, String)> = sqlx::query_as(
+                "SELECT title, recording_mbid FROM songs WHERE guid = ?"
+            )
+            .bind(song_result.song_id.to_string())
+            .fetch_optional(&self.db)
+            .await?;
+
+            let (song_title, recording_mbid) = song_info
+                .map(|(t, m)| (Some(t), Some(m)))
+                .unwrap_or((None, None));
+
+            let source_str = song_result.flavor_source.as_str();
+            let message = if song_result.success {
+                format!(
+                    "Flavor fetched from {} for: {}",
+                    source_str,
+                    song_title.as_deref().unwrap_or("Unknown")
+                )
+            } else {
+                format!(
+                    "Flavor lookup failed for: {}",
+                    song_title.as_deref().unwrap_or("Unknown")
+                )
+            };
+
+            let log_type = if song_result.success {
+                wkmp_common::events::AnalysisLogType::Success
+            } else {
+                wkmp_common::events::AnalysisLogType::Warning
+            };
+
+            self.event_bus.emit_lossy(WkmpEvent::AnalysisLog(
+                wkmp_common::events::AnalysisLogEntry {
+                    timestamp: chrono::Utc::now(),
+                    file_index: file_index as u32,
+                    total_files: 1, // TODO: Pass from batch orchestration
+                    file_path: file_path.to_string_lossy().to_string(),
+                    message_type: log_type,
+                    message,
+                    details: Some(wkmp_common::events::AnalysisLogDetails::FlavorLookup {
+                        passage_index: idx as u32 + 1,
+                        passage_total,
+                        song_title,
+                        source: source_str.to_string(),
+                        success: song_result.success,
+                        recording_mbid,
+                    }),
+                },
+            ));
+        }
 
         tracing::info!(
             phase = "Flavor Fetching",

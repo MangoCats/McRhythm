@@ -252,4 +252,7 @@ pub enum WorkflowEvent {
         /// Unix timestamp (seconds since epoch)
         timestamp: i64,
     },
+
+    /// **[PLAN032]** Analysis log entry for real-time UI feedback
+    AnalysisLogEvent(wkmp_common::events::AnalysisLogEntry),
 }

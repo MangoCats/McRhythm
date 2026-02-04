@@ -421,9 +421,12 @@ mod tests {
 
     #[test]
     fn test_early_exit_with_grace() {
-        let edition1 = create_test_edition(3, &[180000, 240000, 200000]); // Perfect match
-        let edition2 = create_test_edition(3, &[100000, 200000, 300000]); // No match
-        let edition3 = create_test_edition(3, &[100000, 200000, 300000]); // No match
+        // **[PERF-OPT-002]** Perfect match must NOT be at index 0 to test grace period.
+        // First-edition perfect matches bypass grace period (strict early exit optimization).
+        let edition1 = create_test_edition(3, &[100000, 200000, 300000]); // No match (index 0)
+        let edition2 = create_test_edition(3, &[180000, 240000, 200000]); // Perfect match (index 1)
+        let edition3 = create_test_edition(3, &[100000, 200000, 300000]); // No match (index 2)
+        let edition4 = create_test_edition(3, &[100000, 200000, 300000]); // No match (index 3)
 
         let cache = create_test_silence_cache(vec![180.0, 240.0, 200.0]);
         let sample_rate = 44100u32;
@@ -435,10 +438,36 @@ mod tests {
             min_acceptable_percentage: 80.0,
         };
 
+        let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition1, edition2, edition3, edition4], 10.0, &early_exit);
+
+        // Should have tested 3 editions: edition1 (no match), edition2 (perfect), edition3 (grace)
+        // edition4 should NOT be tested (grace period exhausted)
+        assert_eq!(results.len(), 3);
+    }
+
+    #[test]
+    fn test_first_edition_perfect_match_bypasses_grace() {
+        // **[PERF-OPT-002]** Document that first-edition 100% match exits immediately,
+        // bypassing grace period regardless of grace_editions setting.
+        let edition1 = create_test_edition(3, &[180000, 240000, 200000]); // Perfect match at index 0
+        let edition2 = create_test_edition(3, &[100000, 200000, 300000]); // No match
+        let edition3 = create_test_edition(3, &[100000, 200000, 300000]); // No match
+
+        let cache = create_test_silence_cache(vec![180.0, 240.0, 200.0]);
+        let sample_rate = 44100u32;
+        let audio_samples = create_test_audio_samples(620.0, sample_rate);
+
+        let early_exit = EarlyExitConfig {
+            enabled: true,
+            grace_editions: 5, // Even with high grace, should exit immediately
+            min_acceptable_percentage: 80.0,
+        };
+
         let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition1, edition2, edition3], 10.0, &early_exit);
 
-        // Should have tested 2 editions (1 perfect + 1 grace)
-        assert_eq!(results.len(), 2);
+        // Only 1 result: first-edition perfect match bypasses grace period
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].best_percentage, 100.0);
     }
 
     #[test]

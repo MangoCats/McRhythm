@@ -62,7 +62,8 @@ pub async fn import_event_stream(
                         | WkmpEvent::ImportProgressUpdate { .. }
                         | WkmpEvent::ImportSessionCompleted { .. }
                         | WkmpEvent::ImportSessionFailed { .. }
-                        | WkmpEvent::ImportSessionCancelled { .. } => {
+                        | WkmpEvent::ImportSessionCancelled { .. }
+                        | WkmpEvent::AnalysisLog(_) => {
                             let event_type = event.event_type();
 
                             match serde_json::to_string(&event) {

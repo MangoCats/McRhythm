@@ -489,6 +489,94 @@ pub async fn import_progress_page() -> impl IntoResponse {
         .file-status-item:last-child {{
             border-bottom: none;
         }}
+
+        /* **[PLAN032]** Analysis Log Panel */
+        .analysis-log {{
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #3a3a3a;
+            display: none;
+        }}
+        .analysis-log h2 {{
+            margin-top: 0;
+            color: #4a9eff;
+            margin-bottom: 15px;
+        }}
+        .log-controls {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+            align-items: center;
+        }}
+        .log-controls label {{
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #b0b0b0;
+        }}
+        .log-controls input[type="checkbox"] {{
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }}
+        .log-clear-btn {{
+            padding: 5px 12px;
+            background: #3a3a3a;
+            border: 1px solid #4a4a4a;
+            color: #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }}
+        .log-clear-btn:hover {{
+            background: #4a4a4a;
+        }}
+        .log-entries {{
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #3a3a3a;
+        }}
+        .log-entry {{
+            margin: 4px 0;
+            line-height: 1.5;
+            padding: 2px 0;
+        }}
+        .log-entry .timestamp {{
+            color: #888;
+            margin-right: 8px;
+        }}
+        .log-entry .file-index {{
+            color: #4a9eff;
+            margin-right: 8px;
+        }}
+        .log-entry.info {{ color: #ccc; }}
+        .log-entry.success {{ color: #4caf50; }}
+        .log-entry.warning {{ color: #ff9800; }}
+        .log-entry.error {{ color: #f44336; }}
+        .log-entry.albummatch {{ color: #8bc34a; }}
+        .log-entry.flavorlookup {{ color: #00bcd4; }}
+        .track-details {{
+            margin-left: 140px;
+            color: #999;
+            font-size: 11px;
+            line-height: 1.4;
+        }}
+        .track-error {{
+            color: #ff9800;
+        }}
+        .track-ok {{
+            color: #4caf50;
+        }}
     </style>
 </head>
 <body>
@@ -565,6 +653,22 @@ pub async fn import_progress_page() -> impl IntoResponse {
     <div class="phase-statistics" id="phase-statistics" style="display: none;">
         <h2>Phase Statistics</h2>
         <div id="phase-statistics-container"></div>
+    </div>
+
+    <!-- **[PLAN032]** Analysis Log Panel -->
+    <div class="analysis-log" id="analysis-log">
+        <h2>Analysis Log</h2>
+        <div class="log-controls" id="log-controls">
+            <label><input type="checkbox" id="log-autoscroll" checked> Auto-scroll</label>
+            <label><input type="checkbox" id="log-show-info" checked> Info</label>
+            <label><input type="checkbox" id="log-show-success" checked> Success</label>
+            <label><input type="checkbox" id="log-show-warning" checked> Warnings</label>
+            <label><input type="checkbox" id="log-show-error" checked> Errors</label>
+            <label><input type="checkbox" id="log-show-albummatch" checked> Album Match</label>
+            <label><input type="checkbox" id="log-show-flavorlookup" checked> Flavor</label>
+            <button class="log-clear-btn" onclick="clearAnalysisLog()">Clear</button>
+        </div>
+        <div class="log-entries" id="log-entries"></div>
     </div>
 
     <p><a href="/">← Back to Home</a></p>

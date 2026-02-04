@@ -478,6 +478,12 @@ pub async fn bridge_workflow_events(
                     timestamp: Utc::now(),
                 })
             }
+
+            // **[PLAN032]** Forward analysis log entries directly
+            WorkflowEvent::AnalysisLogEvent(entry) => {
+                debug!("Bridge: Analysis log event: {:?}", entry.message_type);
+                Some(WkmpEvent::AnalysisLog(entry))
+            }
         };
 
         // Broadcast to EventBus

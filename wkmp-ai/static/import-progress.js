@@ -321,6 +321,18 @@ function connectSSE() {
 
         eventSource.close();
     });
+
+    // **[PLAN032]** Handle analysis log events
+    eventSource.addEventListener('AnalysisLog', (e) => {
+        const event = JSON.parse(e.data);
+        handleAnalysisLog(event);
+
+        // Show log panel on first entry
+        const panel = document.getElementById('analysis-log');
+        if (panel && panel.style.display === 'none') {
+            panel.style.display = 'block';
+        }
+    });
 }
 
 // REQ-AIA-UI-001 through REQ-AIA-UI-005: Update all UI sections
@@ -931,4 +943,158 @@ window.addEventListener('beforeunload', () => {
         clearInterval(workerUpdateInterval);
         workerUpdateInterval = null;
     }
+});
+
+// =============================================================================
+// **[PLAN032]** Analysis Log Functions
+// =============================================================================
+
+const MAX_LOG_ENTRIES = 500;
+let analysisLogEntries = [];
+
+/**
+ * Handle incoming AnalysisLog SSE event
+ * @param {Object} entry - The AnalysisLogEntry object
+ */
+function handleAnalysisLog(entry) {
+    analysisLogEntries.push(entry);
+
+    // Trim old entries
+    if (analysisLogEntries.length > MAX_LOG_ENTRIES) {
+        analysisLogEntries = analysisLogEntries.slice(-MAX_LOG_ENTRIES);
+        // Also trim DOM if too many entries
+        const container = document.getElementById('log-entries');
+        if (container && container.children.length > MAX_LOG_ENTRIES) {
+            while (container.children.length > MAX_LOG_ENTRIES) {
+                container.removeChild(container.firstChild);
+            }
+        }
+    }
+
+    appendLogEntry(entry);
+}
+
+/**
+ * Append a log entry to the DOM
+ * @param {Object} entry - The AnalysisLogEntry object
+ */
+function appendLogEntry(entry) {
+    const container = document.getElementById('log-entries');
+    if (!container) return;
+
+    // Convert message type to lowercase CSS class (e.g., "AlbumMatch" -> "albummatch")
+    const typeClass = entry.message_type.toLowerCase();
+
+    // Check filter checkbox
+    const checkbox = document.getElementById(`log-show-${typeClass}`);
+    if (checkbox && !checkbox.checked) return;
+
+    const div = document.createElement('div');
+    div.className = `log-entry ${typeClass}`;
+    div.dataset.messageType = typeClass;
+
+    // Format timestamp HH:MM:SS
+    const ts = new Date(entry.timestamp);
+    const timestamp = ts.toLocaleTimeString('en-US', { hour12: false });
+
+    // File index X/Y
+    const fileIndex = `[${entry.file_index}/${entry.total_files}]`;
+
+    div.innerHTML = `
+        <span class="timestamp">${timestamp}</span>
+        <span class="file-index">${fileIndex}</span>
+        <span class="message">${escapeHtml(entry.message)}</span>
+    `;
+
+    // Add track details for album matches
+    if (entry.details && entry.details.type === 'AlbumMatch') {
+        const match = entry.details;
+        const trackDetails = document.createElement('div');
+        trackDetails.className = 'track-details';
+
+        let trackHtml = match.track_errors.map(t => {
+            const errClass = Math.abs(t.error_secs) > 5 ? 'track-error' : 'track-ok';
+            const sign = t.error_secs >= 0 ? '+' : '';
+            return `<div class="${errClass}">
+                Track ${t.track_number}: ${escapeHtml(t.track_title)}
+                (expected ${formatDuration(t.expected_duration_secs)},
+                detected ${formatDuration(t.detected_duration_secs)},
+                error: ${sign}${t.error_secs.toFixed(1)}s)
+            </div>`;
+        }).join('');
+
+        trackDetails.innerHTML = trackHtml;
+        div.appendChild(trackDetails);
+    }
+
+    container.appendChild(div);
+
+    // Auto-scroll if enabled
+    const autoScrollCheckbox = document.getElementById('log-autoscroll');
+    if (autoScrollCheckbox && autoScrollCheckbox.checked) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+/**
+ * Format duration in seconds to MM:SS
+ * @param {number} secs - Duration in seconds
+ * @returns {string} Formatted duration
+ */
+function formatDuration(secs) {
+    const mins = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${mins}:${s.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Escape HTML special characters
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Clear the analysis log
+ */
+function clearAnalysisLog() {
+    analysisLogEntries = [];
+    const container = document.getElementById('log-entries');
+    if (container) container.innerHTML = '';
+}
+
+/**
+ * Refresh log display based on current filter settings
+ * Called when filter checkboxes change
+ */
+function refreshLogDisplay() {
+    const container = document.getElementById('log-entries');
+    if (!container) return;
+
+    // Clear and re-render all entries with current filters
+    container.innerHTML = '';
+    analysisLogEntries.forEach(entry => appendLogEntry(entry));
+}
+
+// Attach filter checkbox event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    const filterCheckboxes = [
+        'log-show-info',
+        'log-show-success',
+        'log-show-warning',
+        'log-show-error',
+        'log-show-albummatch',
+        'log-show-flavorlookup'
+    ];
+
+    filterCheckboxes.forEach(id => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) {
+            checkbox.addEventListener('change', refreshLogDisplay);
+        }
+    });
 });

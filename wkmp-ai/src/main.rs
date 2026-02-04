@@ -237,7 +237,7 @@ async fn run_async(
                 let idle = pool.num_idle();
                 let in_use = state.saturating_sub(idle);
 
-                tracing::info!(
+                tracing::debug!(
                     pool_size = state,
                     idle_connections = idle,
                     in_use_connections = in_use,
