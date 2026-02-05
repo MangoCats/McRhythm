@@ -666,7 +666,11 @@ let thread_count = match read_setting("ai_processing_thread_count") {
   - Elapsed: Server-side based on `start_time.elapsed()`
   - Remaining: Server-side based on `(total - current) / processing_rate`
 - **Fallback:** `"Estimating..."` shown until sufficient data for rate calculation
-- **Implementation:** `import-progress.js:362-368`, `formatSeconds:616-624`
+- **Update Frequency:** Per [REQ-IPD-020]:
+  - **[REQ-IPD-021]** Elapsed time updates at least every 15 seconds
+  - **[REQ-IPD-022]** Estimated remaining updates at least every 60 seconds
+  - **[REQ-IPD-023]** Updates independent of per-file progress events
+- **Implementation:** `import-progress.js:362-368`, `formatSeconds:616-624`, `ProgressManager::spawn_time_update_task`
 
 #### Section 6: Phase Statistics (PLAN024)
 - **Purpose:** Detailed phase-specific metrics (implements the "13 UI progress sections" via dynamic display)

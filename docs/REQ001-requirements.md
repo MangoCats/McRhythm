@@ -544,6 +544,23 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 > **See [UI Specification - Network Status Indicators](SPEC009-ui_specification.md#network-status-indicators) for complete status display design.**
 > **See [Architecture - Network Error Handling](SPEC001-architecture.md#network-error-handling) for retry algorithm and connection handling.**
 
+### Import Progress Display
+
+**[REQ-IPD-010]** Import progress UI provides real-time feedback during audio file import (Full version only)
+- **[REQ-IPD-011]** Display elapsed time since import started
+- **[REQ-IPD-012]** Display estimated remaining time based on processing rate
+- **[REQ-IPD-013]** Display current file being processed
+- **[REQ-IPD-014]** Display overall progress (files completed / total files)
+
+**[REQ-IPD-020]** Time display update frequency requirements
+- **[REQ-IPD-021]** Elapsed time counter MUST update at least once every 15 seconds
+- **[REQ-IPD-022]** Estimated remaining time calculation MUST update at least once every 60 seconds
+- **[REQ-IPD-023]** Updates MUST occur regardless of file processing activity (independent of per-file progress events)
+
+**Rationale:** Users expect time displays to update regularly even during long-running operations on individual files. Static time displays create perception that the import is frozen.
+
+> **See [Audio Ingest Architecture - Section 5: Time Estimates](SPEC032-audio_ingest_architecture.md#section-5-time-estimates-req-aia-ui-005) for implementation design.**
+
 ### Playback State
 
 > **Technical Specification**: See [Event System - PlaybackState Enum](SPEC011-event_system.md#playbackstate-enum) for complete technical definition and event handling details.

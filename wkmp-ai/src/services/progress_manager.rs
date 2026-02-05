@@ -18,6 +18,9 @@
 //! - [REQ-PERF-002] Decouple SSE from database operations
 //! - [REQ-PERF-005] Maintain <10 second data loss window
 //! - [REQ-PERF-006] Real-time progress updates via SSE
+//! - [REQ-IPD-021] Elapsed time updates at least every 15 seconds
+//! - [REQ-IPD-022] Estimated remaining updates at least every 60 seconds
+//! - [REQ-IPD-023] Updates independent of file processing activity
 
 use anyhow::Result;
 use chrono::Utc;
@@ -120,6 +123,9 @@ impl ProgressManager {
         // **[PLAN028 Increment 2]** Spawn background sync task
         manager.spawn_sync_task();
 
+        // **[PLAN033]** Spawn time update task for periodic elapsed/remaining time broadcasts
+        manager.spawn_time_update_task();
+
         manager
     }
 
@@ -171,6 +177,117 @@ impl ProgressManager {
                     }
                     _ = cancel_token.cancelled() => {
                         tracing::debug!("Background sync task cancelled");
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    /// Spawn background time update task
+    ///
+    /// **[PLAN033]** Periodic time display updates
+    /// **[REQ-IPD-021]** Elapsed time updates at least every 15 seconds
+    /// **[REQ-IPD-022]** Estimated remaining updates at least every 60 seconds
+    /// **[REQ-IPD-023]** Updates independent of file processing activity
+    ///
+    /// Task runs every 15 seconds and broadcasts SSE with updated time values.
+    /// Every 4th tick (60 seconds), recalculates estimated remaining time.
+    fn spawn_time_update_task(&self) {
+        let state = self.state.clone();
+        let event_bus = self.event_bus.clone();
+        let cancel_token = self.cancel_token.clone();
+
+        tokio::spawn(async move {
+            // 15-second interval for elapsed time updates [REQ-IPD-021]
+            let mut ticker = interval(Duration::from_secs(15));
+            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+            // Counter to track 60-second intervals for estimated remaining [REQ-IPD-022]
+            let mut tick_count: u32 = 0;
+
+            loop {
+                tokio::select! {
+                    _ = ticker.tick() => {
+                        tick_count = tick_count.wrapping_add(1);
+
+                        // Recalculate estimated remaining every 4th tick (60 seconds)
+                        let recalculate_estimate = tick_count % 4 == 0;
+
+                        // Build and broadcast SSE event
+                        let (
+                            session_id,
+                            state_str,
+                            current,
+                            total,
+                            percentage,
+                            current_operation,
+                            current_file,
+                            phase_statistics,
+                            elapsed_seconds,
+                            estimated_remaining_seconds,
+                        ) = {
+                            let s = state.read();
+                            let elapsed = s.start_time.elapsed().as_secs();
+                            let percentage = if s.files_total > 0 {
+                                (s.files_processed as f32 / s.files_total as f32) * 100.0
+                            } else {
+                                0.0
+                            };
+
+                            // Calculate estimated remaining time [REQ-IPD-022]
+                            let estimated = if recalculate_estimate
+                                && s.files_processed > 0
+                                && s.files_total > s.files_processed
+                                && elapsed > 0
+                            {
+                                let throughput = s.files_processed as f64 / elapsed as f64;
+                                let remaining_files = s.files_total - s.files_processed;
+                                Some((remaining_files as f64 / throughput) as u64)
+                            } else {
+                                None
+                            };
+
+                            (
+                                s.session_id,
+                                s.state.clone(),
+                                s.files_processed,
+                                s.files_total,
+                                percentage,
+                                s.current_operation.clone(),
+                                s.current_file.clone(),
+                                s.phase_statistics.clone(),
+                                elapsed,
+                                estimated,
+                            )
+                        };
+
+                        // Emit SSE event [REQ-IPD-023] - independent of progress updates
+                        let event = WkmpEvent::ImportProgressUpdate {
+                            session_id,
+                            state: state_str,
+                            current,
+                            total,
+                            percentage,
+                            current_operation,
+                            elapsed_seconds,
+                            estimated_remaining_seconds,
+                            phases: Vec::new(),
+                            current_file,
+                            phase_statistics,
+                            timestamp: Utc::now(),
+                        };
+
+                        event_bus.emit_lossy(event);
+
+                        tracing::trace!(
+                            elapsed_seconds,
+                            ?estimated_remaining_seconds,
+                            "Time update broadcast"
+                        );
+                    }
+                    _ = cancel_token.cancelled() => {
+                        tracing::debug!("Time update task cancelled");
                         break;
                     }
                 }
@@ -260,6 +377,7 @@ impl ProgressManager {
             current_file,
             phase_statistics,
             elapsed_seconds,
+            estimated_remaining_seconds,
         ) = {
             let state = self.state.read();
             let elapsed = state.start_time.elapsed().as_secs();
@@ -267,6 +385,18 @@ impl ProgressManager {
                 (state.files_processed as f32 / state.files_total as f32) * 100.0
             } else {
                 0.0
+            };
+
+            // Calculate estimated remaining time based on throughput
+            let estimated = if state.files_processed > 0
+                && state.files_total > state.files_processed
+                && elapsed > 0
+            {
+                let throughput = state.files_processed as f64 / elapsed as f64;
+                let remaining_files = state.files_total - state.files_processed;
+                Some((remaining_files as f64 / throughput) as u64)
+            } else {
+                None
             };
 
             (
@@ -279,6 +409,7 @@ impl ProgressManager {
                 state.current_file.clone(),
                 state.phase_statistics.clone(),
                 elapsed,
+                estimated,
             )
         };
 
@@ -291,7 +422,7 @@ impl ProgressManager {
             percentage,
             current_operation,
             elapsed_seconds,
-            estimated_remaining_seconds: None, // TODO: Calculate based on throughput
+            estimated_remaining_seconds,
             phases: Vec::new(), // TODO: Convert phase_statistics to PhaseProgressData
             current_file,
             phase_statistics,
