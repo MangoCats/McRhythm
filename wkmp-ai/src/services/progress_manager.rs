@@ -19,7 +19,6 @@
 //! - [REQ-PERF-005] Maintain <10 second data loss window
 //! - [REQ-PERF-006] Real-time progress updates via SSE
 
-use crate::models::ImportSession;
 use anyhow::Result;
 use chrono::Utc;
 use parking_lot::RwLock;

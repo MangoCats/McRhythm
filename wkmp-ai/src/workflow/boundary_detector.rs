@@ -417,7 +417,7 @@ fn detect_boundaries_with_audio_sync(file_path: &Path) -> Result<FileAudioData> 
         let rms = calculate_rms_energy(&window_buffer);
         let is_silent = rms < SILENCE_THRESHOLD;
         if is_silent && silence_start.is_none() {
-            silence_start = Some(window_count);
+            let _ = silence_start.insert(window_count);
         } else if !is_silent && silence_start.is_some() {
             // Silence ends in final partial window
             let start = silence_start.unwrap();
@@ -428,7 +428,7 @@ fn detect_boundaries_with_audio_sync(file_path: &Path) -> Result<FileAudioData> 
                 silence_regions.push((start_sample, end_sample));
             }
         }
-        window_count += 1;
+        // window_count not used after this point
     }
 
     // Convert silence regions to passage boundaries (SPEC017 ticks)

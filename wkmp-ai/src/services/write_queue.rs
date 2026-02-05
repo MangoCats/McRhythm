@@ -21,7 +21,6 @@
 use crate::models::ImportSession;
 use anyhow::Result;
 use sqlx::SqlitePool;
-use std::collections::VecDeque;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
@@ -37,18 +36,25 @@ const MAX_QUEUE_DEPTH: usize = 1000;
 pub enum WriteOperation {
     /// Save or update an import session
     SaveSession {
+        /// Session to persist
         session: ImportSession,
+        /// Channel for operation result
         response_tx: oneshot::Sender<Result<()>>,
     },
     /// Record multiple passages in a batch
     RecordPassages {
+        /// Passage data to insert
         passages: Vec<PassageData>,
+        /// Channel for created passage UUIDs
         response_tx: oneshot::Sender<Result<Vec<Uuid>>>,
     },
     /// Update file processing status
     UpdateFileStatus {
+        /// File UUID to update
         file_id: Uuid,
+        /// New status string
         status: String,
+        /// Channel for operation result
         response_tx: oneshot::Sender<Result<()>>,
     },
     /// Shutdown the writer task
@@ -60,9 +66,13 @@ pub enum WriteOperation {
 /// **[REQ-PERF-007]** Simplified passage data for batching
 #[derive(Debug, Clone)]
 pub struct PassageData {
+    /// Source file UUID
     pub file_id: Uuid,
+    /// Passage start time in seconds
     pub start_seconds: f64,
+    /// Passage end time in seconds
     pub end_seconds: f64,
+    /// Associated song UUID if identified
     pub song_id: Option<Uuid>,
     // Additional fields as needed for passage creation
 }

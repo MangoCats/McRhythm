@@ -44,25 +44,46 @@ impl FallbackStrategy {
 #[derive(Debug, Clone)]
 pub enum FallbackReason {
     /// No MusicBrainz candidates found for search query
-    NoCandidates { query: String },
+    NoCandidates {
+        /// Search query that yielded no results
+        query: String,
+    },
     /// MusicBrainz API returned an error
-    ApiError { error: String },
+    ApiError {
+        /// Error message from the API
+        error: String,
+    },
     /// Artist verification failed (similarity below threshold)
     ArtistVerificationFailed {
+        /// Artist name from file metadata
         expected: String,
+        /// Artist name from MusicBrainz
         found: String,
+        /// Computed similarity score (0.0-1.0)
         similarity: f64,
     },
     /// All matching stages exhausted without valid match
-    AllStagesExhausted { stages_tried: usize },
+    AllStagesExhausted {
+        /// Number of matching stages attempted
+        stages_tried: usize,
+    },
     /// File too short for meaningful analysis
-    FileTooShort { duration_secs: f64 },
+    FileTooShort {
+        /// File duration in seconds
+        duration_secs: f64,
+    },
     /// Metadata extraction failed
-    MetadataExtractionFailed { error: String },
+    MetadataExtractionFailed {
+        /// Error description
+        error: String,
+    },
     /// Single track detected in expected album
     SingleTrackDetected,
     /// Audio decoding failed
-    DecodingFailed { error: String },
+    DecodingFailed {
+        /// Decoding error description
+        error: String,
+    },
 }
 
 impl FallbackReason {

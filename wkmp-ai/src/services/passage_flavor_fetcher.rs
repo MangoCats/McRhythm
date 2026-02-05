@@ -41,6 +41,7 @@ pub enum FlavorSource {
 }
 
 impl FlavorSource {
+    /// Convert to display string
     pub fn as_str(&self) -> &'static str {
         match self {
             FlavorSource::AcousticBrainz => "AcousticBrainz",

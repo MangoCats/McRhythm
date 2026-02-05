@@ -145,7 +145,7 @@ impl EvaluationMetrics {
 
 /// A single classified result for tracking
 #[derive(Debug, Clone)]
-struct ClassifiedResult {
+pub struct ClassifiedResult {
     classification: Classification,
     confidence: Option<f64>,
     processing_time_ms: u64,

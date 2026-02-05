@@ -30,14 +30,12 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::SqlitePool;
-use tokio::sync::Semaphore;
-use tracing::{debug, error, info, warn};
+use tracing::info;
 
 use super::ground_truth::{self, GroundTruth, VerificationMethod};
 use super::types::Classification;

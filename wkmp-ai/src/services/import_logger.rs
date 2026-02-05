@@ -11,6 +11,7 @@ use uuid::Uuid;
 /// Passage information for import logging
 #[derive(Debug, FromRow)]
 struct PassageInfo {
+    #[allow(dead_code)] // Required for FromRow derive
     #[sqlx(rename = "guid")]
     passage_id: String,
     start_seconds: f64,

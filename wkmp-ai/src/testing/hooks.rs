@@ -39,33 +39,52 @@ use serde::{Deserialize, Serialize};
 pub enum ImportEvent {
     /// Result of identity fusion (multi-source MBID resolution)
     FusionResult {
+        /// SHA-256 hash of the file
         file_hash: String,
+        /// Resolved MusicBrainz recording ID if found
         assigned_mbid: Option<String>,
+        /// Confidence score (0.0-1.0)
         confidence: f64,
+        /// List of sources consulted (e.g., "acoustid", "musicbrainz")
         sources_consulted: Vec<String>,
+        /// ISO 8601 timestamp of the event
         timestamp: String,
     },
     /// Result of content type classification
     Classification {
+        /// SHA-256 hash of the file
         file_hash: String,
+        /// Detected content type (e.g., "single_song", "full_album")
         content_type: String,
+        /// Classification confidence (0.0-1.0)
         confidence: f64,
+        /// ISO 8601 timestamp of the event
         timestamp: String,
     },
     /// File processing completed
     ProcessingComplete {
+        /// SHA-256 hash of the file
         file_hash: String,
+        /// Whether processing succeeded
         success: bool,
+        /// Error description if failed
         error_message: Option<String>,
+        /// Total processing time in milliseconds
         duration_ms: u64,
+        /// ISO 8601 timestamp of the event
         timestamp: String,
     },
     /// API call made during processing
     ApiCall {
+        /// SHA-256 hash of the file being processed
         file_hash: String,
+        /// Name of the API called (e.g., "acoustid", "musicbrainz")
         api_name: String,
+        /// Whether the API call succeeded
         success: bool,
+        /// API response time in milliseconds
         latency_ms: u64,
+        /// ISO 8601 timestamp of the event
         timestamp: String,
     },
 }

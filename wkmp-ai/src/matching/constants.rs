@@ -138,17 +138,29 @@ pub const SINGLE_TRACK_SCORE_THRESHOLD: f64 = 1.5;
 /// ID3 track total threshold (if total > this, definitely single track)
 pub const SINGLE_TRACK_ID3_TOTAL_THRESHOLD: u32 = 1;
 
-// Single-track layer scores
+// Single-track layer scores (positive = single-track indicator, negative = album indicator)
+
+/// Score for filename matching track number pattern (e.g., "01 - Track.mp3")
 pub const SCORE_FILENAME_PATTERN: f64 = 1.0;
+/// Score when directory has many audio files (album indicator)
 pub const SCORE_DIR_FILES_HIGH: f64 = 0.8;
+/// Score when directory has moderate files
 pub const SCORE_DIR_FILES_MEDIUM: f64 = 0.3;
+/// Score when directory has single audio file
 pub const SCORE_DIR_FILES_SINGLE: f64 = -0.5;
+/// Score when ID3 track/total metadata present
 pub const SCORE_ID3_TRACK_TOTAL: f64 = 1.0;
+/// Score when only track number (no total) present
 pub const SCORE_ID3_TRACK_NUMBER_ONLY: f64 = 0.4;
+/// Score for short duration (<8 min typical single)
 pub const SCORE_DURATION_SHORT: f64 = 0.7;
+/// Score for ambiguous duration range
 pub const SCORE_DURATION_SUSPICIOUS: f64 = 0.4;
+/// Score for album-length duration (>20 min)
 pub const SCORE_DURATION_ALBUM_LENGTH: f64 = -0.3;
+/// Score when few silence gaps detected (single-track indicator)
 pub const SCORE_SILENCE_GAPS_FEW: f64 = 1.0;
+/// Score when many silence gaps detected (album indicator)
 pub const SCORE_SILENCE_GAPS_MANY: f64 = -0.5;
 
 /// Minimum segment duration threshold for near-zero artifact filtering.

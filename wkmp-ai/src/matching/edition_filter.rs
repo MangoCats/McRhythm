@@ -27,7 +27,6 @@
 //! - **REQ-EF-050:** Remix track error tolerance (up to 120s)
 
 use crate::matching::types::Edition;
-use std::collections::HashSet;
 
 /// **[REQ-EF-010, REQ-EF-020]** Penalty multiplier for deluxe editions
 ///

@@ -19,7 +19,9 @@ pub enum HashResult {
     Unique(String),
     /// Duplicate hash found - stop processing, link to original
     Duplicate {
+        /// SHA-256 hash that matched
         hash: String,
+        /// UUID of the original file with this hash
         original_file_id: Uuid,
     },
 }

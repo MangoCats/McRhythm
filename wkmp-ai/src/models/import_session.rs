@@ -82,9 +82,13 @@ pub struct FileClassification {
     /// When scan completed (classification finalized)
     pub scan_completed_at: Option<DateTime<Utc>>,
     /// **[AIA-CLASSIFY-040]** Verification statistics
+    /// Audio files with extension+magic bytes confirmed
     pub audio_confirmed: usize,
+    /// Audio files where magic bytes denied extension claim
     pub audio_denied: usize,
+    /// Image files with extension+magic bytes confirmed
     pub image_confirmed: usize,
+    /// Image files where magic bytes denied extension claim
     pub image_denied: usize,
 }
 

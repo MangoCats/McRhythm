@@ -23,6 +23,7 @@ pub use grouping::group_into_editions;
 pub use scoring::{analyze_track_matching, score_edition_match};
 
 // PLAN027 Edition Selection functions
+#[allow(deprecated)] // Re-export deprecated function for backwards compatibility
 pub use scoring::{
     calculate_edition_score, calculate_total_duration_score, calculate_total_duration_score_validated,
     calculate_track_count_penalty, calculate_track_quality_score, select_best_edition, EditionCandidate,

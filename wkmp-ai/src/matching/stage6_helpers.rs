@@ -8,15 +8,20 @@ use crate::matching::types::MatchedTrack;
 /// Cascade pattern (2+ consecutive tracks with >30s errors)
 #[derive(Debug)]
 pub struct CascadePattern {
+    /// First track in the cascade sequence
     pub start_track: usize,
+    /// Number of consecutive tracks in the cascade
     pub count: usize,
 }
 
 /// Complementary error pair (one track over, next under by similar amount)
 #[derive(Debug)]
 pub struct ComplementaryPair {
+    /// Index of the first track in the pair
     pub track_index: usize,
+    /// Timing error of the first track (seconds)
     pub error1: f64,
+    /// Timing error of the second track (seconds)
     pub error2: f64,
 }
 

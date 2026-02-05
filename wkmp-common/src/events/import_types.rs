@@ -10,12 +10,18 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "phase_name")]
 pub enum PhaseStatistics {
+    /// Directory scanning phase statistics
     #[serde(rename = "SCANNING")]
     Scanning {
+        /// Number of potential audio files discovered
         potential_files_found: usize,
+        /// Whether scanning is still in progress
         is_scanning: bool,
+        /// Audio files found by extension
         audio_files: usize,
+        /// Image files found by extension
         image_files: usize,
+        /// Other (non-audio, non-image) files found
         other_files: usize,
         /// Total files discovered (sum of all file types)
         total_files: usize,
@@ -34,10 +40,14 @@ pub enum PhaseStatistics {
         /// Files with misleading extension (extension says one thing, magic bytes say another)
         misleading_extension: usize,
     },
+    /// Per-file processing phase statistics
     #[serde(rename = "PROCESSING")]
     Processing {
+        /// Files that completed all processing phases
         completed: usize,
+        /// Files that have started processing
         started: usize,
+        /// Total files to process
         total: usize,
         /// **[AIA-UI-010]** Real-time worker activity tracking
         workers: Vec<WorkerActivity>,
@@ -46,60 +56,94 @@ pub enum PhaseStatistics {
         /// List of files that have started or completed processing
         files: Vec<FileProcessingStatus>,
     },
+    /// Filename pattern matching phase statistics
     #[serde(rename = "FILENAME_MATCHING")]
     FilenameMatching {
+        /// Filenames successfully matched to known patterns
         completed_filenames_found: usize,
     },
+    /// SHA-256 hash deduplication phase statistics
     #[serde(rename = "HASHING")]
     Hashing {
+        /// Files hashed so far
         hashes_computed: usize,
+        /// Duplicate hash matches found
         matches_found: usize,
     },
+    /// Metadata extraction phase statistics
     #[serde(rename = "EXTRACTING")]
     Extracting {
+        /// Files with metadata successfully extracted
         successful_extractions: usize,
+        /// Files where extraction failed
         failures: usize,
     },
+    /// Silence-based segmentation phase statistics
     #[serde(rename = "SEGMENTING")]
     Segmenting {
+        /// Files segmented so far
         files_processed: usize,
+        /// Candidate passages detected from silence analysis
         potential_passages: usize,
+        /// Passages after boundary refinement
         finalized_passages: usize,
+        /// Unique songs identified across passages
         songs_identified: usize,
     },
+    /// Chromaprint/AcoustID fingerprinting phase statistics
     #[serde(rename = "FINGERPRINTING")]
     Fingerprinting {
+        /// Passages with generated fingerprints
         passages_fingerprinted: usize,
+        /// Fingerprints matched via AcoustID
         successful_matches: usize,
     },
+    /// MusicBrainz song matching phase statistics
     #[serde(rename = "SONG_MATCHING")]
     SongMatching {
+        /// Songs matched with high confidence (>=80%)
         high_confidence: usize,
+        /// Songs matched with medium confidence (60-80%)
         medium_confidence: usize,
+        /// Songs matched with low confidence (40-60%)
         low_confidence: usize,
+        /// Songs with no confident match (<40%)
         no_confidence: usize,
     },
+    /// Passage recording phase statistics
     #[serde(rename = "RECORDING")]
     Recording {
+        /// Passages written to database
         recorded_passages: Vec<RecordedPassageInfo>,
     },
+    /// Amplitude analysis phase statistics
     #[serde(rename = "AMPLITUDE")]
     Amplitude {
+        /// Passages with computed lead-in/lead-out timing
         analyzed_passages: Vec<AnalyzedPassageInfo>,
     },
+    /// Musical flavor vector retrieval phase statistics
     #[serde(rename = "FLAVORING")]
     Flavoring {
+        /// Songs with pre-existing flavor data
         pre_existing: usize,
+        /// Flavors fetched from AcousticBrainz API
         acousticbrainz: usize,
+        /// Flavors computed locally via Essentia
         essentia: usize,
+        /// Songs where flavor lookup failed
         failed: usize,
     },
+    /// Passage completion summary statistics
     #[serde(rename = "PASSAGES_COMPLETE")]
     PassagesComplete {
+        /// Total passages fully processed
         passages_completed: usize,
     },
+    /// File completion summary statistics
     #[serde(rename = "FILES_COMPLETE")]
     FilesComplete {
+        /// Total files fully processed
         files_completed: usize,
     },
 }
@@ -107,16 +151,22 @@ pub enum PhaseStatistics {
 /// Recorded passage information for RECORDING phase
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecordedPassageInfo {
+    /// Song title if identified, None otherwise
     pub song_title: Option<String>,
+    /// Source file path (relative to root folder)
     pub file_path: String,
 }
 
 /// Analyzed passage information for AMPLITUDE phase
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalyzedPassageInfo {
+    /// Song title if identified, None otherwise
     pub song_title: Option<String>,
+    /// Total passage duration in seconds
     pub passage_length_seconds: f64,
+    /// Milliseconds of silence/quiet before music starts
     pub lead_in_ms: u64,
+    /// Milliseconds of silence/quiet after music ends
     pub lead_out_ms: u64,
 }
 

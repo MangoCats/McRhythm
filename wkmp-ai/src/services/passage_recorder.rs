@@ -12,8 +12,7 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use wkmp_common::{Error, Result};
 
-use super::passage_segmenter::PassageBoundary;
-use super::passage_song_matcher::{ConfidenceLevel, PassageSongMatch};
+use super::passage_song_matcher::PassageSongMatch;
 
 /// Recording result for a passage
 #[derive(Debug, Clone)]

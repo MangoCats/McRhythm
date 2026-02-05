@@ -69,7 +69,7 @@ impl WorkflowOrchestrator {
 
         let root_folder = session.root_folder.clone();
         let scan_stats = Arc::clone(&self.statistics.scanning);
-        let event_bus = self.event_bus.clone();
+        let _event_bus = self.event_bus.clone(); // Scaffolded for future SSE events
         let session_clone = session.clone();
 
         let classification = tokio::task::spawn_blocking(move || {

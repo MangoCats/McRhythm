@@ -157,6 +157,46 @@ impl WkmpAiBootstrapConfig {
             .parse()
             .context("Invalid ai_database_max_lock_wait_ms (must be integer 500-30000)")?;
 
+        // Enforce minimum safe values to prevent cascading lock failures
+        // (PLAN031 emergency values of 300ms/5000ms caused 14 file failures and 20-min waits)
+        let connection_pool_size = if connection_pool_size < 4 {
+            tracing::warn!(
+                "ai_database_connection_pool_size={} below minimum 4, clamping to 4",
+                connection_pool_size
+            );
+            4
+        } else if connection_pool_size > 200 {
+            tracing::warn!(
+                "ai_database_connection_pool_size={} above maximum 200, clamping to 200",
+                connection_pool_size
+            );
+            200
+        } else {
+            connection_pool_size
+        };
+
+        let lock_retry_ms = if lock_retry_ms < 1000 {
+            tracing::warn!(
+                "ai_database_lock_retry_ms={} below minimum 1000ms, clamping to 1000ms \
+                (values below 1000ms cause cascading lock failures)",
+                lock_retry_ms
+            );
+            1000
+        } else {
+            lock_retry_ms
+        };
+
+        let max_lock_wait_ms = if max_lock_wait_ms < 10000 {
+            tracing::warn!(
+                "ai_database_max_lock_wait_ms={} below minimum 10000ms, clamping to 10000ms \
+                (values below 10000ms exhaust retry budget before transactions complete)",
+                max_lock_wait_ms
+            );
+            10000
+        } else {
+            max_lock_wait_ms
+        };
+
         // Thread count: NULL triggers auto-detection
         let thread_count_opt: Option<String> = row
             .try_get("thread_count")
@@ -392,14 +432,14 @@ mod tests {
         .unwrap();
 
         sqlx::query(
-            "INSERT INTO settings (key, value) VALUES ('ai_database_lock_retry_ms', '500')",
+            "INSERT INTO settings (key, value) VALUES ('ai_database_lock_retry_ms', '2000')",
         )
         .execute(&init_pool)
         .await
         .unwrap();
 
         sqlx::query(
-            "INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '10000')",
+            "INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '15000')",
         )
         .execute(&init_pool)
         .await
@@ -412,14 +452,14 @@ mod tests {
 
         init_pool.close().await;
 
-        // Bootstrap should read custom values
+        // Bootstrap should read custom values (above minimum thresholds)
         let config = WkmpAiBootstrapConfig::from_database(&db_path)
             .await
             .unwrap();
 
         assert_eq!(config.connection_pool_size, 64);
-        assert_eq!(config.lock_retry_ms, 500);
-        assert_eq!(config.max_lock_wait_ms, 10000);
+        assert_eq!(config.lock_retry_ms, 2000);
+        assert_eq!(config.max_lock_wait_ms, 15000);
         assert_eq!(config.processing_thread_count, 8);
     }
 

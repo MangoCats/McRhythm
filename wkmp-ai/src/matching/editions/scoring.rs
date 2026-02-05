@@ -142,12 +142,19 @@ use std::cmp::Ordering;
 /// **[PLAN027]** Used for edition selection with multi-factor scoring
 #[derive(Debug, Clone)]
 pub struct EditionCandidate {
+    /// MusicBrainz release ID
     pub mbid: String,
+    /// Album/release title
     pub title: String,
+    /// Number of tracks in this edition
     pub track_count: usize,
+    /// Total duration in milliseconds
     pub total_duration_ms: u64,
+    /// Per-track durations in seconds
     pub track_durations_secs: Vec<f64>,
+    /// Jaro-Winkler similarity to query name (0.0-1.0)
     pub name_similarity: f64,
+    /// Final weighted score (0.0-1.0)
     pub score: f64,
 }
 

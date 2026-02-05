@@ -13,7 +13,7 @@ use parking_lot::RwLock;
 use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 /// Manages database connection pool with performance monitoring
 ///

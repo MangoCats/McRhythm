@@ -4,6 +4,9 @@
 //!
 //! **Traceability:** [wkmp-ai_refinement.md] UI Statistics Requirements
 
+// Display methods are scaffolded for UI integration (PLAN024 Phase 2)
+#![allow(dead_code)]
+
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 

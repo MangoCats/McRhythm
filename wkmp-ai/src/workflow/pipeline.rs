@@ -405,6 +405,7 @@ impl Pipeline {
     ///
     /// # Returns
     /// * Processed passage with fusion and validation results
+    #[allow(dead_code)] // Scaffolded for legacy pipeline compatibility
     #[deprecated(note = "Use process_passage_with_audio() to avoid re-decoding audio")]
     async fn process_passage(
         &self,
@@ -556,6 +557,7 @@ impl Pipeline {
     }
 
     /// Phase 1: Run all enabled extractors (deprecated)
+    #[allow(dead_code)] // Scaffolded for legacy pipeline compatibility
     #[deprecated(note = "Use extract_with_audio() to avoid re-decoding audio")]
     async fn extract(
         &self,

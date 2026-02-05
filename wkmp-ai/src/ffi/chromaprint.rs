@@ -79,7 +79,12 @@ pub enum ChromaprintError {
 
     /// Audio buffer length not divisible by channel count
     #[error("Buffer misalignment: {buffer_len} samples not divisible by {channels} channels (file may have decode errors)")]
-    BufferMisalignment { buffer_len: usize, channels: u8 },
+    BufferMisalignment {
+        /// Total samples in the buffer
+        buffer_len: usize,
+        /// Expected channel count (1 or 2)
+        channels: u8,
+    },
 
     /// Failed to start fingerprinting session
     #[error("Failed to start fingerprinting")]

@@ -28,7 +28,6 @@ use crate::services::{
 };
 use anyhow::Result;
 use chrono::Utc;
-use futures::stream::{FuturesUnordered, StreamExt};
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -40,6 +39,7 @@ mod phase_scanning;
 mod statistics;
 
 /// Command for state transitions (event task → main task communication)
+#[allow(dead_code)] // Scaffolded for future event-based state machine
 #[derive(Debug, Clone)]
 enum StateCommand {
     /// Transition to new import state
@@ -65,6 +65,7 @@ struct SegmentBoundary {
 }
 
 /// Workflow orchestrator service
+#[allow(dead_code)] // Some fields scaffolded for future pipeline integration
 pub struct WorkflowOrchestrator {
     db: SqlitePool,
     event_bus: EventBus,
@@ -1656,6 +1657,7 @@ impl WorkflowOrchestrator {
 
     /// **[AIA-UI-010]** Update worker activity with passage timing (for passage-level phases)
     /// **[PLAN031 Task 2.5]** Made async for tokio::sync::RwLock
+    #[allow(dead_code)] // Scaffolded for fine-grained passage-level UI tracking
     async fn set_worker_phase_with_passage(
         &self,
         file_path: &std::path::Path,

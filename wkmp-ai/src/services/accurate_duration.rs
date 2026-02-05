@@ -15,7 +15,7 @@
 //! - Cache lookup: ~1ms
 //! - Lofty metadata: ~50ms but often wrong for VBR MP3s
 
-use crate::db::duration_cache::{self, CachedDuration, DurationMethod};
+use crate::db::duration_cache::{self, DurationMethod};
 use crate::utils::audio_decoder::decode_audio_file;
 use anyhow::{Context, Result};
 use sqlx::SqlitePool;

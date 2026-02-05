@@ -17,7 +17,7 @@
 //! - Multiple sources with different MBIDs → conflict (no boost)
 //! - Single source → use base confidence (no agreement data)
 
-use crate::matching::{assign_tier, ConfidenceTier};
+use crate::matching::ConfidenceTier;
 use crate::types::{
     FusedIdentity, Fusion, FusionError, FusionResult, IdentityExtraction, MetadataExtraction,
 };

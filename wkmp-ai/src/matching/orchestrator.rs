@@ -13,12 +13,10 @@
 
 use crate::matching::{
     editions::{
-        calculate_edition_score, calculate_total_duration_score,
-        calculate_total_duration_score_validated, calculate_track_count_penalty,
-        calculate_track_quality_score, score_edition_match,
+        calculate_edition_score, calculate_total_duration_score_validated,
+        calculate_track_count_penalty, calculate_track_quality_score, score_edition_match,
     },
     stages::{
-        apply_refinement_to_durations,
         stage2::{run_stage2, stage2_success, EarlyExitConfig, Stage2Result},
         stage3::{run_stage3, stage3_success, Stage3Result},
         stage4::{run_stage4, stage4_success, RmsProfile, Stage4Result},
@@ -121,6 +119,7 @@ impl Default for OrchestratorConfig {
 ///
 /// # Returns
 /// Multi-factor score (0.0-1.0)
+#[allow(deprecated)] // Uses deprecated calculate_total_duration_score - validated version requires file_total_ms not available here
 fn calculate_multi_factor_score(
     detected_durations: &[f64],
     edition: &Edition,
@@ -128,9 +127,12 @@ fn calculate_multi_factor_score(
     tolerance_secs: f64,
 ) -> f64 {
     // Calculate total duration score (REQ-AM-093)
+    // Note: Uses deprecated version without file validation - validated version not usable
+    // without API changes to pass file_total_ms through calling chain
     let detected_total_ms = (detected_durations.iter().sum::<f64>() * 1000.0) as u64;
     let edition_total_ms: u64 = edition.durations.iter().map(|&x| x as u64).sum();
-    let duration_score = calculate_total_duration_score(detected_total_ms, edition_total_ms);
+    #[allow(deprecated)]
+    let duration_score = crate::matching::editions::calculate_total_duration_score(detected_total_ms, edition_total_ms);
 
     // Calculate match percentage score (BUG FIX: prioritize match percentage)
     let match_percentage = score_edition_match(detected_durations, &edition.durations, tolerance_secs);
