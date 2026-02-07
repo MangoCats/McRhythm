@@ -21,6 +21,7 @@ pub mod folder_selector; // PLAN024 Increment 5: Folder selection (Step 2)
 pub mod hash_deduplicator; // PLAN024 Increment 6-7: Hash deduplication (Phase 2)
 pub mod import_logger; // Enhanced import logging for single-track and album files
 pub mod metadata_extractor;
+pub mod mbid_cascade; // SPEC-EMBID-001: Metadata-first MBID identification cascade
 pub mod metadata_merger; // PLAN024 Increment 8-9: Metadata extraction & merging (Phase 3)
 pub mod musicbrainz_client;
 pub mod passage_amplitude_analyzer; // PLAN024 Increment 17: Amplitude analysis (Phase 8)
@@ -64,6 +65,7 @@ pub use filename_matcher::{FilenameMatcher, MatchResult};
 pub use fingerprinter::{FingerprintError, Fingerprinter};
 pub use folder_selector::{FolderSelector, SelectionResult};
 pub use hash_deduplicator::{HashDeduplicator, HashResult};
+pub use mbid_cascade::MbidIdentificationCascade;
 pub use metadata_extractor::{AudioMetadata, MetadataError, MetadataExtractor};
 pub use metadata_merger::{MergedMetadata, MetadataMerger};
 pub use musicbrainz_client::{MBError, MBRecording, MusicBrainzClient};
@@ -81,7 +83,8 @@ pub use passage_flavor_fetcher::{
 pub use passage_recorder::{PassageRecord, PassageRecorder, RecordingResult, RecordingStats};
 pub use passage_segmenter::{PassageBoundary, PassageSegmenter, SegmentResult};
 pub use passage_song_matcher::{
-    ConfidenceLevel, PassageSongMatch, PassageSongMatcher, SongMatchResult, SongMatchStats,
+    ConfidenceLevel, MbidResolution, PassageSongMatch, PassageSongMatcher, SongMatchResult,
+    SongMatchStats,
 };
 pub use pattern_analyzer::{
     GapPattern, PatternAnalyzer, PatternError, PatternMetadata, Segment, SourceMedia,

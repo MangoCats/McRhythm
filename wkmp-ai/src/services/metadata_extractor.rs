@@ -11,6 +11,7 @@
 use lofty::file::{FileType, TaggedFileExt};
 use lofty::prelude::*;
 use lofty::probe::Probe;
+use lofty::tag::ItemKey;
 use std::path::Path;
 use thiserror::Error;
 
@@ -75,6 +76,13 @@ pub struct AudioMetadata {
 
     /// File size in bytes
     pub file_size_bytes: u64,
+
+    /// MusicBrainz Recording ID (embedded in ID3/Vorbis tags by Picard)
+    /// **[SPEC-EMBID-001]** Stage 0 primary MBID source
+    pub recording_mbid: Option<String>,
+
+    /// International Standard Recording Code
+    pub isrc: Option<String>,
 }
 
 /// Metadata extractor service
@@ -126,22 +134,44 @@ impl MetadataExtractor {
             .primary_tag()
             .or_else(|| tagged_file.first_tag());
 
-        let (artist, title, album, track_number, year) = if let Some(tag) = tag {
+        let (artist, title, album, track_number, year, recording_mbid, isrc) = if let Some(tag) = tag
+        {
             let artist = tag.artist().map(|s| s.to_string());
             let title = tag.title().map(|s| s.to_string());
             let album = tag.album().map(|s| s.to_string());
             let track_number = tag.track();
             let year = tag.year();
 
-            (artist, title, album, track_number, year)
+            // **[SPEC-EMBID-001]** Extract embedded MusicBrainz Recording ID
+            // Try multiple key variants (ID3v2 TXXX, Vorbis comments, etc.)
+            let mbid_keys = [
+                ItemKey::MusicBrainzRecordingId,
+                ItemKey::Unknown("MUSICBRAINZ_TRACKID".to_string()),
+                ItemKey::Unknown("MusicBrainz Recording Id".to_string()),
+            ];
+            let recording_mbid = mbid_keys.iter().find_map(|key| {
+                tag.get_string(key).and_then(|s| {
+                    // Validate UUID format (36 chars with hyphens)
+                    if s.len() == 36 {
+                        Some(s.to_string())
+                    } else {
+                        None
+                    }
+                })
+            });
+
+            let isrc = tag.get_string(&ItemKey::Isrc).map(|s| s.to_string());
+
+            (artist, title, album, track_number, year, recording_mbid, isrc)
         } else {
-            (None, None, None, None, None)
+            (None, None, None, None, None, None, None)
         };
 
         tracing::debug!(
             file = %file_path.display(),
             artist = ?artist,
             title = ?title,
+            recording_mbid = ?recording_mbid,
             duration_s = duration_seconds,
             format = %format,
             "Extracted metadata"
@@ -161,6 +191,8 @@ impl MetadataExtractor {
             channels,
             bitrate,
             file_size_bytes,
+            recording_mbid,
+            isrc,
         })
     }
 
@@ -197,5 +229,32 @@ mod tests {
         let extractor = MetadataExtractor::new();
         let result = extractor.extract(Path::new("/nonexistent/file.mp3"));
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_audiometadata_includes_mbid_fields() {
+        // Verify AudioMetadata struct has recording_mbid and isrc fields
+        let metadata = AudioMetadata {
+            file_path: "/test.mp3".to_string(),
+            artist: None,
+            title: None,
+            album: None,
+            track_number: None,
+            year: None,
+            duration_seconds: Some(180.0),
+            format: "MP3".to_string(),
+            sample_rate: Some(44100),
+            bit_depth: None,
+            channels: Some(2),
+            bitrate: Some(320),
+            file_size_bytes: 5_000_000,
+            recording_mbid: Some("12345678-1234-1234-1234-123456789012".to_string()),
+            isrc: Some("USRC12345678".to_string()),
+        };
+        assert_eq!(
+            metadata.recording_mbid,
+            Some("12345678-1234-1234-1234-123456789012".to_string())
+        );
+        assert_eq!(metadata.isrc, Some("USRC12345678".to_string()));
     }
 }

@@ -146,25 +146,33 @@ impl PassageFingerprinter {
                 continue;
             }
 
-            // Generate Chromaprint fingerprint (CPU-intensive, uses spawn_blocking internally)
-            let fingerprint =
-                match self
-                    .fingerprinter
-                    .fingerprint_segment(file_path, start_seconds, end_seconds)
-                {
-                    Ok(fp) => fp,
-                    Err(e) => {
-                        tracing::warn!(
-                            passage_idx = idx,
-                            error = ?e,
-                            "Fingerprint generation failed"
-                        );
-                        return Ok(FingerprintResult::Failed(format!(
-                            "Fingerprint generation failed for passage {}: {}",
-                            idx, e
-                        )));
-                    }
-                };
+            // Generate Chromaprint fingerprint (CPU-intensive, run on blocking thread pool
+            // to avoid blocking the tokio async runtime and starving HTTP response futures)
+            let fp_fingerprinter = self.fingerprinter;
+            let fp_path = file_path.to_path_buf();
+            let fingerprint = match tokio::task::spawn_blocking(move || {
+                fp_fingerprinter.fingerprint_segment(&fp_path, start_seconds, end_seconds)
+            })
+            .await
+            {
+                Ok(Ok(fp)) => fp,
+                Ok(Err(e)) => {
+                    tracing::warn!(
+                        passage_idx = idx,
+                        error = ?e,
+                        "Fingerprint generation failed, skipping passage"
+                    );
+                    continue;
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        passage_idx = idx,
+                        error = ?e,
+                        "Fingerprint task panicked, skipping passage"
+                    );
+                    continue;
+                }
+            };
 
             tracing::debug!(
                 passage_idx = idx,
@@ -172,19 +180,22 @@ impl PassageFingerprinter {
                 "Generated fingerprint"
             );
 
+            // AcoustID requires the duration to match the fingerprinted audio length.
+            // Fingerprinter::fingerprint_pcm() truncates to self.duration_seconds (120s),
+            // so we must cap the duration we send to AcoustID accordingly.
+            let fingerprinted_duration = duration_seconds.min(120.0) as u64;
+
             // Query AcoustID API (rate-limited, async)
-            let response = match acoustid.lookup(&fingerprint, duration_seconds as u64).await {
+            let response = match acoustid.lookup(&fingerprint, fingerprinted_duration).await {
                 Ok(resp) => resp,
                 Err(e) => {
                     tracing::warn!(
                         passage_idx = idx,
                         error = ?e,
-                        "AcoustID API call failed"
+                        "AcoustID API call failed, skipping passage"
                     );
-                    return Ok(FingerprintResult::Failed(format!(
-                        "AcoustID API call failed for passage {}: {}",
-                        idx, e
-                    )));
+                    // Continue to next passage instead of aborting entire file
+                    continue;
                 }
             };
 

@@ -1,8 +1,9 @@
 # Specification: Embedded MusicBrainz ID Matching (Stage 0)
 
 **Document ID:** SPEC-EMBID-001
-**Status:** Draft
+**Status:** Implemented (per-file pipeline)
 **Date:** 2024-12-14
+**Implementation Date:** 2026-02-05
 **Author:** Cross-validation analysis
 
 ---
@@ -313,10 +314,22 @@ Files with both embedded and AcoustID MBIDs: 3,852
 
 ---
 
-## Next Steps
+## Implementation Status
 
-This specification provides the WHAT. To create a detailed implementation plan with tasks, increments, and test specifications, run:
+**Stage 0 implemented in per-file pipeline** (2026-02-05):
 
-```
-/plan wip/SPEC_embedded_mbid_matching.md
-```
+| Component | File | Status |
+|-----------|------|--------|
+| MBID extraction from ID3 tags | `services/metadata_extractor.rs` | Done |
+| MBID propagation through merger | `services/metadata_merger.rs` | Done |
+| MbidResolution struct | `services/passage_song_matcher.rs` | Done |
+| MbidIdentificationCascade service | `services/mbid_cascade.rs` | Done |
+| Single-track cascade (Stage 0 → 1 → 2) | `services/workflow_orchestrator/mod.rs` | Done |
+| Album cascade (deferred, all-None) | `services/mbid_cascade.rs` | Placeholder |
+| Pre-resolved matching | `services/passage_song_matcher.rs` | Done |
+| Unit tests (9 tests) | Multiple files | Done |
+
+**Scope:**
+- Single-track files: Full cascade (Stage 0 → Stage 1 → Stage 2)
+- Album files: Stage 0 not applicable (embedded MBID is per-file, not per-passage). Albums continue using AcoustID per-passage (Stage 2).
+- Future: release lookup → per-track MBID mapping for albums.

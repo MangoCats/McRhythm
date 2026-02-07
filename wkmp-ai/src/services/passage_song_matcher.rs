@@ -5,10 +5,26 @@
 //! Combines metadata and fingerprint evidence to determine MBID with confidence level
 //! for each passage. Supports zero-song passages and adjacent passage merging.
 
+use crate::matching::ConfidenceTier;
 use super::confidence_assessor::{ConfidenceAssessor, Evidence};
 use super::metadata_merger::MergedMetadata;
 use super::passage_fingerprinter::{FingerprintResult, PassageFingerprint};
 use super::passage_segmenter::PassageBoundary;
+
+/// Pre-resolved MBID from metadata-first identification cascade
+///
+/// **[SPEC-EMBID-001]** Carries MBID + provenance through the pipeline
+#[derive(Debug, Clone)]
+pub struct MbidResolution {
+    /// Resolved MusicBrainz Recording MBID
+    pub mbid: String,
+    /// Confidence tier from identification source
+    pub tier: ConfidenceTier,
+    /// Confidence score (0.0-1.0)
+    pub score: f32,
+    /// Source description ("Embedded MBID", "ContextualMatcher", "AcoustID")
+    pub source: String,
+}
 
 /// Confidence level for song identification
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -173,6 +189,85 @@ impl PassageSongMatcher {
             low = stats.low_confidence,
             none = stats.zero_song,
             "Song matching complete"
+        );
+
+        SongMatchResult {
+            matches: merged_matches,
+            stats,
+        }
+    }
+
+    /// Match passages using pre-resolved MBIDs from metadata cascade
+    ///
+    /// **[SPEC-EMBID-001]** For passages with pre-resolved MBIDs (Stage 0/1),
+    /// use the MBID directly. For passages without, fall through to fingerprint
+    /// + metadata matching.
+    pub fn match_passages_with_preresolved(
+        &self,
+        passages: &[PassageBoundary],
+        fingerprint_result: &FingerprintResult,
+        metadata: &MergedMetadata,
+        preresolved: &[Option<MbidResolution>],
+    ) -> SongMatchResult {
+        // Safety: if lengths mismatch, log warning and fall through to standard matching
+        if preresolved.len() != passages.len() {
+            tracing::warn!(
+                preresolved_len = preresolved.len(),
+                passages_len = passages.len(),
+                "MbidResolution array length mismatch, falling back to standard matching"
+            );
+            return self.match_passages(passages, fingerprint_result, metadata);
+        }
+
+        tracing::debug!(
+            passage_count = passages.len(),
+            "Matching passages with pre-resolved MBIDs"
+        );
+
+        let mut matches = Vec::new();
+        let fingerprints = match fingerprint_result {
+            FingerprintResult::Success(fps) => Some(fps),
+            _ => None,
+        };
+
+        for (idx, passage) in passages.iter().enumerate() {
+            let passage_match = if let Some(resolution) = &preresolved[idx] {
+                // Pre-resolved MBID available — use directly
+                tracing::debug!(
+                    passage_idx = idx,
+                    mbid = %resolution.mbid,
+                    tier = %resolution.tier.name(),
+                    source = %resolution.source,
+                    "Using pre-resolved MBID for passage"
+                );
+                PassageSongMatch {
+                    passage: passage.clone(),
+                    mbid: Some(resolution.mbid.clone()),
+                    confidence: ConfidenceLevel::High,
+                    score: resolution.score,
+                    title: metadata.title.clone(),
+                }
+            } else if let Some(fp) = fingerprints.and_then(|fps| fps.get(idx)) {
+                // No pre-resolved MBID — try fingerprint evidence
+                self.match_passage_with_fingerprint(passage, fp, metadata)
+            } else {
+                // No pre-resolved MBID, no fingerprint — metadata only
+                self.match_passage_metadata_only(passage, metadata)
+            };
+
+            matches.push(passage_match);
+        }
+
+        let merged_matches = self.merge_zero_song_passages(matches);
+        let stats = self.calculate_stats(&merged_matches);
+
+        tracing::info!(
+            total = stats.total_passages,
+            high = stats.high_confidence,
+            medium = stats.medium_confidence,
+            low = stats.low_confidence,
+            none = stats.zero_song,
+            "Song matching with pre-resolved MBIDs complete"
         );
 
         SongMatchResult {
@@ -373,7 +468,6 @@ impl Default for PassageSongMatcher {
 
 #[cfg(test)]
 mod tests {
-    use super::super::passage_fingerprinter::MBIDCandidate;
     use super::*;
 
     #[test]
@@ -479,5 +573,99 @@ mod tests {
         assert_eq!(stats.medium_confidence, 1);
         assert_eq!(stats.low_confidence, 1);
         assert_eq!(stats.zero_song, 1);
+    }
+
+    fn make_metadata(artist: Option<&str>, title: Option<&str>) -> MergedMetadata {
+        MergedMetadata {
+            artist: artist.map(|s| s.to_string()),
+            title: title.map(|s| s.to_string()),
+            album: None,
+            track_number: None,
+            year: None,
+            duration_ticks: 28_224_000 * 180,
+            format: "MP3".to_string(),
+            sample_rate: Some(44100),
+            channels: Some(2),
+            file_size_bytes: 5_000_000,
+            recording_mbid: Some("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string()),
+            isrc: None,
+        }
+    }
+
+    #[test]
+    fn test_preresolved_stage0_skips_fingerprint() {
+        let matcher = PassageSongMatcher::new();
+        let passages = vec![PassageBoundary::new(0, 28_224_000 * 30)];
+        let metadata = make_metadata(Some("Artist"), Some("Title"));
+        let preresolved = vec![Some(MbidResolution {
+            mbid: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string(),
+            tier: ConfidenceTier::Tier1B,
+            score: 0.98,
+            source: "Embedded MBID".to_string(),
+        })];
+
+        let result = matcher.match_passages_with_preresolved(
+            &passages,
+            &FingerprintResult::Skipped,
+            &metadata,
+            &preresolved,
+        );
+
+        assert_eq!(result.matches.len(), 1);
+        assert_eq!(
+            result.matches[0].mbid,
+            Some("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string())
+        );
+        assert_eq!(result.matches[0].confidence, ConfidenceLevel::High);
+        assert_eq!(result.matches[0].score, 0.98);
+        assert_eq!(result.stats.high_confidence, 1);
+    }
+
+    #[test]
+    fn test_preresolved_none_falls_through() {
+        let matcher = PassageSongMatcher::new();
+        let passages = vec![PassageBoundary::new(0, 28_224_000 * 30)];
+        let metadata = make_metadata(Some("Artist"), Some("Title"));
+        let preresolved = vec![None];
+
+        let result = matcher.match_passages_with_preresolved(
+            &passages,
+            &FingerprintResult::Skipped,
+            &metadata,
+            &preresolved,
+        );
+
+        assert_eq!(result.matches.len(), 1);
+        // With Skipped fingerprints and no preresolved, falls to metadata-only → Low
+        assert_eq!(result.matches[0].confidence, ConfidenceLevel::Low);
+    }
+
+    #[test]
+    fn test_preresolved_length_mismatch() {
+        let matcher = PassageSongMatcher::new();
+        let passages = vec![
+            PassageBoundary::new(0, 28_224_000 * 30),
+            PassageBoundary::new(28_224_000 * 30, 28_224_000 * 60),
+        ];
+        let metadata = make_metadata(Some("Artist"), Some("Title"));
+        // Only 1 preresolved for 2 passages — should fall back to standard matching
+        let preresolved = vec![Some(MbidResolution {
+            mbid: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string(),
+            tier: ConfidenceTier::Tier1B,
+            score: 0.98,
+            source: "Embedded MBID".to_string(),
+        })];
+
+        let result = matcher.match_passages_with_preresolved(
+            &passages,
+            &FingerprintResult::Skipped,
+            &metadata,
+            &preresolved,
+        );
+
+        // Falls back to match_passages — 2 passages with metadata-only → Low
+        assert_eq!(result.matches.len(), 2);
+        assert_eq!(result.matches[0].confidence, ConfidenceLevel::Low);
+        assert_eq!(result.matches[1].confidence, ConfidenceLevel::Low);
     }
 }

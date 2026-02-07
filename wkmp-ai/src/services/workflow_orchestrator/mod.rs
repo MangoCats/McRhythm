@@ -96,6 +96,9 @@ pub struct WorkflowOrchestrator {
     memory_monitor: Arc<crate::utils::MemoryMonitor>,
     /// **[PLAN031 Task 1.5]** Configured worker thread count for parallel processing
     processing_thread_count: usize,
+    /// Limits concurrent album file processing to prevent worker starvation.
+    /// Single-track files do not acquire this semaphore.
+    album_semaphore: Arc<tokio::sync::Semaphore>,
 }
 
 impl WorkflowOrchestrator {
@@ -176,6 +179,11 @@ impl WorkflowOrchestrator {
                 memory_usage_threshold_bytes,
             )), // **[IMPL016]** Memory monitoring with configurable threshold
             processing_thread_count, // **[PLAN031]** Configured worker thread count
+            // Album semaphore: limit concurrent album processing to 1/3 of thread count (min 1).
+            // Initialized with a default; resized when parallelism setting is read.
+            album_semaphore: Arc::new(tokio::sync::Semaphore::new(
+                std::cmp::max(1, processing_thread_count / 3),
+            )),
         }
     }
 
@@ -1963,6 +1971,15 @@ impl WorkflowOrchestrator {
             SINGLE_TRACK_BRANCH_THRESHOLD
         );
 
+        // Acquire album semaphore to limit concurrent album processing.
+        // This prevents album files from monopolizing all worker slots.
+        let _album_permit = self.album_semaphore.acquire().await
+            .map_err(|e| anyhow::anyhow!("Album semaphore closed: {}", e))?;
+        tracing::debug!(
+            file_index = file_index,
+            "Album semaphore acquired"
+        );
+
         // **[PLAN031 Fix 7]** Phase 4: Audio Decode + Passage Segmentation
         // Audio is decoded HERE (not before Phase 1) after early-exit opportunities
         self.set_worker_phase(
@@ -2059,6 +2076,14 @@ impl WorkflowOrchestrator {
             }
         };
 
+        // **[SPEC-EMBID-001]** MBID Cascade for album passages
+        // Album files: Stage 0 not applicable (per-file MBID != per-passage).
+        // Returns all-None; AcoustID handles per-passage identification.
+        let cascade = crate::services::MbidIdentificationCascade::new();
+        let preresolved = cascade
+            .resolve_album_passages(&merged_metadata, passages.len())
+            .await;
+
         // Phase 5: Per-Passage Fingerprinting
         self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting")
             .await;
@@ -2101,7 +2126,7 @@ impl WorkflowOrchestrator {
             "Phase 5 completed"
         );
 
-        // Phase 6: Song Matching
+        // Phase 6: Song Matching (with pre-resolved MBIDs from cascade)
         self.set_worker_phase(file_path, root_folder, file_index, 6, "Song Matching")
             .await;
         let phase6_start = std::time::Instant::now();
@@ -2111,8 +2136,12 @@ impl WorkflowOrchestrator {
             "Phase 6: Song Matching"
         );
         let passage_song_matcher = crate::services::PassageSongMatcher::new();
-        let song_match_result =
-            passage_song_matcher.match_passages(&passages, &fingerprint_results, &merged_metadata);
+        let song_match_result = passage_song_matcher.match_passages_with_preresolved(
+            &passages,
+            &fingerprint_results,
+            &merged_metadata,
+            &preresolved,
+        );
 
         // **[PLAN024]** Track song matching
         self.statistics.record_song_matching(
@@ -2476,47 +2505,70 @@ impl WorkflowOrchestrator {
             duration_ticks as f64 / TICKS_PER_SECOND as f64
         );
 
-        // Phase 5: Fingerprinting (whole file)
-        self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting")
-            .await;
-        let phase5_start = std::time::Instant::now();
-        tracing::debug!(
-            file = ?file_path,
-            file_id = %file_id,
-            "Phase 5: Single-song Fingerprinting"
-        );
+        // Phase 4c: MBID Identification Cascade (metadata-first)
+        // **[SPEC-EMBID-001]** Try embedded MBID → ContextualMatcher before AcoustID
+        let cascade = crate::services::MbidIdentificationCascade::new();
+        let preresolved_mbid = cascade.resolve_single_track(merged_metadata).await;
+        let preresolved = vec![preresolved_mbid.clone()];
 
-        // Get API key from database settings
-        let api_key: Option<String> =
-            sqlx::query_scalar("SELECT value FROM settings WHERE key = 'acoustid_api_key'")
-                .fetch_optional(&self.db)
+        // Phase 5: Fingerprinting (skip if Stage 0 embedded MBID found)
+        let fingerprint_results = if preresolved_mbid
+            .as_ref()
+            .map_or(false, |r| r.tier.is_stage0())
+        {
+            // Stage 0 MBID is authoritative — skip AcoustID fingerprinting
+            tracing::info!(
+                file_index = file_index,
+                mbid = %preresolved_mbid.as_ref().unwrap().mbid,
+                tier = %preresolved_mbid.as_ref().unwrap().tier.name(),
+                "Stage 0 MBID found, skipping AcoustID fingerprinting"
+            );
+            self.statistics.record_fingerprinting(1, 0);
+            crate::services::FingerprintResult::Skipped
+        } else {
+            self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting")
+                .await;
+            let phase5_start = std::time::Instant::now();
+            tracing::debug!(
+                file = ?file_path,
+                file_id = %file_id,
+                "Phase 5: Single-song Fingerprinting"
+            );
+
+            // Get API key from database settings
+            let api_key: Option<String> =
+                sqlx::query_scalar("SELECT value FROM settings WHERE key = 'acoustid_api_key'")
+                    .fetch_optional(&self.db)
+                    .await?;
+
+            let passage_fingerprinter =
+                crate::services::PassageFingerprinter::new(api_key, self.db.clone())?;
+            let fp_results = passage_fingerprinter
+                .fingerprint_passages(file_path, &passages)
                 .await?;
 
-        let passage_fingerprinter =
-            crate::services::PassageFingerprinter::new(api_key, self.db.clone())?;
-        let fingerprint_results = passage_fingerprinter
-            .fingerprint_passages(file_path, &passages)
-            .await?;
+            // Track fingerprinting statistics
+            let (passages_fingerprinted, successful_matches) = match &fp_results {
+                crate::services::FingerprintResult::Success(candidates) => {
+                    (passages.len(), candidates.len())
+                }
+                _ => (passages.len(), 0),
+            };
+            self.statistics
+                .record_fingerprinting(passages_fingerprinted, successful_matches);
 
-        // Track fingerprinting statistics
-        let (passages_fingerprinted, successful_matches) = match &fingerprint_results {
-            crate::services::FingerprintResult::Success(candidates) => {
-                (passages.len(), candidates.len())
-            }
-            _ => (passages.len(), 0),
+            tracing::info!(
+                phase = "Single-Song Fingerprinting",
+                duration_ms = phase5_start.elapsed().as_millis(),
+                file_index = file_index,
+                successful_matches = successful_matches,
+                "Phase 5 completed"
+            );
+
+            fp_results
         };
-        self.statistics
-            .record_fingerprinting(passages_fingerprinted, successful_matches);
 
-        tracing::info!(
-            phase = "Single-Song Fingerprinting",
-            duration_ms = phase5_start.elapsed().as_millis(),
-            file_index = file_index,
-            successful_matches = successful_matches,
-            "Phase 5 completed"
-        );
-
-        // Phase 6: Song Matching (simplified for single-song)
+        // Phase 6: Song Matching (with pre-resolved MBIDs from cascade)
         self.set_worker_phase(file_path, root_folder, file_index, 6, "Song Matching")
             .await;
         let phase6_start = std::time::Instant::now();
@@ -2527,8 +2579,12 @@ impl WorkflowOrchestrator {
         );
 
         let passage_song_matcher = crate::services::PassageSongMatcher::new();
-        let song_match_result =
-            passage_song_matcher.match_passages(&passages, &fingerprint_results, merged_metadata);
+        let song_match_result = passage_song_matcher.match_passages_with_preresolved(
+            &passages,
+            &fingerprint_results,
+            merged_metadata,
+            &preresolved,
+        );
 
         // Track song matching statistics
         self.statistics.record_song_matching(
@@ -2864,6 +2920,30 @@ impl WorkflowOrchestrator {
             total_files
         );
 
+        // Run AcoustID diagnostic connectivity test before processing starts
+        if let Some(ref client) = self.acoustid_client {
+            tracing::info!("Running AcoustID diagnostic connectivity test...");
+            if let Err(e) = client.diagnostic_connectivity_test().await {
+                tracing::warn!("AcoustID diagnostic test failed: {}", e);
+            }
+        }
+
+        // **[PLAN033]** Initialize ProgressManager for time update broadcasts
+        tracing::debug!(
+            session_id = %session.session_id,
+            total_files,
+            "Initializing PLAN033 ProgressManager for time updates"
+        );
+        {
+            let mut pm = self.progress_manager.lock();
+            *pm = Some(crate::services::progress_manager::ProgressManager::new(
+                session.session_id,
+                self.event_bus.clone(),
+                self.db.clone(),
+                total_files,
+            ));
+        }
+
         // **[PLAN024]** Initialize PROCESSING statistics
         {
             let mut proc_stats = self.statistics.processing.lock().unwrap();
@@ -3118,9 +3198,38 @@ impl WorkflowOrchestrator {
         let absolute_path = root_path.join(&file_path);
 
         // **[PLAN031 Fix 7]** Call process_file_plan024 directly (audio decode moved to Phase 4)
-        let result = self
-            .process_file_plan024(&absolute_path, root_path, idx)
-            .await;
+        // Per-file timeout: prevent any single file from blocking a worker indefinitely.
+        // Default 30 minutes; configurable via ingest_max_file_processing_seconds setting.
+        let max_file_secs: u64 = sqlx::query_scalar::<_, String>(
+            "SELECT COALESCE((SELECT value FROM settings WHERE key = 'ingest_max_file_processing_seconds'), '1800')"
+        )
+        .fetch_one(&self.db)
+        .await
+        .unwrap_or_else(|_| "1800".to_string())
+        .parse()
+        .unwrap_or(1800);
+
+        let result = match tokio::time::timeout(
+            std::time::Duration::from_secs(max_file_secs),
+            self.process_file_plan024(&absolute_path, root_path, idx),
+        )
+        .await
+        {
+            Ok(inner_result) => inner_result,
+            Err(_elapsed) => {
+                tracing::error!(
+                    file_index = idx,
+                    file = %file_path,
+                    timeout_secs = max_file_secs,
+                    "File processing timed out, releasing worker"
+                );
+                Err(anyhow::anyhow!(
+                    "File processing timed out after {}s: {}",
+                    max_file_secs,
+                    file_path
+                ))
+            }
+        };
 
         // **[File Processing Status]** Record final state and processing time
         let elapsed = start_time.elapsed().as_secs_f64();

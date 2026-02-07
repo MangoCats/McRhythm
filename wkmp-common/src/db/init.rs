@@ -41,6 +41,7 @@ pub async fn init_database_schema(pool: &SqlitePool) -> Result<()> {
     create_import_provenance_table(&pool).await?;
     create_queue_table(&pool).await?;
     create_acoustid_cache_table(&pool).await?;
+    create_acousticbrainz_cache_table(&pool).await?;
 
     // MusicBrainz entity tables (used by wkmp-ai, wkmp-pd)
     create_songs_table(&pool).await?;
@@ -593,6 +594,35 @@ async fn create_acoustid_cache_table(pool: &SqlitePool) -> Result<()> {
 
     // Create index for cache expiration queries (future feature)
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_acoustid_cache_cached_at ON acoustid_cache(cached_at)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn create_acousticbrainz_cache_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS acousticbrainz_cache (
+            recording_mbid TEXT PRIMARY KEY NOT NULL,
+            lowlevel_json TEXT NOT NULL,
+            has_tonal BOOLEAN NOT NULL DEFAULT 0,
+            has_rhythm BOOLEAN NOT NULL DEFAULT 0,
+            fetched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            essentia_version TEXT,
+            CHECK (length(recording_mbid) = 36),
+            CHECK (json_valid(lowlevel_json))
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_acousticbrainz_cache_fetched_at ON acousticbrainz_cache(fetched_at)")
+        .execute(pool)
+        .await?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_acousticbrainz_cache_availability ON acousticbrainz_cache(has_tonal, has_rhythm) WHERE has_tonal = 1 AND has_rhythm = 1")
         .execute(pool)
         .await?;
 

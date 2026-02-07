@@ -35,6 +35,11 @@ pub struct MergedMetadata {
     pub channels: Option<u8>,
     /// File size (bytes)
     pub file_size_bytes: u64,
+    /// MusicBrainz Recording ID (from embedded tags)
+    /// **[SPEC-EMBID-001]** Stage 0 primary MBID source
+    pub recording_mbid: Option<String>,
+    /// International Standard Recording Code
+    pub isrc: Option<String>,
 }
 
 /// Metadata Merger
@@ -177,6 +182,8 @@ impl MetadataMerger {
             sample_rate: new_metadata.sample_rate,
             channels: new_metadata.channels,
             file_size_bytes: new_metadata.file_size_bytes,
+            recording_mbid: new_metadata.recording_mbid,
+            isrc: new_metadata.isrc,
         })
     }
 }
@@ -229,5 +236,29 @@ mod tests {
         let pool = setup_test_db().await;
         let _merger = MetadataMerger::new(pool);
         // Just verify it can be created without panic
+    }
+
+    #[test]
+    fn test_merged_metadata_propagates_mbid() {
+        // Verify MergedMetadata carries recording_mbid and isrc
+        let merged = MergedMetadata {
+            artist: Some("Test Artist".to_string()),
+            title: Some("Test Title".to_string()),
+            album: None,
+            track_number: None,
+            year: None,
+            duration_ticks: 28_224_000 * 180,
+            format: "MP3".to_string(),
+            sample_rate: Some(44100),
+            channels: Some(2),
+            file_size_bytes: 5_000_000,
+            recording_mbid: Some("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string()),
+            isrc: Some("USRC17000001".to_string()),
+        };
+        assert_eq!(
+            merged.recording_mbid,
+            Some("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string())
+        );
+        assert_eq!(merged.isrc, Some("USRC17000001".to_string()));
     }
 }

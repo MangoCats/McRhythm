@@ -397,6 +397,8 @@ impl PassageRecorder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::passage_segmenter::PassageBoundary;
+    use super::super::passage_song_matcher::ConfidenceLevel;
     use sqlx::SqlitePool;
 
     /// Setup in-memory test database with passages and songs tables

@@ -188,6 +188,7 @@ pub struct PoolStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Instant;
 
     #[tokio::test]
     async fn test_pool_manager_creation() {

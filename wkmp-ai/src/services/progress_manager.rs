@@ -57,6 +57,9 @@ struct ProgressState {
     last_db_sync: Instant,
     /// Dirty flag - true if state changed since last sync
     dirty: bool,
+    /// Last calculated estimated remaining time (preserved between recalculations)
+    /// **[REQ-IPD-022]** Always show most recent estimate, recalculate every 60s
+    last_estimated_remaining: Option<u64>,
 }
 
 /// Progress manager with in-memory state and periodic database sync
@@ -109,6 +112,7 @@ impl ProgressManager {
             start_time: now,
             last_db_sync: now,
             dirty: false,
+            last_estimated_remaining: None,
         };
 
         let cancel_token = tokio_util::sync::CancellationToken::new();
@@ -199,6 +203,8 @@ impl ProgressManager {
         let cancel_token = self.cancel_token.clone();
 
         tokio::spawn(async move {
+            tracing::debug!("PLAN033: Time update task started (15s elapsed, 60s estimated remaining)");
+
             // 15-second interval for elapsed time updates [REQ-IPD-021]
             let mut ticker = interval(Duration::from_secs(15));
             ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -226,8 +232,9 @@ impl ProgressManager {
                             phase_statistics,
                             elapsed_seconds,
                             estimated_remaining_seconds,
-                        ) = {
-                            let s = state.read();
+                        ) = if recalculate_estimate {
+                            // Every 60s: recalculate and store the estimate [REQ-IPD-022]
+                            let mut s = state.write();
                             let elapsed = s.start_time.elapsed().as_secs();
                             let percentage = if s.files_total > 0 {
                                 (s.files_processed as f32 / s.files_total as f32) * 100.0
@@ -235,17 +242,36 @@ impl ProgressManager {
                                 0.0
                             };
 
-                            // Calculate estimated remaining time [REQ-IPD-022]
-                            let estimated = if recalculate_estimate
-                                && s.files_processed > 0
+                            // Calculate and store new estimate
+                            if s.files_processed > 0
                                 && s.files_total > s.files_processed
                                 && elapsed > 0
                             {
                                 let throughput = s.files_processed as f64 / elapsed as f64;
                                 let remaining_files = s.files_total - s.files_processed;
-                                Some((remaining_files as f64 / throughput) as u64)
+                                s.last_estimated_remaining = Some((remaining_files as f64 / throughput) as u64);
+                            }
+
+                            (
+                                s.session_id,
+                                s.state.clone(),
+                                s.files_processed,
+                                s.files_total,
+                                percentage,
+                                s.current_operation.clone(),
+                                s.current_file.clone(),
+                                s.phase_statistics.clone(),
+                                elapsed,
+                                s.last_estimated_remaining,
+                            )
+                        } else {
+                            // Every 15s: use stored estimate (no recalculation)
+                            let s = state.read();
+                            let elapsed = s.start_time.elapsed().as_secs();
+                            let percentage = if s.files_total > 0 {
+                                (s.files_processed as f32 / s.files_total as f32) * 100.0
                             } else {
-                                None
+                                0.0
                             };
 
                             (
@@ -258,7 +284,7 @@ impl ProgressManager {
                                 s.current_file.clone(),
                                 s.phase_statistics.clone(),
                                 elapsed,
-                                estimated,
+                                s.last_estimated_remaining, // Always use stored estimate
                             )
                         };
 
@@ -280,10 +306,10 @@ impl ProgressManager {
 
                         event_bus.emit_lossy(event);
 
-                        tracing::trace!(
+                        tracing::debug!(
                             elapsed_seconds,
                             ?estimated_remaining_seconds,
-                            "Time update broadcast"
+                            "PLAN033: Time update broadcast"
                         );
                     }
                     _ = cancel_token.cancelled() => {
@@ -379,7 +405,7 @@ impl ProgressManager {
             elapsed_seconds,
             estimated_remaining_seconds,
         ) = {
-            let state = self.state.read();
+            let mut state = self.state.write();
             let elapsed = state.start_time.elapsed().as_secs();
             let percentage = if state.files_total > 0 {
                 (state.files_processed as f32 / state.files_total as f32) * 100.0
@@ -387,17 +413,15 @@ impl ProgressManager {
                 0.0
             };
 
-            // Calculate estimated remaining time based on throughput
-            let estimated = if state.files_processed > 0
+            // Calculate and store estimated remaining time based on throughput
+            if state.files_processed > 0
                 && state.files_total > state.files_processed
                 && elapsed > 0
             {
                 let throughput = state.files_processed as f64 / elapsed as f64;
                 let remaining_files = state.files_total - state.files_processed;
-                Some((remaining_files as f64 / throughput) as u64)
-            } else {
-                None
-            };
+                state.last_estimated_remaining = Some((remaining_files as f64 / throughput) as u64);
+            }
 
             (
                 state.session_id,
@@ -409,7 +433,7 @@ impl ProgressManager {
                 state.current_file.clone(),
                 state.phase_statistics.clone(),
                 elapsed,
-                estimated,
+                state.last_estimated_remaining, // Always use stored estimate
             )
         };
 
@@ -543,12 +567,9 @@ impl ProgressManager {
     }
 }
 
-impl Drop for ProgressManager {
-    /// Ensure background task is cancelled on drop
-    fn drop(&mut self) {
-        self.cancel_token.cancel();
-    }
-}
+// NOTE: No Drop impl - cloning ProgressManager would cause premature task cancellation
+// because Drop would cancel the shared CancellationToken when clones go out of scope.
+// Use shutdown() explicitly when the import session ends.
 
 #[cfg(test)]
 mod tests {
