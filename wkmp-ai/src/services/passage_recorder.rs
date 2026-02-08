@@ -138,6 +138,23 @@ impl PassageRecorder {
                     tracing::debug!("Beginning monitored transaction for passage recording");
                     let mut tx = begin_monitored(db_ref, "passage_recorder::record").await?;
                     tracing::debug!("Transaction acquired, starting passage recording loop");
+
+                    // [RE-IMPORT CLEANUP] Delete existing passages for this file
+                    // Handles re-import scenarios where file_id is reused from prior import
+                    // FK cascades auto-clean: passage_songs, passage_albums, import_provenance
+                    let delete_result = sqlx::query("DELETE FROM passages WHERE file_id = ?")
+                        .bind(file_id.to_string())
+                        .execute(&mut **tx.inner_mut())
+                        .await
+                        .map_err(|e| Error::Database(e))?;
+                    if delete_result.rows_affected() > 0 {
+                        tracing::info!(
+                            file_id = %file_id,
+                            deleted = delete_result.rows_affected(),
+                            "Cleaned up stale passages from prior import"
+                        );
+                    }
+
                     let mut passages = Vec::new();
                     let mut stats = RecordingStats {
                         passages_recorded: 0,
@@ -600,30 +617,36 @@ mod tests {
             .await
             .unwrap();
 
-        // Record first passage (creates song)
-        let matches1 = vec![PassageSongMatch {
-            passage: PassageBoundary::new(0, 100000),
-            mbid: Some("mbid-reuse".to_string()),
-            confidence: ConfidenceLevel::High,
-            score: 0.95,
-            title: Some("Test Song".to_string()),
-        }];
+        // Pre-create the song so it can be reused
+        let song_id = Uuid::new_v4();
+        sqlx::query("INSERT INTO songs (guid, recording_mbid) VALUES (?, ?)")
+            .bind(song_id.to_string())
+            .bind("mbid-reuse")
+            .execute(&pool)
+            .await
+            .unwrap();
 
-        let result1 = recorder.record_passages(file_id, &matches1).await.unwrap();
-        assert_eq!(result1.stats.songs_created, 1);
+        // Record two passages referencing the same MBID in a single call
+        let matches = vec![
+            PassageSongMatch {
+                passage: PassageBoundary::new(0, 100000),
+                mbid: Some("mbid-reuse".to_string()),
+                confidence: ConfidenceLevel::High,
+                score: 0.95,
+                title: Some("Test Song".to_string()),
+            },
+            PassageSongMatch {
+                passage: PassageBoundary::new(100000, 200000),
+                mbid: Some("mbid-reuse".to_string()),
+                confidence: ConfidenceLevel::High,
+                score: 0.92,
+                title: Some("Test Song".to_string()),
+            },
+        ];
 
-        // Record second passage (reuses song)
-        let matches2 = vec![PassageSongMatch {
-            passage: PassageBoundary::new(100000, 200000),
-            mbid: Some("mbid-reuse".to_string()),
-            confidence: ConfidenceLevel::High,
-            score: 0.92,
-            title: Some("Test Song".to_string()),
-        }];
-
-        let result2 = recorder.record_passages(file_id, &matches2).await.unwrap();
-        assert_eq!(result2.stats.songs_created, 0);
-        assert_eq!(result2.stats.songs_reused, 1);
+        let result = recorder.record_passages(file_id, &matches).await.unwrap();
+        assert_eq!(result.stats.songs_created, 0);
+        assert_eq!(result.stats.songs_reused, 2);
 
         // Verify only one song exists
         let song_count: i64 =
@@ -646,5 +669,79 @@ mod tests {
 
         assert_eq!(passages.len(), 2);
         assert_eq!(passages[0].0, passages[1].0); // Same song_id
+    }
+
+    #[tokio::test]
+    async fn test_reimport_cleans_stale_passages() {
+        let pool = setup_test_db().await;
+        let recorder = PassageRecorder::new(pool.clone());
+
+        let file_id = Uuid::new_v4();
+
+        sqlx::query("INSERT INTO files (guid, path, hash) VALUES (?, ?, ?)")
+            .bind(file_id.to_string())
+            .bind("/test/file.mp3")
+            .bind("test_hash")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        // First import: record a passage
+        let matches1 = vec![PassageSongMatch {
+            passage: PassageBoundary::new(0, 100000),
+            mbid: None,
+            confidence: ConfidenceLevel::Low,
+            score: 0.5,
+            title: Some("Old Passage".to_string()),
+        }];
+        recorder.record_passages(file_id, &matches1).await.unwrap();
+
+        // Verify 1 passage exists
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM passages WHERE file_id = ?")
+                .bind(file_id.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(count, 1);
+
+        // Re-import: record different passages (stale ones should be cleaned up)
+        let matches2 = vec![
+            PassageSongMatch {
+                passage: PassageBoundary::new(0, 50000),
+                mbid: None,
+                confidence: ConfidenceLevel::Low,
+                score: 0.6,
+                title: Some("New Passage 1".to_string()),
+            },
+            PassageSongMatch {
+                passage: PassageBoundary::new(50000, 100000),
+                mbid: None,
+                confidence: ConfidenceLevel::Low,
+                score: 0.6,
+                title: Some("New Passage 2".to_string()),
+            },
+        ];
+        recorder.record_passages(file_id, &matches2).await.unwrap();
+
+        // Verify old passage was replaced by 2 new passages
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM passages WHERE file_id = ?")
+                .bind(file_id.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(count, 2);
+
+        // Verify the new passages have the correct titles
+        let titles: Vec<(String,)> = sqlx::query_as(
+            "SELECT title FROM passages WHERE file_id = ? ORDER BY start_time_ticks",
+        )
+        .bind(file_id.to_string())
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(titles[0].0, "New Passage 1");
+        assert_eq!(titles[1].0, "New Passage 2");
     }
 }

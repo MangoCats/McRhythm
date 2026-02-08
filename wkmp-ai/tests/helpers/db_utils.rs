@@ -80,10 +80,10 @@ pub async fn get_table_names(pool: &SqlitePool) -> Result<Vec<String>> {
     Ok(tables)
 }
 
-/// Create test WorkflowOrchestrator
-pub fn create_test_orchestrator(
+/// Create test WorkflowOrchestrator (wrapped in Arc for execute_import_plan024)
+pub async fn create_test_orchestrator(
     db_pool: sqlx::SqlitePool,
-) -> wkmp_ai::services::WorkflowOrchestrator {
+) -> std::sync::Arc<wkmp_ai::services::WorkflowOrchestrator> {
     use wkmp_ai::services::WorkflowOrchestrator;
     use wkmp_common::events::EventBus;
 
@@ -91,13 +91,18 @@ pub fn create_test_orchestrator(
     let acoustid_api_key = None; // No API key for tests
     let memory_usage_threshold_bytes = 1_073_741_824; // 1GB
     let processing_thread_count = 4;
+    let music_root = std::path::PathBuf::from(std::env::temp_dir());
 
-    WorkflowOrchestrator::new(
-        db_pool,
-        event_bus,
-        acoustid_api_key,
-        memory_usage_threshold_bytes,
-        processing_thread_count,
+    std::sync::Arc::new(
+        WorkflowOrchestrator::new(
+            db_pool,
+            event_bus,
+            acoustid_api_key,
+            memory_usage_threshold_bytes,
+            processing_thread_count,
+            music_root,
+        )
+        .await,
     )
 }
 

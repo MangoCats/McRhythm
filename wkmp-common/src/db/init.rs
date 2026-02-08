@@ -273,6 +273,13 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
     // RESTART_REQUIRED - Read during bootstrap initialization
     ensure_setting(pool, "ai_event_bus_capacity", "1000").await?;
 
+    // **[PLAN035]** Essentia musical flavor analysis settings
+    // Mode: "auto" (native→Docker fallback), "native", "docker", "disabled"
+    ensure_setting(pool, "ai_essentia_mode", "auto").await?;
+    ensure_setting(pool, "ai_essentia_docker_image", "wkmp-essentia:latest").await?;
+    ensure_setting(pool, "ai_essentia_docker_port", "5780").await?;
+    ensure_setting(pool, "ai_essentia_docker_container", "wkmp-essentia").await?;
+
     // Validation service settings **[ARCH-AUTO-VAL-001]**
     ensure_setting(pool, "validation_enabled", "true").await?;              // [DBD-PARAM-130]
     ensure_setting(pool, "validation_interval_secs", "10").await?;          // [DBD-PARAM-131]

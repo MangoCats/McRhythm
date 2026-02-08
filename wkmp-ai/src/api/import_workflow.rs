@@ -358,13 +358,16 @@ async fn execute_import_workflow(
     }
 
     // **[PLAN034]** Wrap in Arc so tokio::spawn'd tasks can reference the orchestrator
+    // **[PLAN035]** Pass music_root for Essentia Docker path translation
+    let music_root = std::path::PathBuf::from(&session.root_folder);
     let orchestrator = Arc::new(WorkflowOrchestrator::new(
         state.db.clone(),
         state.event_bus.clone(),
         acoustid_api_key,
         state.memory_usage_threshold_bytes,
         state.processing_thread_count,
-    ));
+        music_root,
+    ).await);
 
     // Execute workflow with error handling
     // **[PLAN024]** Use new 3-tier hybrid fusion pipeline

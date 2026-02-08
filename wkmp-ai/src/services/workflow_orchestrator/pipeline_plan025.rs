@@ -5,7 +5,7 @@
 
 use crate::models::{ImportSession, ImportState};
 use crate::services::{
-    AcoustIDClient, AcousticBrainzClient, ProgressManager, WriteQueue,
+    AcoustIDClient, ProgressManager, WriteQueue,
 };
 use anyhow::Result;
 use sqlx::SqlitePool;
@@ -109,7 +109,6 @@ impl WorkflowOrchestrator {
         let db = self.db.clone();
         let event_bus = self.event_bus.clone();
         let acoustid_client = self.acoustid_client.clone();
-        let acousticbrainz_client = self.acousticbrainz_client.clone();
         let session_id = session.session_id;
         let root_folder = session.root_folder.clone();
 
@@ -120,7 +119,6 @@ impl WorkflowOrchestrator {
                 let db = db.clone();
                 let event_bus = event_bus.clone();
                 let acoustid_client = acoustid_client.clone();
-                let acousticbrainz_client = acousticbrainz_client.clone();
                 let files_processed = files_processed_clone.clone();
                 let cancel_token = cancel_token.clone();
                 let root_folder = root_folder.clone();
@@ -148,7 +146,6 @@ impl WorkflowOrchestrator {
                         &file_path,
                         &file,
                         acoustid_client.clone(),
-                        acousticbrainz_client.clone(),
                     )
                     .await
                     {
@@ -286,7 +283,6 @@ impl WorkflowOrchestrator {
         file_path: &std::path::Path,
         file: &crate::db::files::AudioFile,
         acoustid_client: Option<Arc<AcoustIDClient>>,
-        acousticbrainz_client: Option<Arc<AcousticBrainzClient>>,
     ) -> Result<usize> {
         tracing::debug!(
             session_id = %session_id,
@@ -704,79 +700,21 @@ impl WorkflowOrchestrator {
         );
 
         // **[PLAN025 Integration]** Step 9: Musical Flavor Extraction
-        //
-        // **HIGH-LEVEL FEATURE EXTRACTION**
-        // We extract HIGH-LEVEL musical characteristics from AcousticBrainz:
-        // - Musical key and scale (e.g., "C major")
-        // - Tempo (BPM)
-        // - Danceability score
-        // - Spectral features (brightness, energy)
-        // - Harmonic complexity (dissonance)
-        // - Dynamic range
-        //
-        // These are AGGREGATED features computed by Essentia, not raw audio data.
-        // The AcousticBrainz "low-level" endpoint name is misleading - it provides
-        // high-level musical descriptors suitable for passage selection.
+        // DEPRECATED: AcousticBrainz removed. Flavoring now handled by Essentia in PLAN024 pipeline.
         tracing::debug!(
             session_id = %session_id,
             has_mbid = best_mbid.is_some(),
             decision = confidence_result.decision.as_str(),
-            "Step 9: Musical flavor extraction (high-level features)"
+            "Step 9: Musical flavor extraction (deprecated - use PLAN024 pipeline)"
         );
 
-        // Only query AcousticBrainz for Accept decisions with confirmed MBID
-        let musical_flavor = if matches!(
+        let musical_flavor: Option<String> = if matches!(
             confidence_result.decision,
             crate::services::Decision::Accept
         ) {
-            if let Some(ref mbid) = best_mbid {
-                if let Some(ref ab_client) = acousticbrainz_client {
-                    match ab_client.lookup_lowlevel(mbid).await {
-                        Ok(lowlevel_data) => {
-                            // Extract high-level musical features from AcousticBrainz data
-                            let flavor = crate::services::MusicalFlavorVector::from_acousticbrainz(
-                                &lowlevel_data,
-                            );
-
-                            // Convert to JSON for database storage
-                            match flavor.to_json() {
-                                Ok(json) => {
-                                    tracing::info!(
-                                        session_id = %session_id,
-                                        mbid = %mbid,
-                                        has_key = flavor.key.is_some(),
-                                        has_bpm = flavor.bpm.is_some(),
-                                        "Musical flavor extracted successfully"
-                                    );
-                                    Some(json)
-                                }
-                                Err(e) => {
-                                    tracing::warn!(
-                                        session_id = %session_id,
-                                        error = ?e,
-                                        "Failed to serialize flavor vector"
-                                    );
-                                    None
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            tracing::debug!(
-                                session_id = %session_id,
-                                mbid = %mbid,
-                                error = ?e,
-                                "AcousticBrainz lookup failed (recording may not be in database)"
-                            );
-                            None
-                        }
-                    }
-                } else {
-                    tracing::debug!(
-                        session_id = %session_id,
-                        "AcousticBrainz client not available"
-                    );
-                    None
-                }
+            if let Some(ref _mbid) = best_mbid {
+                // AcousticBrainz removed - flavoring handled by Essentia in PLAN024 pipeline
+                None
             } else {
                 tracing::debug!(
                     session_id = %session_id,

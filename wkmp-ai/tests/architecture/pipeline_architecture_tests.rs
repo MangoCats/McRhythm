@@ -44,7 +44,7 @@ async fn tc_arch_001_no_batch_metadata_extraction() {
         audio_generator::generate_test_library(temp_audio_dir.path(), 3, &audio_config).unwrap();
 
     // Setup: Create orchestrator
-    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone());
+    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone()).await;
 
     // Setup: Create import session
     let session = ImportSession::new(
@@ -139,7 +139,7 @@ async fn tc_arch_002_per_file_processing_order() {
         audio_generator::generate_test_library(temp_audio_dir.path(), 2, &audio_config).unwrap();
 
     // Setup: Create orchestrator
-    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone());
+    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone()).await;
 
     // Setup: Create import session
     let session = ImportSession::new(

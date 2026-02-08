@@ -23,10 +23,10 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 2. Metadata extraction (ID3 tags, filename, folder context)
 3. Hash-based duplicate detection with bidirectional linking
 4. Silence-based passage boundary detection
-5. Per-passage audio fingerprinting via AcoustID API
+5. Per-passage MBID resolution (album edition matching → AcoustID fingerprint fallback)
 6. Song matching with confidence assessment (High/Medium/Low/None)
 7. Amplitude-based lead-in/lead-out point detection (define valid overlap regions for crossfades)
-8. Musical flavor data retrieval (AcousticBrainz → Essentia fallback)
+8. Musical flavor extraction via Essentia
 
 **In Scope:** Automatic ingest workflow for music library construction
 
@@ -43,10 +43,10 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 **In Scope (Automatic Ingest):**
 - File discovery, metadata extraction, hash-based deduplication
 - Silence-based segmentation and passage boundary detection
-- Chromaprint fingerprinting per potential passage
-- Song matching via AcoustID + MusicBrainz with confidence scoring
+- Per-passage MBID resolution (album edition matching, AcoustID fingerprint fallback)
+- Song matching with confidence scoring (High/Medium/Low/None)
 - Amplitude analysis for lead-in/lead-out detection
-- Musical flavor retrieval (AcousticBrainz → Essentia fallback)
+- Musical flavor extraction via Essentia
 - Database population with files, passages, songs, and relationships
 
 **Out of Scope (Future Microservices):**
@@ -222,7 +222,7 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 - `passages` - Passage definitions (timing points, fade curves)
 - `songs`, `artists`, `works`, `albums` - MusicBrainz entities
 - `passage_songs`, `passage_albums` - Relationships
-- `acoustid_cache`, `musicbrainz_cache`, `acousticbrainz_cache` - API response caches
+- `acoustid_cache`, `musicbrainz_cache` - API response caches
 
 **Tables Read:**
 - `settings` - Import parameters (global defaults)
@@ -699,7 +699,7 @@ let thread_count = match read_setting("ai_processing_thread_count") {
 | **SONG_MATCHING** | Confidence level breakdown (High/Medium/Low/None) | `"{high_confidence} high, {medium_confidence} medium, {low_confidence} low, {no_confidence} no confidence"` | `import-progress.js:519-521` |
 | **RECORDING** | Recorded passages with song titles and file paths | **Scrollable list** (max-height: 200px):<br>`"{song_title} in {file_path}"` per passage<br>Fallback: `"No passages recorded yet"` | `import-progress.js:523-534` |
 | **AMPLITUDE** | Analyzed passages with timing details (lead-in/lead-out) | **Scrollable list** (max-height: 200px):<br>`"{song_title} {passage_length_seconds}s lead-in {lead_in_ms} ms lead-out {lead_out_ms} ms"`<br>Fallback: `"No passages analyzed yet"` | `import-progress.js:536-547` |
-| **FLAVORING** | Flavor source breakdown (pre-existing/AcousticBrainz/Essentia/failed) | `"{pre_existing} pre-existing, {acousticbrainz} by AcousticBrainz, {essentia} by Essentia, {failed} could not be flavored"` | `import-progress.js:549-551` |
+| **FLAVORING** | Flavor source breakdown (pre-existing/Essentia/failed) | `"{pre_existing} pre-existing, {essentia} by Essentia, {failed} could not be flavored"` | `import-progress.js:549-551` |
 | **PASSAGES_COMPLETE** | Passages completed (Phase 10 finalization) | `"{passages_completed} passages completed"` | `import-progress.js:553-555` |
 | **FILES_COMPLETE** | Files completed (entire pipeline) | `"{files_completed} files completed"` | `import-progress.js:557-559` |
 
@@ -868,7 +868,7 @@ Worker thread-3: Phase 6 Song Matching - Third/File.mp3 [0:00-3:45] Started 0.5 
 **songs.status:**
 - `'PENDING'` - Song created, flavor not yet retrieved
 - `'FLAVOR READY'` - Musical flavor data successfully retrieved (Phase 9)
-- `'FLAVORING FAILED'` - Flavor retrieval failed (both AcousticBrainz and Essentia)
+- `'FLAVORING FAILED'` - Essentia flavor extraction failed
 
 **Status Transitions:**
 
@@ -1012,8 +1012,8 @@ wkmp-ai/
 │   │   ├── confidence_assessor.rs    # Song matching with confidence (Phase 6)
 │   │   ├── musicbrainz_client.rs     # MusicBrainz API client (Phase 6)
 │   │   ├── amplitude_analyzer.rs     # Lead-in/lead-out detection (Phase 8)
-│   │   ├── acousticbrainz_client.rs  # AcousticBrainz API client (Phase 9)
-│   │   ├── essentia_runner.rs        # Essentia subprocess (Phase 9 fallback)
+│   │   ├── essentia_client.rs        # Essentia analysis (native or Docker) (Phase 9)
+│   │   ├── passage_flavor_fetcher.rs # Flavor vector computation (Phase 9)
 │   │   ├── settings_manager.rs       # Database settings table management (NEW)
 │   │   └── workflow_orchestrator/    # 10-phase pipeline coordination
 │   │       ├── mod.rs                # Per-file pipeline state machine
@@ -1056,13 +1056,13 @@ wkmp-ai/
 | **hash_deduplicator** | Compute hash, detect duplicates, create bidirectional links | Phase 2 | File content | Hash, duplicate status, matching_hashes links |
 | **metadata_extractor** | Parse tags, merge with existing metadata | Phase 3 | File path | Title, artist, album, duration, merged metadata |
 | **silence_detector** | Detect passage boundaries, detect NO AUDIO | Phase 4 | Audio PCM, thresholds from settings | Potential passage time ranges (ticks) or NO AUDIO status |
-| **fingerprinter** | Generate Chromaprint fingerprints per passage | Phase 5 | Audio PCM per passage | Base64 fingerprint string per passage |
-| **acoustid_client** | Query AcoustID API for MBID candidates | Phase 5 | Fingerprint string | List of (MBID, confidence score) |
+| **album_matcher** | Match album files against MusicBrainz editions for per-passage MBID resolution | Phase 5 | Audio file path, artist/album metadata | Per-track recording MBIDs (AlbumMatchResult) |
+| **fingerprinter** | Generate Chromaprint fingerprints per passage (fallback when album matching fails) | Phase 5 | Audio PCM per passage | Base64 fingerprint string per passage |
+| **acoustid_client** | Query AcoustID API for MBID candidates (fallback) | Phase 5 | Fingerprint string | List of (MBID, confidence score) |
 | **confidence_assessor** | Combine metadata + fingerprint evidence | Phase 6 | Metadata + fingerprint scores | MBID with confidence (High/Medium/Low/None) per passage |
 | **musicbrainz_client** | Query MusicBrainz API for recording details | Phase 6 | Recording MBID | Recording, artist, work, album metadata |
 | **amplitude_analyzer** | Detect lead-in/lead-out points | Phase 8 | Audio PCM, thresholds from settings | Lead-in/lead-out absolute positions (ticks), fade fields NULL |
-| **acousticbrainz_client** | Query AcousticBrainz API for musical flavor | Phase 9 | Recording MBID | Musical flavor vector (JSON) |
-| **essentia_runner** | Run Essentia analysis (fallback for Phase 9) | Phase 9 | Audio file path | Musical flavor vector (JSON) |
+| **essentia_client** | Compute musical flavor via Essentia (native or Docker) | Phase 9 | Audio file path | Musical flavor vector (JSON) |
 | **settings_manager** | Read/write database settings table with defaults | All phases | Setting key | Setting value (with auto-initialization) |
 | **workflow_orchestrator** | Coordinate 10-phase pipeline per file | Step 4 | File list, settings | Import results per file |
 
@@ -1361,10 +1361,17 @@ For each file, execute in order (10-phase pipeline):
        - Passages shorter than minimum: Discarded (not viable for playback)
     └─ Output: Potential passage time ranges (ticks) OR NO AUDIO status (stop)
 
-  Phase 5: FINGERPRINTING
-    └─ Generate Chromaprint fingerprint PER PASSAGE (tokio::task::spawn_blocking for CPU work)
-    └─ Query AcoustID API per passage (rate-limited, async)
-    └─ Output: List of (MBID, confidence score) per passage
+  Phase 5: MBID RESOLUTION
+    └─ **Album files (multi-passage):**
+       a. AlbumMatcher: Match against MusicBrainz album editions using artist/album metadata
+          - If match found AND track count == passage count: Use edition recording MBIDs (Tier 3)
+          - Skip fingerprinting entirely (all passages pre-resolved)
+       b. Fallback (no match or track count mismatch): Proceed to AcoustID fingerprinting below
+    └─ **Single-track files:** Embedded MBID (Stage 0) or ContextualMatcher (Stage 1) handled in Phase 6
+    └─ **AcoustID fingerprinting (fallback for unresolved passages):**
+       - Generate Chromaprint fingerprint PER PASSAGE (tokio::task::spawn_blocking for CPU work)
+       - Query AcoustID API per passage (rate-limited, async)
+    └─ Output: Pre-resolved MBIDs (from album matching) or fingerprint candidates per passage
 
   Phase 6: SONG MATCHING
     └─ Combine metadata + fingerprint evidence per passage
@@ -1406,8 +1413,8 @@ For each file, execute in order (10-phase pipeline):
        └─ If no song: Skip flavoring (zero-song passage), continue to Phase 10
     └─ Check if song.status = 'FLAVOR READY' (pre-existing flavor from previous import)
        └─ If true: Skip flavor retrieval (increment 'pre-existing' counter), continue to Phase 10
-    └─ Otherwise: Query AcousticBrainz API for musical flavor (rate-limited, async)
-    └─ Fallback to Essentia if AcousticBrainz fails
+    └─ Otherwise: Compute musical flavor via Essentia (native binary or Docker container)
+       - **[PLAN035]** AcousticBrainz shut down; Essentia-only flavoring
     └─ Mark songs.status = 'FLAVOR READY' or 'FLAVORING FAILED'
     └─ Output: Musical flavor vector (JSON) or failure status
 
@@ -1420,8 +1427,9 @@ For each file, execute in order (10-phase pipeline):
 **Rationale for Sequence:**
 - **Filename matching first** avoids redundant processing of existing files
 - **Hashing before extraction** catches duplicate content early (skip expensive operations)
-- **Segmentation before fingerprinting** provides passage boundaries for per-passage fingerprints
-- **Per-passage fingerprints** more accurate than whole-file fingerprints for multi-track files
+- **Segmentation before MBID resolution** provides passage boundaries for album matching and per-passage fingerprints
+- **Album matching before AcoustID** resolves MBIDs locally from MusicBrainz editions (fast, no per-passage API calls)
+- **AcoustID as fallback** only for passages unresolved by album/embedded/contextual matching
 - **Evidence combination** (metadata + fingerprints) achieves high-confidence MBID matches
 - **Recording before amplitude** ensures passages exist in database for amplitude updates
 - **Flavor retrieval last** occurs only after confident identification (avoids wasted API calls)
@@ -1714,8 +1722,7 @@ loop {
     {
       "phase_name": "FLAVORING",
       "pre_existing": 50,
-      "acousticbrainz": 180,
-      "essentia": 30,
+      "essentia": 210,
       "failed": 10
     }
   ],
@@ -1817,11 +1824,12 @@ loop {
 - Cover art extraction (SPEC008:130-209)
 - Chromaprint fingerprinting (SPEC008:210-285)
 - MusicBrainz integration (SPEC008:287-431)
-- AcousticBrainz integration (SPEC008:435-510)
+- Essentia musical flavor extraction ([PLAN035])
 
 **New Additions:**
 - Amplitude-based lead-in/lead-out detection (SPEC025)
 - Parameter management (IMPL010)
+- Album edition matching for per-passage MBID resolution (SPEC033)
 
 ### IMPL005 Integration (Audio File Segmentation)
 
@@ -1908,7 +1916,7 @@ ALTER TABLE songs ADD COLUMN status TEXT DEFAULT 'PENDING';
 
 | Severity | Behavior | Examples |
 |----------|----------|----------|
-| **Warning** | Continue processing, log warning | Missing album art, no AcousticBrainz data |
+| **Warning** | Continue processing, log warning | Missing album art, Essentia analysis failed |
 | **Skip File** | Skip current file, continue with others | Corrupt audio file, unsupported format |
 | **Critical** | Abort entire import session | Database write error, out of disk space |
 
@@ -1966,7 +1974,7 @@ Per-File Pipeline Architecture (Required):
 
 **[AIA-PERF-020]** Performance optimizations in per-file pipeline:
 
-1. **Caching:** Check `acoustid_cache`, `musicbrainz_cache`, `acousticbrainz_cache` before API queries
+1. **Caching:** Check `acoustid_cache`, `musicbrainz_cache` before API queries
 2. **Per-Worker Database Batching:** Each worker commits every 10 files (reduces transaction overhead)
 3. **Parallel Per-File Processing:** N concurrent workers through full pipeline (CPU/network overlap, N from ai_processing_thread_count setting)
 4. **Rate Limiter Coordination:** Shared rate limiter across workers (via `governor` crate)
@@ -2204,7 +2212,7 @@ Example progression:
 - **Duplicate detection:** Import same file twice, verify DUPLICATE HASH status
 - **NO AUDIO detection:** Import silent file, verify NO AUDIO status
 - **Zero-song passages:** Import unidentifiable audio, verify None confidence
-- **Flavor retrieval fallback:** Mock AcousticBrainz failure, verify Essentia fallback
+- **Flavor extraction:** Verify Essentia musical flavor extraction (native or Docker)
 - **13 UI progress sections:** Verify SSE events for all sections
 - **Thread count auto-init:** Verify ai_processing_thread_count persisted
 - **Timing accuracy:** Validate tick-based timing (sample-accurate)

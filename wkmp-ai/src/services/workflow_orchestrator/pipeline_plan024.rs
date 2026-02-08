@@ -369,55 +369,140 @@ impl WorkflowOrchestrator {
             }
         };
 
-        // **[SPEC-EMBID-001]** MBID Cascade for album passages
-        // Album files: Stage 0 not applicable (per-file MBID != per-passage).
-        // Returns all-None; AcoustID handles per-passage identification.
-        let cascade = crate::services::MbidIdentificationCascade::new();
-        let preresolved = cascade
-            .resolve_album_passages(&merged_metadata, passages.len())
-            .await;
+        // **[SPEC-EMBID-001]** Album Edition Matching (Stage 1)
+        // AlbumMatcher resolves per-passage MBIDs from MusicBrainz album editions.
+        // Falls back to AcoustID (Stage 2) only if album matching fails.
+        let preresolved: Vec<Option<crate::services::passage_song_matcher::MbidResolution>> = {
+            use crate::matching::{AlbumMatcher, AlbumMatcherConfig, ConfidenceTier};
 
-        // Phase 5: Per-Passage Fingerprinting
-        self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting")
-            .await;
-        let phase5_start = std::time::Instant::now();
-        tracing::debug!(
-            file = ?file_path,
-            file_id = %file_id,
-            passage_count = passages.len(),
-            "Phase 5: Per-Passage Fingerprinting"
-        );
+            let artist_hint = merged_metadata.artist.as_deref();
+            let album_hint = merged_metadata.album.as_deref();
 
-        // Get API key from database settings
-        let api_key: Option<String> =
-            sqlx::query_scalar("SELECT value FROM settings WHERE key = 'acoustid_api_key'")
-                .fetch_optional(&self.db)
+            let album_result = match crate::services::MusicBrainzClient::new() {
+                Ok(client) => {
+                    let matcher = AlbumMatcher::with_pool(
+                        AlbumMatcherConfig::default(),
+                        client,
+                        self.db.clone(),
+                    );
+                    matcher
+                        .match_album(file_path, artist_hint, album_hint)
+                        .await
+                }
+                Err(e) => {
+                    tracing::warn!(error = ?e, "MusicBrainzClient unavailable for album matching");
+                    Err(crate::matching::AlbumMatchError::MusicBrainzError(
+                        e.to_string(),
+                    ))
+                }
+            };
+
+            match album_result {
+                Ok(ref result) if result.matched && result.tracks.len() == passages.len() => {
+                    tracing::info!(
+                        release_mbid = ?result.release_mbid,
+                        artist = ?result.matched_artist,
+                        album = ?result.matched_album,
+                        match_pct = result.match_percentage,
+                        tracks = result.tracks.len(),
+                        "AlbumMatcher: matched — using edition MBIDs"
+                    );
+                    result
+                        .tracks
+                        .iter()
+                        .map(|track| {
+                            Some(crate::services::passage_song_matcher::MbidResolution {
+                                mbid: track.recording_mbid.clone(),
+                                tier: ConfidenceTier::Tier3,
+                                score: (result.match_percentage / 100.0) as f32,
+                                source: "AlbumMatcher".to_string(),
+                            })
+                        })
+                        .collect()
+                }
+                Ok(ref result) if result.matched => {
+                    tracing::warn!(
+                        album_tracks = result.tracks.len(),
+                        detected_passages = passages.len(),
+                        "AlbumMatcher: track count mismatch — falling back to AcoustID"
+                    );
+                    vec![None; passages.len()]
+                }
+                Ok(_) => {
+                    tracing::info!("AlbumMatcher: no match — falling back to AcoustID");
+                    vec![None; passages.len()]
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "AlbumMatcher failed — falling back to AcoustID");
+                    vec![None; passages.len()]
+                }
+            }
+        };
+
+        // Phase 5: Per-Passage Fingerprinting (skipped when AlbumMatcher resolved all passages)
+        let needs_fingerprinting = preresolved.iter().any(|r| r.is_none());
+
+        let fingerprint_results = if needs_fingerprinting {
+            self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting")
+                .await;
+            let phase5_start = std::time::Instant::now();
+            tracing::debug!(
+                file = ?file_path,
+                file_id = %file_id,
+                passage_count = passages.len(),
+                "Phase 5: Per-Passage Fingerprinting"
+            );
+
+            // Get API key from database settings
+            let api_key: Option<String> =
+                sqlx::query_scalar("SELECT value FROM settings WHERE key = 'acoustid_api_key'")
+                    .fetch_optional(&self.db)
+                    .await?;
+
+            let passage_fingerprinter =
+                crate::services::PassageFingerprinter::new(api_key, self.db.clone())?;
+            let fp_results = passage_fingerprinter
+                .fingerprint_passages(file_path, &passages)
                 .await?;
 
-        let passage_fingerprinter =
-            crate::services::PassageFingerprinter::new(api_key, self.db.clone())?;
-        let fingerprint_results = passage_fingerprinter
-            .fingerprint_passages(file_path, &passages)
-            .await?;
+            // **[PLAN024]** Track fingerprinting
+            let (passages_fingerprinted, successful_matches) = match &fp_results {
+                crate::services::FingerprintResult::Success(candidates) => {
+                    (passages.len(), candidates.len())
+                }
+                _ => (passages.len(), 0),
+            };
+            self.statistics
+                .record_fingerprinting(passages_fingerprinted, successful_matches);
 
-        // **[PLAN024]** Track fingerprinting
-        let (passages_fingerprinted, successful_matches) = match &fingerprint_results {
-            crate::services::FingerprintResult::Success(candidates) => {
-                (passages.len(), candidates.len())
-            }
-            _ => (passages.len(), 0),
+            tracing::info!(
+                phase = "Fingerprinting",
+                duration_ms = phase5_start.elapsed().as_millis(),
+                file_index = file_index,
+                passages_fingerprinted = passages_fingerprinted,
+                successful_matches = successful_matches,
+                "Phase 5 completed"
+            );
+
+            fp_results
+        } else {
+            // All passages pre-resolved by AlbumMatcher — skip AcoustID
+            tracing::info!(
+                file = ?file_path,
+                passages = passages.len(),
+                "Phase 5 skipped: all passages pre-resolved by AlbumMatcher"
+            );
+            self.set_worker_phase(
+                file_path,
+                root_folder,
+                file_index,
+                5,
+                "Fingerprinting (skipped)",
+            )
+            .await;
+            self.statistics.record_fingerprinting(0, 0);
+            crate::services::FingerprintResult::Failed("Skipped: AlbumMatcher resolved all passages".to_string())
         };
-        self.statistics
-            .record_fingerprinting(passages_fingerprinted, successful_matches);
-
-        tracing::info!(
-            phase = "Fingerprinting",
-            duration_ms = phase5_start.elapsed().as_millis(),
-            file_index = file_index,
-            passages_fingerprinted = passages_fingerprinted,
-            successful_matches = successful_matches,
-            "Phase 5 completed"
-        );
 
         // Phase 6: Song Matching (with pre-resolved MBIDs from cascade)
         self.set_worker_phase(file_path, root_folder, file_index, 6, "Song Matching")
@@ -590,7 +675,7 @@ impl WorkflowOrchestrator {
         );
         let passage_flavor_fetcher = crate::services::PassageFlavorFetcher::new(self.db.clone())?;
         let flavor_result = passage_flavor_fetcher
-            .fetch_flavors(file_path, &recording_result.passages)
+            .fetch_flavors(file_path, &recording_result.passages, self.essentia_client.as_ref())
             .await?;
 
         // **[PLAN032]** Emit FlavorLookup analysis log events for each song
@@ -653,18 +738,11 @@ impl WorkflowOrchestrator {
             duration_ms = phase9_start.elapsed().as_millis(),
             file_index = file_index,
             songs_processed = flavor_result.stats.songs_processed,
-            acousticbrainz = flavor_result.stats.acousticbrainz_count,
+            essentia = flavor_result.stats.essentia_count,
             "Phase 9 completed"
         );
 
         // **[PLAN024]** Track flavoring (Phase 9)
-        // Note: flavor_result.stats already contains the counts we need
-        // We need to track each source type - the service should provide this detail
-        // For now, use the aggregate counts from the flavor_result.stats
-        for _ in 0..flavor_result.stats.acousticbrainz_count {
-            self.statistics
-                .record_flavoring(false, Some("acousticbrainz"));
-        }
         for _ in 0..flavor_result.stats.essentia_count {
             self.statistics.record_flavoring(false, Some("essentia"));
         }
@@ -675,7 +753,6 @@ impl WorkflowOrchestrator {
         let pre_existing_count = flavor_result
             .stats
             .songs_processed
-            .saturating_sub(flavor_result.stats.acousticbrainz_count)
             .saturating_sub(flavor_result.stats.essentia_count)
             .saturating_sub(flavor_result.stats.failed_count);
         for _ in 0..pre_existing_count {
@@ -1018,7 +1095,7 @@ impl WorkflowOrchestrator {
         );
         let passage_flavor_fetcher = crate::services::PassageFlavorFetcher::new(self.db.clone())?;
         let flavor_result = passage_flavor_fetcher
-            .fetch_flavors(file_path, &recording_result.passages)
+            .fetch_flavors(file_path, &recording_result.passages, self.essentia_client.as_ref())
             .await?;
 
         // **[PLAN032]** Emit FlavorLookup analysis log events for each song (single-song path)
@@ -1085,10 +1162,6 @@ impl WorkflowOrchestrator {
         );
 
         // Track flavoring statistics
-        for _ in 0..flavor_result.stats.acousticbrainz_count {
-            self.statistics
-                .record_flavoring(false, Some("acousticbrainz"));
-        }
         for _ in 0..flavor_result.stats.essentia_count {
             self.statistics.record_flavoring(false, Some("essentia"));
         }

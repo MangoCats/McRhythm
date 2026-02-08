@@ -2,8 +2,9 @@
 //!
 //! **Traceability:** [REQ-SPEC032-016] Flavoring (Phase 9)
 //!
-//! Fetches musical flavor vectors for songs using AcousticBrainz + Essentia fallback.
-//! Updates songs table with flavor_vector JSON and sets status to 'FLAVOR READY'.
+//! **[PLAN035]** Essentia-only flavoring. AcousticBrainz has been shut down.
+//! Uses local Essentia analysis (native binary or Docker container) to compute
+//! musical flavor vectors for songs.
 
 use sqlx::{Pool, Sqlite};
 use std::collections::HashSet;
@@ -11,7 +12,6 @@ use std::path::Path;
 use uuid::Uuid;
 use wkmp_common::{Error, Result};
 
-use super::acousticbrainz_cache::AcousticBrainzCache;
 use super::essentia_client::EssentiaClient;
 use super::passage_recorder::PassageRecord;
 use crate::utils::retry_on_lock;
@@ -21,7 +21,7 @@ use crate::utils::retry_on_lock;
 pub struct SongFlavorResult {
     /// Song GUID
     pub song_id: Uuid,
-    /// Flavor source (AcousticBrainz or Essentia)
+    /// Flavor source
     pub flavor_source: FlavorSource,
     /// Whether flavor was successfully fetched
     pub success: bool,
@@ -30,13 +30,11 @@ pub struct SongFlavorResult {
 /// Flavor source
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FlavorSource {
-    /// Fetched from AcousticBrainz
-    AcousticBrainz,
     /// Computed via Essentia
     Essentia,
     /// Zero-song passage (no flavor)
     None,
-    /// Failed to fetch/compute
+    /// Failed to compute
     Failed,
 }
 
@@ -44,7 +42,6 @@ impl FlavorSource {
     /// Convert to display string
     pub fn as_str(&self) -> &'static str {
         match self {
-            FlavorSource::AcousticBrainz => "AcousticBrainz",
             FlavorSource::Essentia => "Essentia",
             FlavorSource::None => "None",
             FlavorSource::Failed => "Failed",
@@ -66,8 +63,6 @@ pub struct FlavorResult {
 pub struct FlavorStats {
     /// Total songs processed
     pub songs_processed: usize,
-    /// Songs fetched from AcousticBrainz
-    pub acousticbrainz_count: usize,
     /// Songs computed via Essentia
     pub essentia_count: usize,
     /// Zero-song passages skipped
@@ -81,62 +76,30 @@ pub struct FlavorStats {
 /// **Traceability:** [REQ-SPEC032-016] (Phase 9: FLAVORING)
 pub struct PassageFlavorFetcher {
     db: Pool<Sqlite>,
-    acousticbrainz_cache: AcousticBrainzCache,
-    essentia_client: Option<EssentiaClient>,
 }
 
 impl PassageFlavorFetcher {
     /// Create new passage flavor fetcher
-    ///
-    /// Note: Essentia client is optional. If Essentia binary is not available,
-    /// flavor fetching will still work using AcousticBrainz only.
     pub fn new(db: Pool<Sqlite>) -> Result<Self> {
-        // Try to create Essentia client, but don't fail if unavailable
-        let essentia_client = match EssentiaClient::new() {
-            Ok(client) => {
-                tracing::info!("Essentia client available for fallback flavor computation");
-                Some(client)
-            }
-            Err(e) => {
-                tracing::warn!(error = ?e, "Essentia client unavailable, will use AcousticBrainz only");
-                None
-            }
-        };
-
-        // Create AcousticBrainz cache (with database backing)
-        let acousticbrainz_cache = AcousticBrainzCache::new(db.clone()).map_err(|e| {
-            Error::Internal(format!("AcousticBrainz cache creation failed: {}", e))
-        })?;
-
-        Ok(Self {
-            db,
-            acousticbrainz_cache,
-            essentia_client,
-        })
+        Ok(Self { db })
     }
 
-    /// Fetch flavor vectors for songs
+    /// Fetch flavor vectors for songs via Essentia
     ///
-    /// **Algorithm:**
-    /// 1. Collect unique song IDs from passage records (skip zero-song passages)
-    /// 2. For each unique song:
-    ///    a. Get MBID from songs table
-    ///    b. Query AcousticBrainz API for flavor vector
-    ///    c. If AcousticBrainz fails: Fallback to Essentia (local computation)
-    ///    d. Update songs.flavor_vector (JSON), songs.flavor_source_blend (JSON array)
-    ///    e. Set songs.status = 'FLAVOR READY'
-    /// 3. Return flavor result with statistics
+    /// **[PLAN035]** Essentia-only. `essentia_client` is passed by reference from the
+    /// orchestrator (shared across all files).
     ///
     /// **Traceability:** [REQ-SPEC032-016]
     pub async fn fetch_flavors(
         &self,
         file_path: &Path,
         passages: &[PassageRecord],
+        essentia_client: Option<&EssentiaClient>,
     ) -> Result<FlavorResult> {
         tracing::debug!(
             path = %file_path.display(),
             passage_count = passages.len(),
-            "Fetching flavor vectors"
+            "Fetching flavor vectors via Essentia"
         );
 
         // Get max lock wait time from settings (default 5000ms)
@@ -159,163 +122,73 @@ impl PassageFlavorFetcher {
         let mut results = Vec::new();
         let mut stats = FlavorStats {
             songs_processed: unique_song_ids.len(),
-            acousticbrainz_count: 0,
             essentia_count: 0,
             zero_song_count: passages.iter().filter(|p| p.song_id.is_none()).count(),
             failed_count: 0,
         };
 
-        for song_id in unique_song_ids {
-            // Get MBID from songs table
-            let mbid: String =
-                sqlx::query_scalar("SELECT recording_mbid FROM songs WHERE guid = ?")
-                    .bind(song_id.to_string())
-                    .fetch_one(&self.db)
-                    .await?;
-
-            tracing::debug!(
-                song_id = %song_id,
-                mbid,
-                "Fetching flavor for song"
+        // Early return if no Essentia client available
+        if essentia_client.is_none() && !unique_song_ids.is_empty() {
+            tracing::warn!(
+                songs = unique_song_ids.len(),
+                "Essentia not available — all songs will be marked FLAVORING FAILED"
             );
+        }
 
-            // Try AcousticBrainz first (with caching)
-            let (flavor_source, success) = match self
-                .acousticbrainz_cache
-                .get_flavor_vector(&mbid)
-                .await
-            {
-                Ok(flavor_vector) => {
-                    // Success: Update songs table
-                    let flavor_json = serde_json::to_string(&flavor_vector).map_err(|e| {
-                        Error::Internal(format!("JSON serialization failed: {}", e))
-                    })?;
+        for song_id in unique_song_ids {
+            let song_id_str = song_id.to_string();
 
-                    let db_ref = &self.db;
-                    let song_id_str = song_id.to_string();
-                    retry_on_lock(
-                        "song flavor update (AcousticBrainz)",
-                        max_wait_ms as u64,
-                        || async {
-                            sqlx::query(
-                                r#"
-                                UPDATE songs
-                                SET flavor_vector = ?,
-                                    flavor_source_blend = '["AcousticBrainz"]',
-                                    status = 'FLAVOR READY',
-                                    updated_at = CURRENT_TIMESTAMP
-                                WHERE guid = ?
-                                "#,
-                            )
-                            .bind(&flavor_json)
-                            .bind(&song_id_str)
-                            .execute(db_ref)
-                            .await
-                            .map_err(|e| Error::Database(e))
-                        },
-                    )
-                    .await?;
+            tracing::debug!(song_id = %song_id, "Computing flavor via Essentia");
 
-                    tracing::debug!(
-                        song_id = %song_id,
-                        mbid,
-                        "Flavor fetched from AcousticBrainz"
-                    );
+            let (flavor_source, success) = if let Some(essentia) = essentia_client {
+                match essentia.analyze_file(file_path).await {
+                    Ok(flavor_vector) => {
+                        let flavor_json =
+                            serde_json::to_string(&flavor_vector).map_err(|e| {
+                                Error::Internal(format!("JSON serialization failed: {}", e))
+                            })?;
 
-                    stats.acousticbrainz_count += 1;
-                    (FlavorSource::AcousticBrainz, true)
-                }
-                Err(ab_error) => {
-                    // AcousticBrainz failed: Try Essentia fallback if available
-                    if let Some(ref essentia) = self.essentia_client {
-                        tracing::warn!(
-                            song_id = %song_id,
-                            mbid,
-                            error = ?ab_error,
-                            "AcousticBrainz failed, trying Essentia fallback"
-                        );
-
-                        match essentia.analyze_file(file_path).await {
-                            Ok(flavor_vector) => {
-                                // Success: Update songs table
-                                let flavor_json =
-                                    serde_json::to_string(&flavor_vector).map_err(|e| {
-                                        Error::Internal(format!("JSON serialization failed: {}", e))
-                                    })?;
-
-                                let db_ref = &self.db;
-                                let song_id_str = song_id.to_string();
-                                retry_on_lock(
-                                    "song flavor update (Essentia)",
-                                    max_wait_ms as u64,
-                                    || async {
-                                        sqlx::query(
-                                            r#"
-                                        UPDATE songs
-                                        SET flavor_vector = ?,
-                                            flavor_source_blend = '["Essentia"]',
-                                            status = 'FLAVOR READY',
-                                            updated_at = CURRENT_TIMESTAMP
-                                        WHERE guid = ?
-                                        "#,
-                                        )
-                                        .bind(&flavor_json)
-                                        .bind(&song_id_str)
-                                        .execute(db_ref)
-                                        .await
-                                        .map_err(|e| Error::Database(e))
-                                    },
+                        let db_ref = &self.db;
+                        let sid = song_id_str.clone();
+                        retry_on_lock(
+                            "song flavor update (Essentia)",
+                            max_wait_ms as u64,
+                            || async {
+                                sqlx::query(
+                                    r#"
+                                    UPDATE songs
+                                    SET flavor_vector = ?,
+                                        flavor_source_blend = '["Essentia"]',
+                                        status = 'FLAVOR READY',
+                                        updated_at = CURRENT_TIMESTAMP
+                                    WHERE guid = ?
+                                    "#,
                                 )
-                                .await?;
-
-                                tracing::debug!(
-                                    song_id = %song_id,
-                                    mbid,
-                                    "Flavor computed via Essentia"
-                                );
-
-                                stats.essentia_count += 1;
-                                (FlavorSource::Essentia, true)
-                            }
-                            Err(essentia_error) => {
-                                // Both failed
-                                tracing::error!(
-                                    song_id = %song_id,
-                                    mbid,
-                                    ab_error = ?ab_error,
-                                    essentia_error = ?essentia_error,
-                                    "Failed to fetch flavor from both AcousticBrainz and Essentia"
-                                );
-
-                                // Mark song as FLAVORING FAILED so finalizer can proceed
-                                if let Err(e) = sqlx::query(
-                                    "UPDATE songs SET status = 'FLAVORING FAILED', updated_at = CURRENT_TIMESTAMP WHERE guid = ?"
-                                )
-                                .bind(song_id.to_string())
-                                .execute(&self.db)
+                                .bind(&flavor_json)
+                                .bind(&sid)
+                                .execute(db_ref)
                                 .await
-                                {
-                                    tracing::error!(song_id = %song_id, error = ?e, "Failed to update song status to FLAVORING FAILED");
-                                }
+                                .map_err(|e| Error::Database(e))
+                            },
+                        )
+                        .await?;
 
-                                stats.failed_count += 1;
-                                (FlavorSource::Failed, false)
-                            }
-                        }
-                    } else {
-                        // Essentia not available
+                        tracing::debug!(song_id = %song_id, "Flavor computed via Essentia");
+
+                        stats.essentia_count += 1;
+                        (FlavorSource::Essentia, true)
+                    }
+                    Err(essentia_error) => {
                         tracing::error!(
                             song_id = %song_id,
-                            mbid,
-                            ab_error = ?ab_error,
-                            "AcousticBrainz failed and Essentia not available"
+                            error = ?essentia_error,
+                            "Essentia analysis failed"
                         );
 
-                        // Mark song as FLAVORING FAILED so finalizer can proceed
                         if let Err(e) = sqlx::query(
                             "UPDATE songs SET status = 'FLAVORING FAILED', updated_at = CURRENT_TIMESTAMP WHERE guid = ?"
                         )
-                        .bind(song_id.to_string())
+                        .bind(&song_id_str)
                         .execute(&self.db)
                         .await
                         {
@@ -326,6 +199,20 @@ impl PassageFlavorFetcher {
                         (FlavorSource::Failed, false)
                     }
                 }
+            } else {
+                // Essentia not available
+                if let Err(e) = sqlx::query(
+                    "UPDATE songs SET status = 'FLAVORING FAILED', updated_at = CURRENT_TIMESTAMP WHERE guid = ?"
+                )
+                .bind(&song_id_str)
+                .execute(&self.db)
+                .await
+                {
+                    tracing::error!(song_id = %song_id, error = ?e, "Failed to update song status to FLAVORING FAILED");
+                }
+
+                stats.failed_count += 1;
+                (FlavorSource::Failed, false)
             };
 
             results.push(SongFlavorResult {
@@ -338,7 +225,6 @@ impl PassageFlavorFetcher {
         tracing::info!(
             path = %file_path.display(),
             songs_processed = stats.songs_processed,
-            acousticbrainz = stats.acousticbrainz_count,
             essentia = stats.essentia_count,
             failed = stats.failed_count,
             "Flavor fetching complete"
@@ -360,7 +246,6 @@ mod tests {
     async fn setup_test_db() -> SqlitePool {
         let pool = SqlitePool::connect(":memory:").await.unwrap();
 
-        // Create settings table
         sqlx::query(
             r#"
             CREATE TABLE settings (
@@ -375,7 +260,6 @@ mod tests {
         .await
         .unwrap();
 
-        // Insert ai_database_max_lock_wait_ms setting
         sqlx::query(
             "INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '5000')",
         )
@@ -383,7 +267,6 @@ mod tests {
         .await
         .unwrap();
 
-        // Create songs table
         sqlx::query(
             r#"
             CREATE TABLE songs (
@@ -411,12 +294,10 @@ mod tests {
     async fn test_fetcher_creation() {
         let pool = setup_test_db().await;
         let _fetcher = PassageFlavorFetcher::new(pool).unwrap();
-        // Just verify it can be created
     }
 
     #[test]
     fn test_flavor_source_as_str() {
-        assert_eq!(FlavorSource::AcousticBrainz.as_str(), "AcousticBrainz");
         assert_eq!(FlavorSource::Essentia.as_str(), "Essentia");
         assert_eq!(FlavorSource::None.as_str(), "None");
         assert_eq!(FlavorSource::Failed.as_str(), "Failed");
@@ -426,14 +307,13 @@ mod tests {
     fn test_flavor_stats_empty() {
         let stats = FlavorStats {
             songs_processed: 0,
-            acousticbrainz_count: 0,
             essentia_count: 0,
             zero_song_count: 0,
             failed_count: 0,
         };
 
         assert_eq!(stats.songs_processed, 0);
-        assert_eq!(stats.acousticbrainz_count, 0);
+        assert_eq!(stats.essentia_count, 0);
     }
 
     #[tokio::test]
@@ -443,7 +323,7 @@ mod tests {
 
         let passages = vec![];
         let result = fetcher
-            .fetch_flavors(Path::new("/test/file.mp3"), &passages)
+            .fetch_flavors(Path::new("/test/file.mp3"), &passages, None)
             .await
             .unwrap();
 
@@ -456,7 +336,6 @@ mod tests {
         let pool = setup_test_db().await;
         let fetcher = PassageFlavorFetcher::new(pool).unwrap();
 
-        // Create passage with no song_id (zero-song passage)
         let passages = vec![PassageRecord {
             passage_id: Uuid::new_v4(),
             song_id: None,
@@ -464,11 +343,11 @@ mod tests {
         }];
 
         let result = fetcher
-            .fetch_flavors(Path::new("/test/file.mp3"), &passages)
+            .fetch_flavors(Path::new("/test/file.mp3"), &passages, None)
             .await
             .unwrap();
 
-        assert_eq!(result.stats.songs_processed, 0); // No songs to process
+        assert_eq!(result.stats.songs_processed, 0);
         assert_eq!(result.stats.zero_song_count, 1);
         assert_eq!(result.songs.len(), 0);
     }

@@ -23,7 +23,7 @@
 
 use crate::models::{ImportSession, ImportState};
 use crate::services::{
-    AcoustIDClient, AcousticBrainzClient, AmplitudeAnalyzer, EssentiaClient, FileScanner,
+    AcoustIDClient, AmplitudeAnalyzer, EssentiaClient, FileScanner,
     Fingerprinter, MetadataExtractor, MusicBrainzClient, ProgressManager, WriteQueue,
 };
 use anyhow::Result;
@@ -77,7 +77,6 @@ pub struct WorkflowOrchestrator {
     amplitude_analyzer: AmplitudeAnalyzer,
     mb_client: Option<MusicBrainzClient>,
     acoustid_client: Option<Arc<AcoustIDClient>>,
-    acousticbrainz_client: Option<Arc<AcousticBrainzClient>>,
     essentia_client: Option<EssentiaClient>,
     /// **[PLAN024]** Phase-specific statistics for UI display
     statistics: statistics::ImportStatistics,
@@ -112,12 +111,14 @@ impl WorkflowOrchestrator {
     /// * `acoustid_api_key` - Optional AcoustID API key for fingerprinting
     /// * `memory_usage_threshold_bytes` - Memory threshold in bytes for monitoring
     /// * `processing_thread_count` - Number of parallel worker threads
-    pub fn new(
+    /// * `music_root` - Root folder for music files (needed for Docker path translation)
+    pub async fn new(
         db: SqlitePool,
         event_bus: EventBus,
         acoustid_api_key: Option<String>,
         memory_usage_threshold_bytes: u64,
         processing_thread_count: usize,
+        music_root: std::path::PathBuf,
     ) -> Self {
         // Initialize API clients (can fail, so wrapped in Option)
         let mb_client = MusicBrainzClient::new().ok();
@@ -141,15 +142,20 @@ impl WorkflowOrchestrator {
             }
         });
 
-        let acousticbrainz_client = AcousticBrainzClient::new().ok().map(Arc::new);
-        let essentia_client = EssentiaClient::new().ok();
-
-        // Log Essentia availability
-        if essentia_client.is_some() {
-            tracing::info!("Essentia available for local musical flavor extraction");
-        } else {
-            tracing::warn!("Essentia not available - install essentia_streaming_extractor_music for fallback analysis");
-        }
+        // **[PLAN035]** Async Essentia init with strategy pattern (native → Docker fallback)
+        let essentia_client = match EssentiaClient::new(&db, music_root).await {
+            Ok(client) => {
+                tracing::info!(
+                    backend = client.backend_name(),
+                    "Essentia available for local musical flavor extraction"
+                );
+                Some(client)
+            }
+            Err(e) => {
+                tracing::warn!(error = ?e, "Essentia not available");
+                None
+            }
+        };
 
         Self {
             db,
@@ -160,7 +166,6 @@ impl WorkflowOrchestrator {
             amplitude_analyzer: AmplitudeAnalyzer::default(),
             mb_client,
             acoustid_client,
-            acousticbrainz_client,
             essentia_client,
             statistics: statistics::ImportStatistics::new(),
             // **[PLAN031 Task 2.5]** Use tokio async locks

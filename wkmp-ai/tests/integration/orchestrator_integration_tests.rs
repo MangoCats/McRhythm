@@ -45,7 +45,7 @@ async fn tc_orch_001_execute_import_plan024_end_to_end() {
         audio_generator::generate_test_library(temp_audio_dir.path(), 3, &audio_config).unwrap();
 
     // Setup: Create orchestrator
-    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone());
+    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone()).await;
 
     // Setup: Create import session
     let session = ImportSession::new(
@@ -142,7 +142,7 @@ async fn tc_orch_002_cancellation_handling() {
         audio_generator::generate_test_library(temp_audio_dir.path(), 5, &audio_config).unwrap();
 
     // Setup: Create orchestrator
-    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone());
+    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone()).await;
 
     // Setup: Create import session
     let session = ImportSession::new(
@@ -202,7 +202,7 @@ async fn tc_orch_003_empty_directory() {
     let temp_audio_dir = TempDir::new().unwrap(); // Empty directory
 
     // Setup: Create orchestrator
-    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone());
+    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone()).await;
 
     // Setup: Create import session
     let session = ImportSession::new(
@@ -259,7 +259,7 @@ async fn tc_orch_004_state_machine_progression() {
         audio_generator::generate_test_library(temp_audio_dir.path(), 1, &audio_config).unwrap();
 
     // Setup: Create orchestrator
-    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone());
+    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone()).await;
 
     // Setup: Create import session
     let session = ImportSession::new(

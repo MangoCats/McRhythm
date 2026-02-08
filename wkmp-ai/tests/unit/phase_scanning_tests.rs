@@ -44,7 +44,7 @@ async fn tc_phase_001_scanning_no_processing() {
         audio_generator::generate_test_library(temp_audio_dir.path(), 3, &audio_config).unwrap();
 
     // Setup: Create orchestrator
-    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone());
+    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone()).await;
 
     // Setup: Create import session
     let mut session = ImportSession::new(
@@ -129,7 +129,7 @@ async fn tc_phase_002_scanning_empty_directory() {
     let temp_audio_dir = TempDir::new().unwrap(); // Empty directory
 
     // Setup: Create orchestrator
-    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone());
+    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone()).await;
 
     // Setup: Create import session
     let session = ImportSession::new(
@@ -196,7 +196,7 @@ async fn tc_phase_003_scanning_modification_times() {
     let fs_mod_time = fs_metadata.modified().unwrap();
 
     // Setup: Create orchestrator
-    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone());
+    let orchestrator = db_utils::create_test_orchestrator(db_pool.clone()).await;
 
     // Setup: Create import session
     let session = ImportSession::new(

@@ -90,9 +90,11 @@ TIER 4: NO MATCH
 
 ### 2.3 Matching Pipeline Flow
 
+**Single-track files** (resolved per-file):
+
 ```
                     ┌─────────────────────┐
-                    │    Audio File       │
+                    │  Single-Track File  │
                     └──────────┬──────────┘
                                │
                     ┌──────────▼──────────┐
@@ -118,11 +120,11 @@ TIER 4: NO MATCH
          │ NO │◄───────────────────────────────────┘
          └──┬─┘
             │
-    ┌───────▼───────┐
-    │  STAGE 1:     │
-    │  AcoustID     │
-    │  (Fallback)   │
-    └───────┬───────┘
+    ┌───────▼───────────┐
+    │  STAGE 1:         │
+    │  ContextualMatcher│
+    │  (artist+title)   │
+    └───────┬───────────┘
             │
        ┌────┴────┐
        │  MATCH? │
@@ -130,11 +132,11 @@ TIER 4: NO MATCH
             │
     ┌───YES─┴─NO───┐
     │              │
-┌───▼───┐    ┌────▼────┐
-│TIER 2 │    │ STAGE 2 │
-│ACCEPT │    │ Album   │
-└───────┘    │ Query   │
-             └────┬────┘
+┌───▼───┐    ┌────▼──────┐
+│TIER 3 │    │ STAGE 2:  │
+│ACCEPT │    │ AcoustID  │
+└───────┘    │ Fingerpr. │
+             └────┬──────┘
                   │
              ┌────┴────┐
              │  MATCH? │
@@ -143,10 +145,62 @@ TIER 4: NO MATCH
           ┌──YES─┴─NO──┐
           │            │
       ┌───▼───┐   ┌────▼────┐
-      │TIER 3 │   │ TIER 4  │
+      │TIER 2 │   │ TIER 4  │
       │ACCEPT │   │NO MATCH │
       └───────┘   └─────────┘
 ```
+
+**Album files** (resolved per-passage from matched edition):
+
+```
+                    ┌─────────────────────┐
+                    │    Album File       │
+                    │  (multi-passage)    │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  Phase 4: Segment   │
+                    │  passage boundaries │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  STAGE 1:           │
+                    │  AlbumMatcher       │
+                    │  (edition matching) │
+                    └──────────┬──────────┘
+                               │
+                          ┌────┴────┐
+                          │ MATCH?  │
+                          └────┬────┘
+                               │
+                    ┌────YES───┴───NO────┐
+                    │                    │
+          ┌─────────▼─────────┐   ┌─────▼──────────┐
+          │ Track count ==    │   │  STAGE 2:      │
+          │ passage count?    │   │  AcoustID      │
+          └─────────┬─────────┘   │  per passage   │
+                    │             └─────┬──────────┘
+               ┌────┴────┐             │
+               │  YES/NO │        (existing flow)
+               └────┬────┘
+                    │
+          ┌───YES──┴──NO───┐
+          │                │
+    ┌─────▼──────┐   ┌────▼──────────┐
+    │ TIER 3     │   │ STAGE 2:      │
+    │ per passage│   │ AcoustID      │
+    │ from tracks│   │ per passage   │
+    └────────────┘   └───────────────┘
+```
+
+**Stage numbering** (as implemented in `mbid_cascade.rs` and `pipeline_plan024.rs`):
+
+| Stage | Method | Applies To | Confidence Tier |
+|-------|--------|-----------|-----------------|
+| **Stage 0** | Embedded MBID (ID3 tags) | Single-track files | Tier 1A/1B |
+| **Stage 1** | ContextualMatcher (artist+title search) | Single-track files | Tier 3 |
+| **Stage 1** | AlbumMatcher (edition matching) | Album files | Tier 3 |
+| **Stage 2** | AcoustID fingerprinting | Fallback for unresolved passages | Tier 2A/2B |
 
 ---
 
