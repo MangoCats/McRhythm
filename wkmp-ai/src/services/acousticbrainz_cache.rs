@@ -13,10 +13,10 @@
 use sqlx::{Pool, Sqlite};
 use std::time::Duration;
 use thiserror::Error;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 use super::acousticbrainz_client::{
-    ABError, ABLowLevel, AcousticBrainzClient, MusicalFlavorVector,
+    ABError, ABLowLevel, MusicalFlavorVector,
 };
 
 /// Caching layer errors
@@ -38,7 +38,7 @@ pub enum CacheError {
 /// AcousticBrainz client with database caching
 ///
 /// **Usage Pattern:**
-/// ```rust
+/// ```rust,ignore
 /// let cache = AcousticBrainzCache::new(db_pool)?;
 /// let flavor = cache.get_flavor_vector(recording_mbid).await?;
 /// ```
@@ -46,20 +46,20 @@ pub enum CacheError {
 /// **Implementation:**
 /// - Check cache first (acousticbrainz_cache table)
 /// - On cache hit: Return cached data (<1ms)
-/// - On cache miss: Query API (~1000ms), store in cache, return
-/// - Cache indefinitely (AcousticBrainz data is static since 2022)
+/// - On cache miss: Return error (AcousticBrainz API offline since 2022)
+/// - Cache data is static and never expires
 pub struct AcousticBrainzCache {
     /// Database connection pool
     db: Pool<Sqlite>,
-    /// Underlying AcousticBrainz API client
-    client: AcousticBrainzClient,
 }
 
 impl AcousticBrainzCache {
     /// Create new cached AcousticBrainz client
+    ///
+    /// Note: AcousticBrainz API is offline since 2022. This cache serves
+    /// pre-existing cached data only. Cache misses return an error immediately.
     pub fn new(db: Pool<Sqlite>) -> Result<Self, CacheError> {
-        let client = AcousticBrainzClient::new()?;
-        Ok(Self { db, client })
+        Ok(Self { db })
     }
 
     /// Lookup low-level data by recording MBID (with caching)
@@ -67,14 +67,11 @@ impl AcousticBrainzCache {
     /// **Algorithm:**
     /// 1. Check database cache
     /// 2. If found: Parse JSON and return
-    /// 3. If not found: Query AcousticBrainz API
-    /// 4. Store API result in cache
-    /// 5. Return result
+    /// 3. If not found: Return error (API offline since 2022)
     ///
     /// **Error Handling:**
-    /// - Cache lookup errors are logged but not fatal (fall through to API)
-    /// - API errors propagate to caller
-    /// - Cache storage errors are logged but not fatal (query succeeded)
+    /// - Cache lookup errors are logged but not fatal (fall through to error)
+    /// - Cache misses return RecordingNotFound error
     pub async fn lookup_lowlevel(&self, recording_mbid: &str) -> Result<ABLowLevel, CacheError> {
         debug!(mbid = %recording_mbid, "Checking AcousticBrainz cache");
 
@@ -96,21 +93,12 @@ impl AcousticBrainzCache {
             }
         }
 
-        // Cache miss: Query API
-        let lowlevel = self.client.lookup_lowlevel(recording_mbid).await?;
-
-        // Store in cache (non-blocking on error)
-        if let Err(e) = self.store_in_cache(recording_mbid, &lowlevel).await {
-            warn!(
-                mbid = %recording_mbid,
-                error = ?e,
-                "Failed to store AcousticBrainz data in cache"
-            );
-        } else {
-            info!(mbid = %recording_mbid, "Stored AcousticBrainz data in cache");
-        }
-
-        Ok(lowlevel)
+        // Cache miss: AcousticBrainz API is offline since 2022, return error immediately
+        // instead of timing out against the dead service
+        Err(CacheError::ApiError(ABError::RecordingNotFound(format!(
+            "AcousticBrainz cache miss for {} — API disabled (service offline since 2022)",
+            recording_mbid
+        ))))
     }
 
     /// Get musical flavor vector for recording (with caching)

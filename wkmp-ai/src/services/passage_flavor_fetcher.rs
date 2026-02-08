@@ -287,6 +287,17 @@ impl PassageFlavorFetcher {
                                     "Failed to fetch flavor from both AcousticBrainz and Essentia"
                                 );
 
+                                // Mark song as FLAVORING FAILED so finalizer can proceed
+                                if let Err(e) = sqlx::query(
+                                    "UPDATE songs SET status = 'FLAVORING FAILED', updated_at = CURRENT_TIMESTAMP WHERE guid = ?"
+                                )
+                                .bind(song_id.to_string())
+                                .execute(&self.db)
+                                .await
+                                {
+                                    tracing::error!(song_id = %song_id, error = ?e, "Failed to update song status to FLAVORING FAILED");
+                                }
+
                                 stats.failed_count += 1;
                                 (FlavorSource::Failed, false)
                             }
@@ -299,6 +310,17 @@ impl PassageFlavorFetcher {
                             ab_error = ?ab_error,
                             "AcousticBrainz failed and Essentia not available"
                         );
+
+                        // Mark song as FLAVORING FAILED so finalizer can proceed
+                        if let Err(e) = sqlx::query(
+                            "UPDATE songs SET status = 'FLAVORING FAILED', updated_at = CURRENT_TIMESTAMP WHERE guid = ?"
+                        )
+                        .bind(song_id.to_string())
+                        .execute(&self.db)
+                        .await
+                        {
+                            tracing::error!(song_id = %song_id, error = ?e, "Failed to update song status to FLAVORING FAILED");
+                        }
 
                         stats.failed_count += 1;
                         (FlavorSource::Failed, false)

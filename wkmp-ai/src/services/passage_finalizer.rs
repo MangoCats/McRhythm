@@ -38,7 +38,7 @@ impl PassageFinalizer {
     ///
     /// **Algorithm:**
     /// 1. Validate all passages have status = 'INGEST COMPLETE'
-    /// 2. Validate all songs have status = 'FLAVOR READY' (or NULL for zero-song passages)
+    /// 2. Validate all songs have terminal status ('FLAVOR READY' or 'FLAVORING FAILED')
     /// 3. If validation passes:
     ///    a. Mark files.status = 'INGEST COMPLETE'
     ///    b. Update files.updated_at = CURRENT_TIMESTAMP
@@ -70,14 +70,14 @@ impl PassageFinalizer {
             errors.push(error_msg);
         }
 
-        // Validate all songs have status = 'FLAVOR READY' (for passages with song_id)
+        // Validate all songs have terminal status (for passages with song_id)
         let pending_songs: i64 = sqlx::query_scalar(
             r#"
             SELECT COUNT(DISTINCT songs.guid)
             FROM passages
             JOIN songs ON passages.song_id = songs.guid
             WHERE passages.file_id = ?
-              AND songs.status != 'FLAVOR READY'
+              AND songs.status NOT IN ('FLAVOR READY', 'FLAVORING FAILED')
             "#,
         )
         .bind(file_id.to_string())
@@ -86,7 +86,7 @@ impl PassageFinalizer {
 
         if pending_songs > 0 {
             let error_msg = format!(
-                "Validation failed: {} songs do not have status = 'FLAVOR READY'",
+                "Validation failed: {} songs do not have terminal status (FLAVOR READY or FLAVORING FAILED)",
                 pending_songs
             );
             tracing::error!(file_id = %file_id, pending_songs, "{}", error_msg);
