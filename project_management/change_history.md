@@ -6,6 +6,33 @@
 
 ---
 
+## 2026-02-08 10:10:06 -0500
+
+**PLAN034: Fix Single-Threaded Import Pipeline**
+
+Three-layer fix to enable true multi-threaded file processing in wkmp-ai:
+
+**Fix C — Amplitude analysis in spawn_blocking:**
+- `AmplitudeAnalyzer::analyze_file` converted from async to sync; added `#[derive(Clone)]`
+- `PassageAmplitudeAnalyzer` wraps call in `tokio::task::spawn_blocking`
+- Removed `yield_interval_ms` field/parameter (no longer needed)
+- Updated all callers: amplitude_analysis API, pipeline_plan025, tests
+
+**Fix A — Auto-detect thread count:**
+- Default `ai_processing_thread_count` changed from 1 → `available_parallelism().min(8)` (fallback 4)
+- `max_blocking_threads` changed from 2× to 3× (hash + fingerprint + amplitude concurrent)
+
+**Fix B — tokio::spawn for true task distribution:**
+- `WorkflowOrchestrator` wrapped in `Arc` at creation site
+- `execute_import_plan024`, `phase_processing_per_file` take `self: &Arc<Self>`
+- Worker pool uses `tokio::spawn` instead of direct future push in FuturesUnordered
+- Added JoinError handling for panicked tasks
+
+**Files changed:** 8 files, 80 insertions, 92 deletions
+**Tests:** 798 passed, 0 failed
+
+---
+
 ## 2026-02-03 08:37:09 -0500 | Hash: c41175d9f8cd40a0a86e8fbfadcd4e9e8b45ed97
 
 **Album Matching: Duration Filter Widening + Artist-Relaxed Fallback Search**

@@ -80,9 +80,9 @@ fn main() -> Result<()> {
 
     // **[AIA-RT-010]** Build production runtime with explicit worker_threads and max_blocking_threads
     // - worker_threads: Set to ai_processing_thread_count for controlled parallelism
-    // - max_blocking_threads: Set to 2x ai_processing_thread_count to prevent thread starvation during parallel audio processing
+    // **[PLAN034]** 3x blocking threads because hash + fingerprint + amplitude all use spawn_blocking concurrently
     let ai_processing_thread_count = bootstrap_config.processing_thread_count();
-    let max_blocking_threads = 2 * ai_processing_thread_count;
+    let max_blocking_threads = (3 * ai_processing_thread_count).max(8);
 
     info!(
         "Building Tokio runtime: worker_threads={}, max_blocking_threads={}",

@@ -244,7 +244,7 @@ impl WorkflowOrchestrator {
     /// **[AIA-WF-010]** Progress through all states
     /// **[AIA-ASYNC-010]** Respects cancellation token
     pub async fn execute_import(
-        &self,
+        self: &Arc<Self>,
         mut session: ImportSession,
         cancel_token: tokio_util::sync::CancellationToken,
     ) -> Result<ImportSession> {
@@ -340,8 +340,9 @@ impl WorkflowOrchestrator {
     /// 1. SCANNING: File discovery (reuses legacy phase_scanning)
     /// 2. PROCESSING: PLAN024 3-tier pipeline (replaces 5 legacy phases)
     /// 3. COMPLETED: Import finished
+    /// **[PLAN034]** Takes `Arc<Self>` so worker tasks can be spawned with `tokio::spawn`
     pub async fn execute_import_plan024(
-        &self,
+        self: &Arc<Self>,
         mut session: ImportSession,
         cancel_token: tokio_util::sync::CancellationToken,
     ) -> Result<ImportSession> {
@@ -512,8 +513,9 @@ impl WorkflowOrchestrator {
     /// * Updated import session with file-level progress
     ///
     /// **Traceability:** [AIA-ASYNC-020] Per-File Pipeline
+    /// **[PLAN034]** Takes `Arc<Self>` so worker tasks can be spawned with `tokio::spawn`
     async fn phase_processing_per_file(
-        &self,
+        self: &Arc<Self>,
         mut session: ImportSession,
         start_time: std::time::Instant,
         cancel_token: &tokio_util::sync::CancellationToken,
@@ -601,7 +603,7 @@ impl WorkflowOrchestrator {
         let mut completed = 0;
         let mut failed = 0;
 
-        // Seed initial workers
+        // **[PLAN034]** Seed initial workers using tokio::spawn for true parallelism
         for _ in 0..parallelism {
             if let Some((idx, (file_id, file_path))) = file_iter.next() {
                 // **[PLAN024]** Track file started
@@ -610,19 +612,28 @@ impl WorkflowOrchestrator {
                     proc_stats.started += 1;
                 }
 
-                let task = self.process_single_file_with_context(
-                    idx,
-                    file_id,
-                    file_path,
-                    session.root_folder.clone(),
-                    cancel_token.clone(),
-                );
-                tasks.push(task);
+                let orchestrator = Arc::clone(&self);
+                let root = session.root_folder.clone();
+                let cancel = cancel_token.clone();
+                let handle = tokio::spawn(async move {
+                    orchestrator
+                        .process_single_file_with_context(idx, file_id, file_path, root, cancel)
+                        .await
+                });
+                tasks.push(handle);
             }
         }
 
-        // Process completions and spawn next file
-        while let Some((idx, file_path, result)) = tasks.next().await {
+        // **[PLAN034]** Process completions — unwrap JoinHandle then inner result
+        while let Some(join_result) = tasks.next().await {
+            let (idx, file_path, result) = match join_result {
+                Ok(tuple) => tuple,
+                Err(e) => {
+                    failed += 1;
+                    tracing::error!(error = ?e, "File processing task panicked");
+                    continue;
+                }
+            };
             match result {
                 Ok(_) => {
                     completed += 1;
@@ -730,7 +741,7 @@ impl WorkflowOrchestrator {
             let phase_statistics = self.convert_statistics_to_sse().await;
             self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
-            // Maintain parallelism level - spawn next file
+            // **[PLAN034]** Maintain parallelism level - spawn next file with tokio::spawn
             if let Some((idx, (file_id, file_path))) = file_iter.next() {
                 // **[PLAN024]** Track file started
                 {
@@ -738,14 +749,15 @@ impl WorkflowOrchestrator {
                     proc_stats.started += 1;
                 }
 
-                let task = self.process_single_file_with_context(
-                    idx,
-                    file_id,
-                    file_path,
-                    session.root_folder.clone(),
-                    cancel_token.clone(),
-                );
-                tasks.push(task);
+                let orchestrator = Arc::clone(&self);
+                let root = session.root_folder.clone();
+                let cancel = cancel_token.clone();
+                let handle = tokio::spawn(async move {
+                    orchestrator
+                        .process_single_file_with_context(idx, file_id, file_path, root, cancel)
+                        .await
+                });
+                tasks.push(handle);
             }
 
             // Check cancellation

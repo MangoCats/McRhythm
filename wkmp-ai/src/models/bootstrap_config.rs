@@ -207,12 +207,15 @@ impl WkmpAiBootstrapConfig {
                 .parse()
                 .context("Invalid ai_processing_thread_count (must be integer 1-64)")?
         } else {
-            // **[PLAN031 Fix 6]** Single worker for sequential processing
-            // PLAN031 Fix 5 reduced to 4, but blocking thread pool contention still severe
-            // Setting to 1 worker eliminates spawn_blocking contention (decode + hash compete for same pool)
-            let auto_count = 1;
+            // **[PLAN034]** Auto-detect thread count, capped at 8
+            // PLAN031 Fix 6 set this to 1 to avoid spawn_blocking contention, but PLAN034 Fix C
+            // moves amplitude analysis to spawn_blocking, resolving that contention.
+            // Cap at 8: SQLite WAL supports concurrent readers but serializes writers.
+            let auto_count = std::thread::available_parallelism()
+                .map(|n| n.get().min(8))
+                .unwrap_or(4);
             tracing::info!(
-                "ai_processing_thread_count is NULL, using single-worker default: {} workers",
+                "ai_processing_thread_count is NULL, auto-detected: {} workers",
                 auto_count
             );
             auto_count

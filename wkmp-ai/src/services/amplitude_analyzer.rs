@@ -51,6 +51,9 @@ pub struct AmplitudeAnalysisResult {
 }
 
 /// Amplitude analyzer service
+///
+/// **[PLAN034]** Clone-able so it can be moved into `spawn_blocking` closures
+#[derive(Clone)]
 pub struct AmplitudeAnalyzer {
     #[allow(dead_code)]
     params: AmplitudeParameters,
@@ -65,16 +68,14 @@ impl AmplitudeAnalyzer {
     /// Analyze audio file for lead-in/lead-out timing
     ///
     /// **[AIA-COMP-010]** Real implementation using symphonia
-    /// **[IMPL001]** Yields periodically to prevent Tokio work-stealing starvation
-    pub async fn analyze_file(
+    /// **[PLAN034]** Synchronous function — called via `spawn_blocking` from PassageAmplitudeAnalyzer
+    pub fn analyze_file(
         &self,
         file_path: &Path,
         start_time: f64,
         end_time: f64,
-        yield_interval_ms: u64,
     ) -> Result<AmplitudeAnalysisResult, AnalysisError> {
         use std::fs::File;
-        use std::time::Instant;
         use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
         use symphonia::core::formats::FormatOptions;
         use symphonia::core::io::MediaSourceStream;
@@ -85,7 +86,6 @@ impl AmplitudeAnalyzer {
             file = %file_path.display(),
             start = start_time,
             end = end_time,
-            yield_interval_ms,
             "Amplitude analysis (real implementation)"
         );
 
@@ -138,19 +138,11 @@ impl AmplitudeAnalyzer {
         );
 
         // Decode audio and extract only passage samples
-        // **[IMPL001]** Track time for periodic yielding to prevent Tokio starvation
+        // **[PLAN034]** Runs on blocking thread pool via spawn_blocking — no yield needed
         let mut all_samples = Vec::new();
         let mut current_sample = 0;
-        let mut last_yield = Instant::now();
-        let yield_enabled = yield_interval_ms > 0;
 
         loop {
-            // **[IMPL001]** Yield to Tokio scheduler periodically during CPU-intensive work
-            if yield_enabled && last_yield.elapsed().as_millis() >= yield_interval_ms as u128 {
-                tokio::task::yield_now().await;
-                last_yield = Instant::now();
-            }
-
             match format.next_packet() {
                 Ok(packet) if packet.track_id() == track_id => {
                     match decoder.decode(&packet) {
@@ -319,15 +311,14 @@ impl AmplitudeAnalyzer {
     }
 
     /// Batch analyze multiple files
-    pub async fn analyze_batch(
+    pub fn analyze_batch(
         &self,
         files: &[(impl AsRef<Path>, f64, f64)],
     ) -> Vec<Result<AmplitudeAnalysisResult, AnalysisError>> {
         let mut results = Vec::with_capacity(files.len());
 
         for (path, start, end) in files {
-            // Tests: disable yielding (0) for faster execution
-            results.push(self.analyze_file(path.as_ref(), *start, *end, 0).await);
+            results.push(self.analyze_file(path.as_ref(), *start, *end));
         }
 
         results
@@ -378,7 +369,7 @@ mod tests {
 
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer.analyze_file(temp_file.path(), 0.0, 1.0, 100).await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 1.0);
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -423,7 +414,7 @@ mod tests {
 
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer.analyze_file(temp_file.path(), 0.0, 2.0, 100).await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 2.0);
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -468,7 +459,7 @@ mod tests {
 
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer.analyze_file(temp_file.path(), 0.0, 4.0, 100).await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 4.0);
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -524,7 +515,7 @@ mod tests {
 
         // Analyze the file (should convert to mono)
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer.analyze_file(temp_file.path(), 0.0, 1.0, 100).await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 1.0);
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -535,8 +526,7 @@ mod tests {
     async fn test_analyze_nonexistent_file() {
         let analyzer = AmplitudeAnalyzer::default();
         let result = analyzer
-            .analyze_file(std::path::Path::new("/nonexistent/file.wav"), 0.0, 1.0, 100)
-            .await;
+            .analyze_file(std::path::Path::new("/nonexistent/file.wav"), 0.0, 1.0);
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), AnalysisError::ReadError(_)));
@@ -569,7 +559,7 @@ mod tests {
 
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer.analyze_file(temp_file.path(), 0.0, 1.0, 100).await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 1.0);
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -620,7 +610,7 @@ mod tests {
 
         // Batch analyze
         let analyzer = AmplitudeAnalyzer::default();
-        let results = analyzer.analyze_batch(&files).await;
+        let results = analyzer.analyze_batch(&files);
 
         assert_eq!(results.len(), 3);
         for result in results {
@@ -673,7 +663,7 @@ mod tests {
 
         // Analyze with default parameters
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer.analyze_file(temp_file.path(), 0.0, 4.0, 100).await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 4.0);
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -730,7 +720,7 @@ mod tests {
 
         // Analyze
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer.analyze_file(temp_file.path(), 0.0, 2.0, 100).await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 2.0);
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -787,8 +777,7 @@ mod tests {
         params_high.lead_in_threshold_db = -3.0; // Very high threshold (just 3dB below peak)
         let analyzer_high = AmplitudeAnalyzer::new(params_high);
         let result_high = analyzer_high
-            .analyze_file(temp_file.path(), 0.0, 2.0, 100)
-            .await
+            .analyze_file(temp_file.path(), 0.0, 2.0)
             .unwrap();
 
         // Analyze with LOW threshold (should result in shorter lead-in)
@@ -796,8 +785,7 @@ mod tests {
         params_low.lead_in_threshold_db = -20.0; // Low threshold (20dB below peak)
         let analyzer_low = AmplitudeAnalyzer::new(params_low);
         let result_low = analyzer_low
-            .analyze_file(temp_file.path(), 0.0, 2.0, 100)
-            .await
+            .analyze_file(temp_file.path(), 0.0, 2.0)
             .unwrap();
 
         // High threshold should produce longer lead-in than low threshold

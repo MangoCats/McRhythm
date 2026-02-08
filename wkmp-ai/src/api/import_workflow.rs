@@ -10,6 +10,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use std::sync::Arc;
+
 use crate::{
     error::{ApiError, ApiResult},
     models::{ImportParameters, ImportSession, ImportState},
@@ -355,14 +357,14 @@ async fn execute_import_workflow(
         tracing::warn!("Configure key at: http://localhost:5723/settings");
     }
 
-    // Create workflow orchestrator with event bus for SSE broadcasting
-    let orchestrator = WorkflowOrchestrator::new(
+    // **[PLAN034]** Wrap in Arc so tokio::spawn'd tasks can reference the orchestrator
+    let orchestrator = Arc::new(WorkflowOrchestrator::new(
         state.db.clone(),
         state.event_bus.clone(),
         acoustid_api_key,
         state.memory_usage_threshold_bytes,
         state.processing_thread_count,
-    );
+    ));
 
     // Execute workflow with error handling
     // **[PLAN024]** Use new 3-tier hybrid fusion pipeline
