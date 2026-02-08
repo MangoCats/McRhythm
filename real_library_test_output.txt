@@ -1,0 +1,1600 @@
+   Compiling wkmp-ai v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai)
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:498:1
+    |
+498 | pub fn set_unix_permissions_0600(_path: &Path) -> Result<()> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-common\src\lib.rs:13:9
+    |
+ 13 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:527:1
+    |
+527 | pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:14:5
+   |
+14 |     Scanning {
+   |     ^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:15:9
+   |
+15 |         potential_files_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:16:9
+   |
+16 |         is_scanning: bool,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:17:9
+   |
+17 |         audio_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:18:9
+   |
+18 |         image_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:19:9
+   |
+19 |         other_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:38:5
+   |
+38 |     Processing {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:39:9
+   |
+39 |         completed: usize,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:40:9
+   |
+40 |         started: usize,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:41:9
+   |
+41 |         total: usize,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:50:5
+   |
+50 |     FilenameMatching {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:51:9
+   |
+51 |         completed_filenames_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:54:5
+   |
+54 |     Hashing {
+   |     ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:55:9
+   |
+55 |         hashes_computed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:56:9
+   |
+56 |         matches_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:59:5
+   |
+59 |     Extracting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:60:9
+   |
+60 |         successful_extractions: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:61:9
+   |
+61 |         failures: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:64:5
+   |
+64 |     Segmenting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:65:9
+   |
+65 |         files_processed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:66:9
+   |
+66 |         potential_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:67:9
+   |
+67 |         finalized_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:68:9
+   |
+68 |         songs_identified: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:71:5
+   |
+71 |     Fingerprinting {
+   |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:72:9
+   |
+72 |         passages_fingerprinted: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:73:9
+   |
+73 |         successful_matches: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:76:5
+   |
+76 |     SongMatching {
+   |     ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:77:9
+   |
+77 |         high_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:78:9
+   |
+78 |         medium_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:79:9
+   |
+79 |         low_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:80:9
+   |
+80 |         no_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:83:5
+   |
+83 |     Recording {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:84:9
+   |
+84 |         recorded_passages: Vec<RecordedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:87:5
+   |
+87 |     Amplitude {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:88:9
+   |
+88 |         analyzed_passages: Vec<AnalyzedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:91:5
+   |
+91 |     Flavoring {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:92:9
+   |
+92 |         pre_existing: usize,
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:93:9
+   |
+93 |         acousticbrainz: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:94:9
+   |
+94 |         essentia: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:95:9
+   |
+95 |         failed: usize,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:98:5
+   |
+98 |     PassagesComplete {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:99:9
+   |
+99 |         passages_completed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+   --> wkmp-common\src\events\import_types.rs:102:5
+    |
+102 |     FilesComplete {
+    |     ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:103:9
+    |
+103 |         files_completed: usize,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:110:5
+    |
+110 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:111:5
+    |
+111 |     pub file_path: String,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:117:5
+    |
+117 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:118:5
+    |
+118 |     pub passage_length_seconds: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:119:5
+    |
+119 |     pub lead_in_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:120:5
+    |
+120 |     pub lead_out_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-common` (lib) generated 52 warnings
+warning: unused import: `assign_tier`
+  --> wkmp-ai\src\fusion\identity_resolver.rs:20:23
+   |
+20 | use crate::matching::{assign_tier, ConfidenceTier};
+   |                       ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `MatchingStage`
+  --> wkmp-ai\src\matching\album_matcher.rs:34:52
+   |
+34 | use super::types::{AlbumMatchResult, MatchedTrack, MatchingStage, SilenceCache};
+   |                                                    ^^^^^^^^^^^^^
+
+warning: unused import: `CachedDuration`
+  --> wkmp-ai\src\services\accurate_duration.rs:18:39
+   |
+18 | use crate::db::duration_cache::{self, CachedDuration, DurationMethod};
+   |                                       ^^^^^^^^^^^^^^
+
+warning: unused import: `super::passage_segmenter::PassageBoundary`
+  --> wkmp-ai\src\services\passage_recorder.rs:15:5
+   |
+15 | use super::passage_segmenter::PassageBoundary;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ConfidenceLevel`
+  --> wkmp-ai\src\services\passage_recorder.rs:16:35
+   |
+16 | use super::passage_song_matcher::{ConfidenceLevel, PassageSongMatch};
+   |                                   ^^^^^^^^^^^^^^^
+
+warning: unused import: `Instant`
+  --> wkmp-ai\src\services\pool_manager.rs:16:27
+   |
+16 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused import: `crate::models::ImportSession`
+  --> wkmp-ai\src\services\progress_manager.rs:22:5
+   |
+22 | use crate::models::ImportSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `FuturesUnordered`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:23
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                       ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::VecDeque`
+  --> wkmp-ai\src\services\write_queue.rs:24:5
+   |
+24 | use std::collections::VecDeque;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Duration` and `Instant`
+  --> wkmp-ai\src\testing\import_harness.rs:33:17
+   |
+33 | use std::time::{Duration, Instant};
+   |                 ^^^^^^^^  ^^^^^^^
+
+warning: unused import: `tokio::sync::Semaphore`
+  --> wkmp-ai\src\testing\import_harness.rs:39:5
+   |
+39 | use tokio::sync::Semaphore;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `debug`, `error`, and `warn`
+  --> wkmp-ai\src\testing\import_harness.rs:40:15
+   |
+40 | use tracing::{debug, error, info, warn};
+   |               ^^^^^  ^^^^^        ^^^^
+
+warning: unused variable: `event_bus`
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_scanning.rs:72:13
+   |
+72 |         let event_bus = self.event_bus.clone();
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_event_bus`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: use of deprecated method `services::workflow_orchestrator::WorkflowOrchestrator::phase_processing_plan025`: Use phase_processing_per_file() with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:447:14
+    |
+447 |             .phase_processing_plan025(session, start_time, &cancel_token)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated method `workflow::pipeline::Pipeline::extract`: Use extract_with_audio() to avoid re-decoding audio
+   --> wkmp-ai\src\workflow\pipeline.rs:429:43
+    |
+429 |         let mut extraction_results = self.extract(file_path, boundary, passage_index).await?;
+    |                                           ^^^^^^^
+
+warning: unused import: `StreamExt`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:41
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                                         ^^^^^^^^^
+
+warning: value assigned to `silence_start` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:420:13
+    |
+420 |             silence_start = Some(window_count);
+    |             ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: value assigned to `window_count` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:431:9
+    |
+431 |         window_count += 1;
+    |         ^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: type `ClassifiedResult` is more private than the item `EvaluationEngine::results`
+   --> wkmp-ai\src\testing\evaluation.rs:332:5
+    |
+332 |     pub fn results(&self) -> &[ClassifiedResult] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `EvaluationEngine::results` is reachable at visibility `pub`
+    |
+note: but type `ClassifiedResult` is only usable at visibility `pub(self)`
+   --> wkmp-ai\src\testing\evaluation.rs:148:1
+    |
+148 | struct ClassifiedResult {
+    | ^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: field `passage_id` is never read
+  --> wkmp-ai\src\services\import_logger.rs:15:5
+   |
+13 | struct PassageInfo {
+   |        ----------- field in this struct
+14 |     #[sqlx(rename = "guid")]
+15 |     passage_id: String,
+   |     ^^^^^^^^^^
+   |
+   = note: `PassageInfo` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: enum `StateCommand` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:44:6
+   |
+44 | enum StateCommand {
+   |      ^^^^^^^^^^^^
+
+warning: multiple fields are never read
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:71:5
+   |
+68 | pub struct WorkflowOrchestrator {
+   |            -------------------- fields in this struct
+...
+71 |     file_scanner: FileScanner,
+   |     ^^^^^^^^^^^^
+72 |     metadata_extractor: MetadataExtractor,
+   |     ^^^^^^^^^^^^^^^^^^
+73 |     fingerprinter: Fingerprinter,
+   |     ^^^^^^^^^^^^^
+74 |     amplitude_analyzer: AmplitudeAnalyzer,
+   |     ^^^^^^^^^^^^^^^^^^
+75 |     mb_client: Option<MusicBrainzClient>,
+   |     ^^^^^^^^^
+...
+78 |     essentia_client: Option<EssentiaClient>,
+   |     ^^^^^^^^^^^^^^^
+...
+97 |     processing_thread_count: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `set_worker_phase_with_passage` is never used
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1659:14
+     |
+ 100 | impl WorkflowOrchestrator {
+     | ------------------------- method in this implementation
+...
+1659 |     async fn set_worker_phase_with_passage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:44:12
+   |
+43 | impl ScanningStats {
+   | ------------------ method in this implementation
+44 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:70:12
+   |
+69 | impl ProcessingStats {
+   | -------------------- method in this implementation
+70 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:88:12
+   |
+87 | impl FilenameMatchingStats {
+   | -------------------------- method in this implementation
+88 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:108:12
+    |
+107 | impl HashingStats {
+    | ----------------- method in this implementation
+108 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:128:12
+    |
+127 | impl ExtractingStats {
+    | -------------------- method in this implementation
+128 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:152:12
+    |
+151 | impl SegmentingStats {
+    | -------------------- method in this implementation
+152 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:175:12
+    |
+174 | impl FingerprintingStats {
+    | ------------------------ method in this implementation
+175 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:199:12
+    |
+198 | impl SongMatchingStats {
+    | ---------------------- method in this implementation
+199 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:218:12
+    |
+217 | impl RecordingStats {
+    | ------------------- method in this implementation
+218 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:243:12
+    |
+242 | impl AmplitudeStats {
+    | ------------------- method in this implementation
+243 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:274:12
+    |
+273 | impl FlavoringStats {
+    | ------------------- method in this implementation
+274 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:292:12
+    |
+291 | impl PassagesCompleteStats {
+    | -------------------------- method in this implementation
+292 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:307:12
+    |
+306 | impl FilesCompleteStats {
+    | ----------------------- method in this implementation
+307 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: methods `update_processing` and `update_scanning` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:452:12
+    |
+332 | impl ImportStatistics {
+    | --------------------- methods in this implementation
+...
+452 |     pub fn update_processing(&self, completed: usize, started: usize, total: usize) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+460 |     pub fn update_scanning(&self, is_scanning: bool, files_found: usize) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: methods `process_passage` and `extract` are never used
+   --> wkmp-ai\src\workflow\pipeline.rs:409:14
+    |
+105 | impl Pipeline {
+    | ------------- methods in this implementation
+...
+409 |     async fn process_passage(
+    |              ^^^^^^^^^^^^^^^
+...
+560 |     async fn extract(
+    |              ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:26
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                          ^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> wkmp-ai\src\lib.rs:5:9
+   |
+ 5 | #![warn(missing_docs)]
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:45
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                                             ^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:142:1
+    |
+142 | pub const SCORE_FILENAME_PATTERN: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:143:1
+    |
+143 | pub const SCORE_DIR_FILES_HIGH: f64 = 0.8;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:144:1
+    |
+144 | pub const SCORE_DIR_FILES_MEDIUM: f64 = 0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:145:1
+    |
+145 | pub const SCORE_DIR_FILES_SINGLE: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:146:1
+    |
+146 | pub const SCORE_ID3_TRACK_TOTAL: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:147:1
+    |
+147 | pub const SCORE_ID3_TRACK_NUMBER_ONLY: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:148:1
+    |
+148 | pub const SCORE_DURATION_SHORT: f64 = 0.7;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:149:1
+    |
+149 | pub const SCORE_DURATION_SUSPICIOUS: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:150:1
+    |
+150 | pub const SCORE_DURATION_ALBUM_LENGTH: f64 = -0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:151:1
+    |
+151 | pub const SCORE_SILENCE_GAPS_FEW: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:152:1
+    |
+152 | pub const SCORE_SILENCE_GAPS_MANY: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:86:5
+   |
+86 |     pub audio_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:87:5
+   |
+87 |     pub image_confirmed: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:88:5
+   |
+88 |     pub image_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:47:20
+   |
+47 |     NoCandidates { query: String },
+   |                    ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:49:16
+   |
+49 |     ApiError { error: String },
+   |                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:52:9
+   |
+52 |         expected: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:53:9
+   |
+53 |         found: String,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:54:9
+   |
+54 |         similarity: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:57:26
+   |
+57 |     AllStagesExhausted { stages_tried: usize },
+   |                          ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:59:20
+   |
+59 |     FileTooShort { duration_secs: f64 },
+   |                    ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:61:32
+   |
+61 |     MetadataExtractionFailed { error: String },
+   |                                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:65:22
+   |
+65 |     DecodingFailed { error: String },
+   |                      ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:22:9
+   |
+22 |         hash: String,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:23:9
+   |
+23 |         original_file_id: Uuid,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+  --> wkmp-ai\src\services\passage_flavor_fetcher.rs:44:5
+   |
+44 |     pub fn as_str(&self) -> &'static str {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:40:9
+   |
+40 |         session: ImportSession,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:41:9
+   |
+41 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:45:9
+   |
+45 |         passages: Vec<PassageData>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:46:9
+   |
+46 |         response_tx: oneshot::Sender<Result<Vec<Uuid>>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:50:9
+   |
+50 |         file_id: Uuid,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:51:9
+   |
+51 |         status: String,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:52:9
+   |
+52 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:63:5
+   |
+63 |     pub file_id: Uuid,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:64:5
+   |
+64 |     pub start_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:65:5
+   |
+65 |     pub end_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:66:5
+   |
+66 |     pub song_id: Option<Uuid>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:42:9
+   |
+42 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:43:9
+   |
+43 |         assigned_mbid: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:44:9
+   |
+44 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:45:9
+   |
+45 |         sources_consulted: Vec<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:46:9
+   |
+46 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:50:9
+   |
+50 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:51:9
+   |
+51 |         content_type: String,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:52:9
+   |
+52 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:53:9
+   |
+53 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:57:9
+   |
+57 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:58:9
+   |
+58 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:59:9
+   |
+59 |         error_message: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:60:9
+   |
+60 |         duration_ms: u64,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:61:9
+   |
+61 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:65:9
+   |
+65 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:66:9
+   |
+66 |         api_name: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:67:9
+   |
+67 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:68:9
+   |
+68 |         latency_ms: u64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:69:9
+   |
+69 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (lib) generated 96 warnings (run `cargo fix --lib -p wkmp-ai` to apply 12 suggestions)
+warning: unused import: `std::path::Path`
+ --> wkmp-ai\tests\helpers\db_utils.rs:7:5
+  |
+7 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `debug`, `error`, `info`, and `warn`
+   --> wkmp-ai\tests\helpers\log_capture.rs:161:19
+    |
+161 |     use tracing::{debug, error, info, warn};
+    |                   ^^^^^  ^^^^^  ^^^^  ^^^^
+
+warning: unused imports: `AudioConfig`, `generate_test_library`, and `generate_test_wav`
+  --> wkmp-ai\tests\helpers\mod.rs:10:27
+   |
+10 | pub use audio_generator::{generate_test_library, generate_test_wav, AudioConfig};
+   |                           ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused imports: `assert_has_column`, `assert_no_column`, `create_test_db`, `create_test_orchestrator`, `get_table_columns`, `has_column`, and `seed_test_files`
+  --> wkmp-ai\tests\helpers\mod.rs:12:5
+   |
+12 |     assert_has_column, assert_no_column, create_test_db, create_test_orchestrator,
+   |     ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+13 |     get_table_columns, has_column, seed_test_files,
+   |     ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused imports: `LogCapture` and `init_test_logging`
+  --> wkmp-ai\tests\helpers\mod.rs:15:23
+   |
+15 | pub use log_capture::{init_test_logging, LogCapture};
+   |                       ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^
+
+warning: fields `cid`, `type`, `notnull`, `dflt_value`, and `pk` are never read
+  --> wkmp-ai\tests\helpers\db_utils.rs:13:9
+   |
+12 | pub struct ColumnInfo {
+   |            ---------- fields in this struct
+13 |     pub cid: i32,
+   |         ^^^
+14 |     pub name: String,
+15 |     pub r#type: String,
+   |         ^^^^^^
+16 |     pub notnull: i32,
+   |         ^^^^^^^
+17 |     pub dflt_value: Option<String>,
+   |         ^^^^^^^^^^
+18 |     pub pk: i32,
+   |         ^^
+   |
+   = note: `ColumnInfo` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `assert_no_column` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:54:14
+   |
+54 | pub async fn assert_no_column(pool: &SqlitePool, table_name: &str, column_name: &str) {
+   |              ^^^^^^^^^^^^^^^^
+
+warning: function `assert_has_column` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:64:14
+   |
+64 | pub async fn assert_has_column(pool: &SqlitePool, table_name: &str, column_name: &str) {
+   |              ^^^^^^^^^^^^^^^^^
+
+warning: function `create_test_orchestrator` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:84:8
+   |
+84 | pub fn create_test_orchestrator(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `seed_test_files` is never used
+   --> wkmp-ai\tests\helpers\db_utils.rs:105:14
+    |
+105 | pub async fn seed_test_files(
+    |              ^^^^^^^^^^^^^^^
+
+warning: fields `level` and `target` are never read
+  --> wkmp-ai\tests\helpers\log_capture.rs:13:9
+   |
+12 | pub struct LogRecord {
+   |            --------- fields in this struct
+13 |     pub level: Level,
+   |         ^^^^^
+14 |     pub target: String,
+   |         ^^^^^^
+   |
+   = note: `LogRecord` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `clear` is never used
+  --> wkmp-ai\tests\helpers\log_capture.rs:38:12
+   |
+24 | impl LogCapture {
+   | --------------- method in this implementation
+...
+38 |     pub fn clear(&self) {
+   |            ^^^^^
+
+warning: function `init_test_logging` is never used
+   --> wkmp-ai\tests\helpers\log_capture.rs:143:8
+    |
+143 | pub fn init_test_logging() -> LogCapture {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (test "full_library_import_test") generated 13 warnings (run `cargo fix --test "full_library_import_test"` to apply 5 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.93s
+     Running tests\full_library_import_test.rs (C:\Users\Mango Cat\Dev\McRhythm\target\debug\deps\full_library_import_test-1efbe2f52ca02a7b.exe)
+
+running 2 tests
+
+========================================
+  Real Library Import (limited to 50 files)
+========================================
+
+
+========================================
+  Real Music Library Import Test
+========================================
+Library path: "C:\\Users\\Mango Cat\\Music"
+
+Processing 50 files...
+
+Using existing recording cache: C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\test_recording_cache.db
+Logging to: full_library_import_20251224_195957.log
+[2m2025-12-25T00:59:57.594041Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\01-These_Are_Days.mp3"
+[2m2025-12-25T00:59:57.597988Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T00:59:57.598306Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\01-These_Are_Days.mp3"
+Found 5737 audio files
+
+Using existing recording cache: C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\test_recording_cache.db
+Logging to: full_library_import_20251224_195958.log
+[2m2025-12-25T00:59:58.277173Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\01-These_Are_Days.mp3"
+[2m2025-12-25T00:59:58.278126Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T00:59:58.278251Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\01-These_Are_Days.mp3"
+[2m2025-12-25T01:00:08.757576Z[0m [32m INFO[0m MEMORY: +51.8 MB [boundary_detector cache] → Total: 51.8 MB (0.05 GB) | 12947328 samples
+[2m2025-12-25T01:00:08.757614Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 12947328 samples (4.9 minutes) at 44100Hz
+[2m2025-12-25T01:00:08.757846Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:00:08.777311Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100273/USEE10900524
+[2m2025-12-25T01:00:09.420346Z[0m [32m INFO[0m MEMORY: +51.8 MB [boundary_detector cache] → Total: 103.6 MB (0.10 GB) | 12947328 samples
+[2m2025-12-25T01:00:09.420377Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 12947328 samples (4.9 minutes) at 44100Hz
+[2m2025-12-25T01:00:09.420572Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:00:09.440161Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100273/USEE10900524
+[2m2025-12-25T01:00:09.694117Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:00:09.695755Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("68684e6b-37d2-487e-8ee2-d21e28fa1589")
+[2m2025-12-25T01:00:09.695972Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:09.695989Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m68684e6b-37d2-487e-8ee2-d21e28fa1589 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:00:09.701288Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:00:09.701376Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("68684e6b-37d2-487e-8ee2-d21e28fa1589")
+[2m2025-12-25T01:00:09.701459Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:09.701563Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:00:09.703663Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:00:09.705297Z[0m [32m INFO[0m MEMORY: -51.8 MB [boundary_detector cache] → Total: 51.8 MB (0.05 GB)
+[2m2025-12-25T01:00:09.705374Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\02-Eat_For_Two.mp3"
+[2m2025-12-25T01:00:09.707893Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:00:09.707979Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\02-Eat_For_Two.mp3"
+[2m2025-12-25T01:00:10.358847Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:00:10.360460Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("68684e6b-37d2-487e-8ee2-d21e28fa1589")
+[2m2025-12-25T01:00:10.360573Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:10.360584Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m68684e6b-37d2-487e-8ee2-d21e28fa1589 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:00:10.361140Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:00:10.361180Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("68684e6b-37d2-487e-8ee2-d21e28fa1589")
+[2m2025-12-25T01:00:10.361248Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:10.361287Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:00:10.362996Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:00:10.364572Z[0m [32m INFO[0m MEMORY: -51.8 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:00:10.364623Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\02-Eat_For_Two.mp3"
+[2m2025-12-25T01:00:10.365398Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:00:10.365478Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\02-Eat_For_Two.mp3"
+[2m2025-12-25T01:00:19.621330Z[0m [32m INFO[0m MEMORY: +46.3 MB [boundary_detector cache] → Total: 46.3 MB (0.05 GB) | 11578752 samples
+[2m2025-12-25T01:00:19.621362Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 11578752 samples (4.4 minutes) at 44100Hz
+[2m2025-12-25T01:00:19.621634Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:00:19.639957Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100274/USEE10900525
+[2m2025-12-25T01:00:20.327406Z[0m [32m INFO[0m MEMORY: +46.3 MB [boundary_detector cache] → Total: 92.6 MB (0.09 GB) | 11578752 samples
+[2m2025-12-25T01:00:20.327438Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 11578752 samples (4.4 minutes) at 44100Hz
+[2m2025-12-25T01:00:20.327670Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:00:20.345950Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100274/USEE10900525
+[2m2025-12-25T01:00:20.468563Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:00:20.470508Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("1833e5c4-6d3a-4715-88a1-54ecef234521")
+[2m2025-12-25T01:00:20.470634Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:20.470643Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m1833e5c4-6d3a-4715-88a1-54ecef234521 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:00:20.471508Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:00:20.471556Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("1833e5c4-6d3a-4715-88a1-54ecef234521")
+[2m2025-12-25T01:00:20.471634Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:20.471673Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:00:20.473100Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:00:20.474514Z[0m [32m INFO[0m MEMORY: -46.3 MB [boundary_detector cache] → Total: 46.3 MB (0.05 GB)
+[2m2025-12-25T01:00:20.474565Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\03-Candy_Everybody_Wants.mp3"
+[2m2025-12-25T01:00:20.476845Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:00:20.476928Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\03-Candy_Everybody_Wants.mp3"
+[2m2025-12-25T01:00:21.171794Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:00:21.173305Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("1833e5c4-6d3a-4715-88a1-54ecef234521")
+[2m2025-12-25T01:00:21.173422Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:21.173433Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m1833e5c4-6d3a-4715-88a1-54ecef234521 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:00:21.174037Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:00:21.174119Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("1833e5c4-6d3a-4715-88a1-54ecef234521")
+[2m2025-12-25T01:00:21.174300Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:21.174358Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:00:21.175838Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:00:21.177314Z[0m [32m INFO[0m MEMORY: -46.3 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:00:21.177360Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\03-Candy_Everybody_Wants.mp3"
+[2m2025-12-25T01:00:21.178151Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:00:21.178231Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\03-Candy_Everybody_Wants.mp3"
+[2m2025-12-25T01:00:28.041913Z[0m [32m INFO[0m MEMORY: +35.2 MB [boundary_detector cache] → Total: 35.2 MB (0.04 GB) | 8804736 samples
+[2m2025-12-25T01:00:28.041944Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 8804736 samples (3.3 minutes) at 44100Hz
+[2m2025-12-25T01:00:28.042193Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:00:28.056861Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100275/USEE10900526
+[2m2025-12-25T01:00:28.694059Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:00:28.695181Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("c0bdd5e8-4179-4ac6-ac19-93b1ab9d286b")
+[2m2025-12-25T01:00:28.695294Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:28.695304Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mc0bdd5e8-4179-4ac6-ac19-93b1ab9d286b [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:00:28.699361Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:00:28.699411Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("c0bdd5e8-4179-4ac6-ac19-93b1ab9d286b")
+[2m2025-12-25T01:00:28.699482Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:28.699526Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:00:28.700627Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:00:28.701790Z[0m [32m INFO[0m MEMORY: -35.2 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:00:28.701856Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\04-I\'m_Not_The_Man.mp3"
+[2m2025-12-25T01:00:28.704018Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:00:28.704194Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\04-I\'m_Not_The_Man.mp3"
+[2m2025-12-25T01:00:28.758334Z[0m [32m INFO[0m MEMORY: +35.2 MB [boundary_detector cache] → Total: 35.2 MB (0.04 GB) | 8804736 samples
+[2m2025-12-25T01:00:28.758364Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 8804736 samples (3.3 minutes) at 44100Hz
+[2m2025-12-25T01:00:28.758515Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:00:28.772671Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100275/USEE10900526
+[2m2025-12-25T01:00:29.407059Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:00:29.408193Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("c0bdd5e8-4179-4ac6-ac19-93b1ab9d286b")
+[2m2025-12-25T01:00:29.408303Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:29.408314Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mc0bdd5e8-4179-4ac6-ac19-93b1ab9d286b [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:00:29.408769Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:00:29.408809Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("c0bdd5e8-4179-4ac6-ac19-93b1ab9d286b")
+[2m2025-12-25T01:00:29.408877Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:29.408925Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:00:29.409982Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:00:29.411040Z[0m [32m INFO[0m MEMORY: -35.2 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:00:29.411082Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\04-I\'m_Not_The_Man.mp3"
+[2m2025-12-25T01:00:29.411844Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:00:29.411926Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\04-I\'m_Not_The_Man.mp3"
+[2m2025-12-25T01:00:37.266696Z[0m [32m INFO[0m MEMORY: +39.9 MB [boundary_detector cache] → Total: 39.9 MB (0.04 GB) | 9984384 samples
+[2m2025-12-25T01:00:37.266732Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 9984384 samples (3.8 minutes) at 44100Hz
+[2m2025-12-25T01:00:37.267015Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:00:37.282907Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100276/USEE10900527
+[2m2025-12-25T01:00:37.981057Z[0m [32m INFO[0m MEMORY: +39.9 MB [boundary_detector cache] → Total: 79.9 MB (0.08 GB) | 9984384 samples
+[2m2025-12-25T01:00:37.981087Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 9984384 samples (3.8 minutes) at 44100Hz
+[2m2025-12-25T01:00:37.981307Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:00:37.995099Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:00:37.996456Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("f60219bb-610b-4fe6-b6db-de7aa575ab6c")
+[2m2025-12-25T01:00:37.996572Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:37.996583Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mf60219bb-610b-4fe6-b6db-de7aa575ab6c [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:00:37.997259Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100276/USEE10900527
+[2m2025-12-25T01:00:38.000785Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:00:38.000843Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("f60219bb-610b-4fe6-b6db-de7aa575ab6c")
+[2m2025-12-25T01:00:38.000918Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:38.000961Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:00:38.002365Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:00:38.003970Z[0m [32m INFO[0m MEMORY: -39.9 MB [boundary_detector cache] → Total: 39.9 MB (0.04 GB)
+[2m2025-12-25T01:00:38.004032Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\05-Don\'t_Talk.mp3"
+[2m2025-12-25T01:00:38.005631Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:00:38.005711Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\05-Don\'t_Talk.mp3"
+[2m2025-12-25T01:00:38.713134Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:00:38.714511Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("f60219bb-610b-4fe6-b6db-de7aa575ab6c")
+[2m2025-12-25T01:00:38.714623Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:38.714638Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mf60219bb-610b-4fe6-b6db-de7aa575ab6c [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:00:38.715119Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:00:38.715160Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("f60219bb-610b-4fe6-b6db-de7aa575ab6c")
+[2m2025-12-25T01:00:38.715230Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:38.715271Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:00:38.716523Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:00:38.717758Z[0m [32m INFO[0m MEMORY: -39.9 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:00:38.717802Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\05-Don\'t_Talk.mp3"
+[2m2025-12-25T01:00:38.718948Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:00:38.719046Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\05-Don\'t_Talk.mp3"
+[2m2025-12-25T01:00:49.938890Z[0m [32m INFO[0m MEMORY: +56.8 MB [boundary_detector cache] → Total: 56.8 MB (0.06 GB) | 14198400 samples
+[2m2025-12-25T01:00:49.938922Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 14198400 samples (5.4 minutes) at 44100Hz
+[2m2025-12-25T01:00:49.939202Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:00:49.961569Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100277/USEE10900528
+[2m2025-12-25T01:00:50.639299Z[0m [32m INFO[0m MEMORY: +56.8 MB [boundary_detector cache] → Total: 113.6 MB (0.11 GB) | 14198400 samples
+[2m2025-12-25T01:00:50.639333Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 14198400 samples (5.4 minutes) at 44100Hz
+[2m2025-12-25T01:00:50.639555Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:00:50.660870Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100277/USEE10900528
+[2m2025-12-25T01:00:50.986058Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:00:50.988154Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("cdb463b7-cb71-4258-ad3f-5ebd8aa5cb07")
+[2m2025-12-25T01:00:50.988269Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:50.988278Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mcdb463b7-cb71-4258-ad3f-5ebd8aa5cb07 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:00:50.996357Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:00:50.996405Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("cdb463b7-cb71-4258-ad3f-5ebd8aa5cb07")
+[2m2025-12-25T01:00:50.996474Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:50.996516Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:00:50.998234Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:00:50.999833Z[0m [32m INFO[0m MEMORY: -56.8 MB [boundary_detector cache] → Total: 56.8 MB (0.06 GB)
+[2m2025-12-25T01:00:50.999873Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\06-Hey_Jack_Kerouac.mp3"
+[2m2025-12-25T01:00:51.011647Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:00:51.011747Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\06-Hey_Jack_Kerouac.mp3"
+[2m2025-12-25T01:00:51.678940Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:00:51.680663Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("cdb463b7-cb71-4258-ad3f-5ebd8aa5cb07")
+[2m2025-12-25T01:00:51.680772Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:51.680783Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mcdb463b7-cb71-4258-ad3f-5ebd8aa5cb07 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:00:51.681251Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:00:51.681293Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("cdb463b7-cb71-4258-ad3f-5ebd8aa5cb07")
+[2m2025-12-25T01:00:51.681359Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:00:51.681401Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:00:51.683044Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:00:51.684787Z[0m [32m INFO[0m MEMORY: -56.8 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:00:51.684845Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\06-Hey_Jack_Kerouac.mp3"
+[2m2025-12-25T01:00:51.685731Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:00:51.685812Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\06-Hey_Jack_Kerouac.mp3"
+test benchmark_tests::benchmark_real_library has been running for over 60 seconds
+test benchmark_tests::benchmark_real_library_limited has been running for over 60 seconds
+[2m2025-12-25T01:00:59.486487Z[0m [32m INFO[0m MEMORY: +40.4 MB [boundary_detector cache] → Total: 40.4 MB (0.04 GB) | 10090368 samples
+[2m2025-12-25T01:00:59.486586Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 10090368 samples (3.8 minutes) at 44100Hz
+[2m2025-12-25T01:00:59.486978Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:00.161314Z[0m [32m INFO[0m MEMORY: +40.4 MB [boundary_detector cache] → Total: 80.7 MB (0.08 GB) | 10090368 samples
+[2m2025-12-25T01:01:00.161347Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 10090368 samples (3.8 minutes) at 44100Hz
+[2m2025-12-25T01:01:00.161554Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:00.224870Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:00.226178Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1A (Embedded + ISRC) [3mmbid[0m[2m=[0mSome("dda6dde2-8f11-463d-970c-c1e0f3ace917")
+[2m2025-12-25T01:01:00.226293Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:00.226303Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mdda6dde2-8f11-463d-970c-c1e0f3ace917 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:00.230630Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:00.230678Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1A (Embedded + ISRC) [3mmbid[0m[2m=[0mSome("dda6dde2-8f11-463d-970c-c1e0f3ace917")
+[2m2025-12-25T01:01:00.230751Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:00.230796Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.5%)
+[2m2025-12-25T01:01:00.232080Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:00.233369Z[0m [32m INFO[0m MEMORY: -40.4 MB [boundary_detector cache] → Total: 40.4 MB (0.04 GB)
+[2m2025-12-25T01:01:00.233419Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\07-What\'s_The_Matter_Here-.mp3"
+[2m2025-12-25T01:01:00.239851Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:00.239968Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\07-What\'s_The_Matter_Here-.mp3"
+[2m2025-12-25T01:01:00.904337Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:00.905715Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1A (Embedded + ISRC) [3mmbid[0m[2m=[0mSome("dda6dde2-8f11-463d-970c-c1e0f3ace917")
+[2m2025-12-25T01:01:00.905825Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:00.905835Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mdda6dde2-8f11-463d-970c-c1e0f3ace917 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:00.906418Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:00.906467Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1A (Embedded + ISRC) [3mmbid[0m[2m=[0mSome("dda6dde2-8f11-463d-970c-c1e0f3ace917")
+[2m2025-12-25T01:01:00.906543Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:00.906585Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.5%)
+[2m2025-12-25T01:01:00.907892Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:00.909192Z[0m [32m INFO[0m MEMORY: -40.4 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:01:00.909248Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\07-What\'s_The_Matter_Here-.mp3"
+[2m2025-12-25T01:01:00.910296Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:00.910346Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\07-What\'s_The_Matter_Here-.mp3"
+[2m2025-12-25T01:01:10.959021Z[0m [32m INFO[0m MEMORY: +51.3 MB [boundary_detector cache] → Total: 51.3 MB (0.05 GB) | 12819456 samples
+[2m2025-12-25T01:01:10.959072Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 12819456 samples (4.8 minutes) at 44100Hz
+[2m2025-12-25T01:01:10.959244Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:10.979950Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100279/USEE10900530
+[2m2025-12-25T01:01:11.619730Z[0m [32m INFO[0m MEMORY: +51.3 MB [boundary_detector cache] → Total: 102.6 MB (0.10 GB) | 12819456 samples
+[2m2025-12-25T01:01:11.619854Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 12819456 samples (4.8 minutes) at 44100Hz
+[2m2025-12-25T01:01:11.620331Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:11.640220Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100279/USEE10900530
+[2m2025-12-25T01:01:11.893117Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:11.894674Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("78b62bdf-66d6-4da7-be88-d6763fb92b11")
+[2m2025-12-25T01:01:11.894776Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:11.894785Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m78b62bdf-66d6-4da7-be88-d6763fb92b11 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:11.899069Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:11.899120Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("78b62bdf-66d6-4da7-be88-d6763fb92b11")
+[2m2025-12-25T01:01:11.899191Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:11.899232Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:01:11.900832Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:11.902584Z[0m [32m INFO[0m MEMORY: -51.3 MB [boundary_detector cache] → Total: 51.3 MB (0.05 GB)
+[2m2025-12-25T01:01:11.902640Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\08-Gold_Rush_Brides.mp3"
+[2m2025-12-25T01:01:11.907058Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:11.907104Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\08-Gold_Rush_Brides.mp3"
+[2m2025-12-25T01:01:12.555956Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:12.557702Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("78b62bdf-66d6-4da7-be88-d6763fb92b11")
+[2m2025-12-25T01:01:12.557828Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:12.557840Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m78b62bdf-66d6-4da7-be88-d6763fb92b11 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:12.558324Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:12.558371Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("78b62bdf-66d6-4da7-be88-d6763fb92b11")
+[2m2025-12-25T01:01:12.558448Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:12.558491Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:01:12.560153Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:12.561793Z[0m [32m INFO[0m MEMORY: -51.3 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:01:12.561848Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\08-Gold_Rush_Brides.mp3"
+[2m2025-12-25T01:01:12.562752Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:12.562844Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\08-Gold_Rush_Brides.mp3"
+[2m2025-12-25T01:01:21.184754Z[0m [32m INFO[0m MEMORY: +44.4 MB [boundary_detector cache] → Total: 44.4 MB (0.04 GB) | 11104128 samples
+[2m2025-12-25T01:01:21.184824Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 11104128 samples (4.2 minutes) at 44100Hz
+[2m2025-12-25T01:01:21.185197Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:21.203510Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100280/USEE10900531
+[2m2025-12-25T01:01:21.839171Z[0m [32m INFO[0m MEMORY: +44.4 MB [boundary_detector cache] → Total: 88.8 MB (0.09 GB) | 11104128 samples
+[2m2025-12-25T01:01:21.839202Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 11104128 samples (4.2 minutes) at 44100Hz
+[2m2025-12-25T01:01:21.839437Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:21.856451Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100280/USEE10900531
+[2m2025-12-25T01:01:22.001992Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:22.003638Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("6e007c39-41f2-40c9-8744-8771dfc324ae")
+[2m2025-12-25T01:01:22.003754Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:22.003765Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m6e007c39-41f2-40c9-8744-8771dfc324ae [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:22.008023Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:22.008071Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("6e007c39-41f2-40c9-8744-8771dfc324ae")
+[2m2025-12-25T01:01:22.008145Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:22.008187Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:01:22.009581Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:22.010963Z[0m [32m INFO[0m MEMORY: -44.4 MB [boundary_detector cache] → Total: 44.4 MB (0.04 GB)
+[2m2025-12-25T01:01:22.011017Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\09-Like_The_Weather.mp3"
+[2m2025-12-25T01:01:22.015371Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:22.015503Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\09-Like_The_Weather.mp3"
+[2m2025-12-25T01:01:22.657797Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:22.659327Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("6e007c39-41f2-40c9-8744-8771dfc324ae")
+[2m2025-12-25T01:01:22.659447Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:22.659459Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m6e007c39-41f2-40c9-8744-8771dfc324ae [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:22.659969Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:22.660011Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("6e007c39-41f2-40c9-8744-8771dfc324ae")
+[2m2025-12-25T01:01:22.660085Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:22.660129Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:01:22.661602Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:22.663036Z[0m [32m INFO[0m MEMORY: -44.4 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:01:22.663087Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\09-Like_The_Weather.mp3"
+[2m2025-12-25T01:01:22.663920Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:22.664016Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\09-Like_The_Weather.mp3"
+[2m2025-12-25T01:01:31.447538Z[0m [32m INFO[0m MEMORY: +45.0 MB [boundary_detector cache] → Total: 45.0 MB (0.04 GB) | 11244672 samples
+[2m2025-12-25T01:01:31.447575Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 11244672 samples (4.2 minutes) at 44100Hz
+[2m2025-12-25T01:01:31.447838Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:31.464655Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100281/USEE10900532
+[2m2025-12-25T01:01:32.093809Z[0m [32m INFO[0m MEMORY: +45.0 MB [boundary_detector cache] → Total: 90.0 MB (0.09 GB) | 11244672 samples
+[2m2025-12-25T01:01:32.093840Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 11244672 samples (4.2 minutes) at 44100Hz
+[2m2025-12-25T01:01:32.094067Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:32.111566Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100281/USEE10900532
+[2m2025-12-25T01:01:32.276173Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:32.277592Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("f2f06ed1-a1b9-46c5-846b-13959a25e8b2")
+[2m2025-12-25T01:01:32.277705Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:32.277719Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mf2f06ed1-a1b9-46c5-846b-13959a25e8b2 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:32.278234Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:32.278275Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("f2f06ed1-a1b9-46c5-846b-13959a25e8b2")
+[2m2025-12-25T01:01:32.278356Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:32.278396Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:01:32.279725Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:32.281057Z[0m [32m INFO[0m MEMORY: -45.0 MB [boundary_detector cache] → Total: 45.0 MB (0.04 GB)
+[2m2025-12-25T01:01:32.281104Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\10-Trouble_Me.mp3"
+[2m2025-12-25T01:01:32.283541Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:32.283625Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\10-Trouble_Me.mp3"
+[2m2025-12-25T01:01:32.909204Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:32.910598Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("f2f06ed1-a1b9-46c5-846b-13959a25e8b2")
+[2m2025-12-25T01:01:32.910706Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:32.910717Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mf2f06ed1-a1b9-46c5-846b-13959a25e8b2 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:32.911184Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:32.911222Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("f2f06ed1-a1b9-46c5-846b-13959a25e8b2")
+[2m2025-12-25T01:01:32.911289Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:32.911327Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:01:32.912631Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:32.913935Z[0m [32m INFO[0m MEMORY: -45.0 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:01:32.913979Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\10-Trouble_Me.mp3"
+[2m2025-12-25T01:01:32.914735Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:32.914819Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\10-Trouble_Me.mp3"
+[2m2025-12-25T01:01:40.961029Z[0m [32m INFO[0m MEMORY: +38.9 MB [boundary_detector cache] → Total: 38.9 MB (0.04 GB) | 9736704 samples
+[2m2025-12-25T01:01:40.961061Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 9736704 samples (3.7 minutes) at 44100Hz
+[2m2025-12-25T01:01:40.961324Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:40.976081Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100282/USEE10900533
+[2m2025-12-25T01:01:41.581123Z[0m [32m INFO[0m MEMORY: +38.9 MB [boundary_detector cache] → Total: 77.9 MB (0.08 GB) | 9736704 samples
+[2m2025-12-25T01:01:41.581160Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 9736704 samples (3.7 minutes) at 44100Hz
+[2m2025-12-25T01:01:41.581396Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:41.595403Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100282/USEE10900533
+[2m2025-12-25T01:01:41.680349Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:41.681591Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("c871407f-833f-4c05-b70c-081cd6a36f06")
+[2m2025-12-25T01:01:41.681697Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:41.681706Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mc871407f-833f-4c05-b70c-081cd6a36f06 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:41.685994Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:41.686054Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("c871407f-833f-4c05-b70c-081cd6a36f06")
+[2m2025-12-25T01:01:41.686164Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:41.686232Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:01:41.687686Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:41.688822Z[0m [32m INFO[0m MEMORY: -38.9 MB [boundary_detector cache] → Total: 38.9 MB (0.04 GB)
+[2m2025-12-25T01:01:41.688890Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\11-Jezebel.mp3"
+[2m2025-12-25T01:01:41.690932Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:41.690978Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\11-Jezebel.mp3"
+[2m2025-12-25T01:01:42.286790Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:42.288136Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("c871407f-833f-4c05-b70c-081cd6a36f06")
+[2m2025-12-25T01:01:42.288272Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:42.288285Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0mc871407f-833f-4c05-b70c-081cd6a36f06 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:42.288784Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:42.288830Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("c871407f-833f-4c05-b70c-081cd6a36f06")
+[2m2025-12-25T01:01:42.288905Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:42.288946Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:01:42.290183Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:42.291360Z[0m [32m INFO[0m MEMORY: -38.9 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:01:42.291410Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\11-Jezebel.mp3"
+[2m2025-12-25T01:01:42.292157Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:42.292253Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\11-Jezebel.mp3"
+[2m2025-12-25T01:01:51.393552Z[0m [32m INFO[0m MEMORY: +46.6 MB [boundary_detector cache] → Total: 46.6 MB (0.05 GB) | 11639808 samples
+[2m2025-12-25T01:01:51.393584Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 11639808 samples (4.4 minutes) at 44100Hz
+[2m2025-12-25T01:01:51.393880Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:51.411492Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100283/USEE10900534
+[2m2025-12-25T01:01:51.995165Z[0m [32m INFO[0m MEMORY: +46.6 MB [boundary_detector cache] → Total: 93.1 MB (0.09 GB) | 11639808 samples
+[2m2025-12-25T01:01:51.995202Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 11639808 samples (4.4 minutes) at 44100Hz
+[2m2025-12-25T01:01:51.995434Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:01:52.012611Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100283/USEE10900534
+[2m2025-12-25T01:01:52.245014Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:52.246513Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("1cac2360-6cef-4e2b-a64a-aa2717070e62")
+[2m2025-12-25T01:01:52.246631Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:52.246641Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m1cac2360-6cef-4e2b-a64a-aa2717070e62 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:52.250801Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:52.250854Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("1cac2360-6cef-4e2b-a64a-aa2717070e62")
+[2m2025-12-25T01:01:52.250931Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:52.250974Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:01:52.252839Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:52.254441Z[0m [32m INFO[0m MEMORY: -46.6 MB [boundary_detector cache] → Total: 46.6 MB (0.05 GB)
+[2m2025-12-25T01:01:52.254506Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\12-Because_The_Night.mp3"
+[2m2025-12-25T01:01:52.256649Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:52.256739Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\12-Because_The_Night.mp3"
+[2m2025-12-25T01:01:52.845357Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:01:52.846881Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("1cac2360-6cef-4e2b-a64a-aa2717070e62")
+[2m2025-12-25T01:01:52.846993Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:52.847004Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m1cac2360-6cef-4e2b-a64a-aa2717070e62 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:01:52.847481Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:01:52.847527Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("1cac2360-6cef-4e2b-a64a-aa2717070e62")
+[2m2025-12-25T01:01:52.847602Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:01:52.847654Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:01:52.849099Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:01:52.850518Z[0m [32m INFO[0m MEMORY: -46.6 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:01:52.850563Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\12-Because_The_Night.mp3"
+[2m2025-12-25T01:01:52.851496Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:01:52.851541Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\12-Because_The_Night.mp3"
+[2m2025-12-25T01:02:01.009494Z[0m [32m INFO[0m MEMORY: +39.4 MB [boundary_detector cache] → Total: 39.4 MB (0.04 GB) | 9853056 samples
+[2m2025-12-25T01:02:01.009535Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 9853056 samples (3.7 minutes) at 44100Hz
+[2m2025-12-25T01:02:01.009850Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:02:02.092923Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:02:02.094567Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1A (Embedded + ISRC) [3mmbid[0m[2m=[0mSome("7a13df63-5f13-4eb3-ab33-67f0548b9a75")
+[2m2025-12-25T01:02:02.094701Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:02.094714Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m7a13df63-5f13-4eb3-ab33-67f0548b9a75 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:02:02.095289Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:02:02.095382Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1A (Embedded + ISRC) [3mmbid[0m[2m=[0mSome("7a13df63-5f13-4eb3-ab33-67f0548b9a75")
+[2m2025-12-25T01:02:02.095479Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:02.095544Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.5%)
+[2m2025-12-25T01:02:02.097157Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:02:02.098693Z[0m [32m INFO[0m MEMORY: -39.4 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:02:02.098776Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\13-Stockton_Gala_Days.mp3"
+[2m2025-12-25T01:02:02.101958Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:02:02.102075Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\13-Stockton_Gala_Days.mp3"
+[2m2025-12-25T01:02:02.108698Z[0m [32m INFO[0m MEMORY: +39.4 MB [boundary_detector cache] → Total: 39.4 MB (0.04 GB) | 9853056 samples
+[2m2025-12-25T01:02:02.108736Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 9853056 samples (3.7 minutes) at 44100Hz
+[2m2025-12-25T01:02:02.108861Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:02:02.890162Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:02:02.891494Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1A (Embedded + ISRC) [3mmbid[0m[2m=[0mSome("7a13df63-5f13-4eb3-ab33-67f0548b9a75")
+[2m2025-12-25T01:02:02.891623Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:02.891641Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m7a13df63-5f13-4eb3-ab33-67f0548b9a75 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:02:02.892082Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:02:02.892125Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1A (Embedded + ISRC) [3mmbid[0m[2m=[0mSome("7a13df63-5f13-4eb3-ab33-67f0548b9a75")
+[2m2025-12-25T01:02:02.892195Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:02.892232Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.5%)
+[2m2025-12-25T01:02:02.893495Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:02:02.894749Z[0m [32m INFO[0m MEMORY: -39.4 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:02:02.894811Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\13-Stockton_Gala_Days.mp3"
+[2m2025-12-25T01:02:02.895579Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:02:02.895624Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\13-Stockton_Gala_Days.mp3"
+[2m2025-12-25T01:02:14.615990Z[0m [32m INFO[0m MEMORY: +58.1 MB [boundary_detector cache] → Total: 58.1 MB (0.06 GB) | 14519808 samples
+[2m2025-12-25T01:02:14.616033Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 14519808 samples (5.5 minutes) at 44100Hz
+[2m2025-12-25T01:02:14.616219Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:02:14.636472Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100285/USEE10900536
+[2m2025-12-25T01:02:15.270027Z[0m [32m INFO[0m MEMORY: +58.1 MB [boundary_detector cache] → Total: 116.2 MB (0.12 GB) | 14519808 samples
+[2m2025-12-25T01:02:15.270224Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 14519808 samples (5.5 minutes) at 44100Hz
+[2m2025-12-25T01:02:15.270525Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:02:15.290680Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100285/USEE10900536
+[2m2025-12-25T01:02:15.660207Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:02:15.661973Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("18353848-9550-4516-927a-0a6b5b63923b")
+[2m2025-12-25T01:02:15.662090Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:15.662101Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m18353848-9550-4516-927a-0a6b5b63923b [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:02:15.663058Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:02:15.663119Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("18353848-9550-4516-927a-0a6b5b63923b")
+[2m2025-12-25T01:02:15.663199Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:15.663243Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:02:15.665122Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:02:15.666821Z[0m [32m INFO[0m MEMORY: -58.1 MB [boundary_detector cache] → Total: 58.1 MB (0.06 GB)
+[2m2025-12-25T01:02:15.666865Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\14-Noah\'s_Dove.mp3"
+[2m2025-12-25T01:02:15.670145Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:02:15.670241Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\14-Noah\'s_Dove.mp3"
+[2m2025-12-25T01:02:16.327594Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:02:16.329425Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("18353848-9550-4516-927a-0a6b5b63923b")
+[2m2025-12-25T01:02:16.329531Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:16.329541Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0m18353848-9550-4516-927a-0a6b5b63923b [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:02:16.330038Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:02:16.330084Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("18353848-9550-4516-927a-0a6b5b63923b")
+[2m2025-12-25T01:02:16.330157Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:16.330205Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:02:16.331987Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:02:16.333688Z[0m [32m INFO[0m MEMORY: -58.1 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:02:16.333735Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\14-Noah\'s_Dove.mp3"
+[2m2025-12-25T01:02:16.334608Z[0m [32m INFO[0m File appears to be single track (score=2.80 >= threshold=0.6)
+[2m2025-12-25T01:02:16.334713Z[0m [32m INFO[0m Detecting passage boundaries with audio caching in "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\14-Noah\'s_Dove.mp3"
+[2m2025-12-25T01:02:26.991658Z[0m [32m INFO[0m MEMORY: +54.3 MB [boundary_detector cache] → Total: 54.3 MB (0.05 GB) | 13567104 samples
+[2m2025-12-25T01:02:26.991696Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 13567104 samples (5.1 minutes) at 44100Hz
+[2m2025-12-25T01:02:26.991867Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:02:27.010630Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100286/USEE10900537
+[2m2025-12-25T01:02:27.664413Z[0m [32m INFO[0m MEMORY: +54.3 MB [boundary_detector cache] → Total: 108.5 MB (0.11 GB) | 13567104 samples
+[2m2025-12-25T01:02:27.664449Z[0m [32m INFO[0m Detected 1 passage boundaries - mode: cached - 13567104 samples (5.1 minutes) at 44100Hz
+[2m2025-12-25T01:02:27.664653Z[0m [32m INFO[0m Detected 1 passages
+[2m2025-12-25T01:02:27.685578Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100286/USEE10900537
+[2m2025-12-25T01:02:27.962585Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:02:27.964290Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("d5d12f70-187c-486f-8bf3-aeb0d5c93dc4")
+[2m2025-12-25T01:02:27.964395Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:27.964404Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0md5d12f70-187c-486f-8bf3-aeb0d5c93dc4 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:02:27.965183Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:02:27.965228Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("d5d12f70-187c-486f-8bf3-aeb0d5c93dc4")
+[2m2025-12-25T01:02:27.965299Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:27.965342Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:02:27.966988Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:02:27.968668Z[0m [32m INFO[0m MEMORY: -54.3 MB [boundary_detector cache] → Total: 54.3 MB (0.05 GB)
+[2m2025-12-25T01:02:27.968726Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\38 Special\\Anthology.mp3"
+[2m2025-12-25T01:02:27.970509Z[0m [32m INFO[0m File appears to be an album (score=-0.50 < threshold=0.6)
+[2m2025-12-25T01:02:27.970536Z[0m [32m INFO[0m Processing file as album: "C:\\Users\\Mango Cat\\Music\\38 Special\\Anthology.mp3"
+[2m2025-12-25T01:02:27.971138Z[0m [32m INFO[0m Starting album match for: C:\Users\Mango Cat\Music\38 Special\Anthology.mp3
+[2m2025-12-25T01:02:27.971492Z[0m [32m INFO[0m Starting parallel: decode + MusicBrainz lookup for artist=38 Special, album=Anthology
+[2m2025-12-25T01:02:27.974591Z[0m [32m INFO[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0m38 Special [3malbum[0m[2m=[0mAnthology [3mfound[0m[2m=[0m2
+[2m2025-12-25T01:02:28.649320Z[0m [32m INFO[0m Pass 1 extraction complete: 4 of 4 extractors succeeded (MusicBrainz deferred to Pass 2)
+[2m2025-12-25T01:02:28.651000Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("d5d12f70-187c-486f-8bf3-aeb0d5c93dc4")
+[2m2025-12-25T01:02:28.651125Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:28.651137Z[0m [32m INFO[0m Pass 2: Running MusicBrainz with fused MBID [3mpassage_index[0m[2m=[0m0 [3mmbid[0m[2m=[0md5d12f70-187c-486f-8bf3-aeb0d5c93dc4 [3mconfidence[0m[2m=[0m0.8999999761581421 [3msource[0m[2m=[0mID3-MBID
+[2m2025-12-25T01:02:28.652010Z[0m [32m INFO[0m Pass 2: MusicBrainz extraction successful [3mpassage_index[0m[2m=[0m0
+[2m2025-12-25T01:02:28.652086Z[0m [32m INFO[0m Stage 0 match: Using embedded MusicBrainz Recording ID [3mtier[0m[2m=[0m1B (Embedded only) [3mmbid[0m[2m=[0mSome("d5d12f70-187c-486f-8bf3-aeb0d5c93dc4")
+[2m2025-12-25T01:02:28.652224Z[0m [32m INFO[0m Fusion complete for passage 0
+[2m2025-12-25T01:02:28.652292Z[0m [32m INFO[0m Validation complete: Pass (quality: 94.2%)
+[2m2025-12-25T01:02:28.654539Z[0m [32m INFO[0m File processing complete: 1 of 1 passages successful
+[2m2025-12-25T01:02:28.656167Z[0m [32m INFO[0m MEMORY: -54.3 MB [boundary_detector cache] → Total: 0.0 MB (0.00 GB)
+[2m2025-12-25T01:02:28.656232Z[0m [32m INFO[0m Pipeline processing file: "C:\\Users\\Mango Cat\\Music\\38 Special\\Anthology.mp3"
+[2m2025-12-25T01:02:28.656561Z[0m [32m INFO[0m File appears to be an album (score=-0.50 < threshold=0.6)
+[2m2025-12-25T01:02:28.656582Z[0m [32m INFO[0m Processing file as album: "C:\\Users\\Mango Cat\\Music\\38 Special\\Anthology.mp3"
+[2m2025-12-25T01:02:28.657267Z[0m [32m INFO[0m Starting album match for: C:\Users\Mango Cat\Music\38 Special\Anthology.mp3
+[2m2025-12-25T01:02:28.657586Z[0m [32m INFO[0m Starting parallel: decode + MusicBrainz lookup for artist=38 Special, album=Anthology
+[2m2025-12-25T01:02:28.659174Z[0m [32m INFO[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0m38 Special [3malbum[0m[2m=[0mAnthology [3mfound[0m[2m=[0m2

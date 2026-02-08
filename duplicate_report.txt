@@ -1,0 +1,33 @@
+﻿
+======================================================================
+Duplicate #1 found in 2 locations:
+======================================================================
+  ADR-003-zero_configuration_strategy.md:223-228
+    Preview: impl RootFolderResolver { pub fn new(module_name: &str) -> Self { Self { module_name: module_name.to...
+
+  IMPL007-graceful_degradation_implementation.md:188-193
+    Preview: impl RootFolderResolver { pub fn new(module_name: &str) -> Self { Self { module_name: module_name.to...
+
+
+======================================================================
+Duplicate #2 found in 2 locations:
+======================================================================
+  GOV001-document_hierarchy.md:595-597
+python : Traceback (most recent call last):
+At line:1 char:1
++ python scripts/detect_doc_duplicates.py 2>&1 | Out-File -Encoding utf ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\Mango Cat\Dev\McRhythm\scripts\detect_doc_duplicates.py", line 91, in <module>
+    exit_code = find_duplicates('docs/')
+  File "C:\Users\Mango Cat\Dev\McRhythm\scripts\detect_doc_duplicates.py", line 77, in find_duplicates
+    print(f"    Preview: {loc['text']}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program 
+Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 
+19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2705' in position 34: character maps to <undefined>

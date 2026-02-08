@@ -18,7 +18,7 @@ day of the week, time of the year.
 
 [MTA-DESC-040] Taste is used to sort all available Passages into lists, each list contains all available Passages.
 
-[MTA-DESC-050] In terms of data structure, Taste and Flavor both have the same core structure of binary and complex characteristics.
+[MTA-DESC-050] In terms of data structure, Taste and Flavor both have the same core structure of binary and complex characteristics. See [SPEC003-musical_flavor.md](SPEC003-musical_flavor.md) lines 17-26 for characteristic definitions (binary vs. complex).
 
 ### Likes and Dislikes
 

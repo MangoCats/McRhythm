@@ -1,0 +1,243 @@
+Parsed 26 album entries from wkmp-ai/cascade_refinement_fixed_output.txt
+
+Analyzing 6 albums with <75% match quality (best matches only):
+
+
+================================================================================
+Album: Rolling Stones - Let It Bleed
+Rank: #1, Match: 66.7%, Within Tolerance: 6/9
+Mean Absolute Error: 61.1s
+Total Net Error: -25.2s
+================================================================================
+
+#   Track                                      Expected   Detected      Error Status
+--------------------------------------------------------------------------------
+1   Gimme Shelter                                 270.0s      529.3s     +259.3s BAD
+2   Love in Vain                                  258.0s      183.8s      -74.2s BAD
+3   Country Honk                                  180.0s      182.9s       +2.9s OK 
+4   Live With Me                                  215.0s       20.7s     -194.3s BAD
+5   Let It Bleed                                  327.0s      322.2s       -4.8s OK 
+6   Midnight Rambler                              412.0s      410.9s       -1.1s OK 
+7   You Got the Silver                            171.0s      168.2s       -2.8s OK 
+8   Monkey Man                                    252.0s      247.6s       -4.4s OK 
+9   You Can’t Always Get What Y...                448.0s      442.1s       -6.0s OK 
+
+--- ERROR PATTERNS ---
+
+Consecutive Over-Allocations:
+  Tracks [1]: [259.32]
+
+Consecutive Under-Allocations:
+  Tracks [2]: [-74.16]
+  Tracks [4]: [-194.31]
+
+
+================================================================================
+Album: Imagine Dragons - Night Visions
+Rank: #1, Match: 68.8%, Within Tolerance: 11/16
+Mean Absolute Error: 55.7s
+Total Net Error: -56.0s
+================================================================================
+
+#   Track                                      Expected   Detected      Error Status
+--------------------------------------------------------------------------------
+1   Radioactive                                   186.8s      185.2s       -1.6s OK 
+2   Tiptoe                                        194.2s      191.4s       -2.8s OK 
+3   It’s Time                                     240.3s      237.1s       -3.2s OK 
+4   Demons                                        177.5s      174.5s       -3.0s OK 
+5   On Top of the World                           192.3s      189.6s       -2.6s OK 
+6   Amsterdam                                     241.4s      473.8s     +232.3s BAD
+7   Hear Me                                       235.4s      213.8s      -21.6s BAD
+8   Every Night                                   217.3s      219.8s       +2.5s OK 
+9   Bleeding Out                                  223.1s      204.9s      -18.2s BAD
+10  Underdog                                      209.4s      392.3s     +182.9s BAD
+11  Nothing Left to Say / Rocks                   537.1s      126.1s     -411.0s BAD
+12  My Fault                                      176.2s      174.3s       -2.0s OK 
+13  Round and Round                               198.2s      195.4s       -2.7s OK 
+14  The River                                     204.8s      202.4s       -2.4s OK 
+15  America                                       273.4s      271.0s       -2.5s OK 
+16  Selene                                        240.1s      240.1s       +0.0s OK 
+
+--- ERROR PATTERNS ---
+
+Consecutive Over-Allocations:
+  Tracks [6]: [232.32]
+  Tracks [10]: [182.86]
+
+Consecutive Under-Allocations:
+  Tracks [11]: [-410.96]
+
+
+================================================================================
+Album: Eagles - The Long Run
+Rank: #1, Match: 70.0%, Within Tolerance: 7/10
+Mean Absolute Error: 20.1s
+Total Net Error: -58.6s
+================================================================================
+
+#   Track                                      Expected   Detected      Error Status
+--------------------------------------------------------------------------------
+1   The Long Run                                  221.2s      218.0s       -3.2s OK 
+2   I Can’t Tell You Why                          295.1s      286.0s       -9.1s OK 
+3   In the City                                   224.6s      218.3s       -6.3s OK 
+4   The Disco Strangler                           164.6s      158.7s       -5.9s OK 
+5   King of Hollywood                             387.7s      371.9s      -15.8s BAD
+6   Heartache Tonight                             265.7s      261.7s       -4.0s OK 
+7   Those Shoes                                   294.8s      292.2s       -2.7s OK 
+8   Teenage Jail                                  224.0s      147.3s      -76.7s BAD
+9   The Greeks Don’t Want No Fr...                138.4s      209.7s      +71.3s BAD
+10  The Sad Café                                  332.9s      326.7s       -6.2s OK 
+
+--- ERROR PATTERNS ---
+
+Complementary Error Pairs (boundary misplacement):
+  Track 8 (Teenage Jail): -76.7s
+  Track 9 (The Greeks Don’t Want No Fr...): +71.3s
+  -> Boundary between tracks 8-9 likely misplaced
+
+
+Consecutive Over-Allocations:
+  Tracks [9]: [71.31]
+
+Consecutive Under-Allocations:
+  Tracks [8]: [-76.72]
+
+
+================================================================================
+Album: Kraftwerk - Trans Europe Express
+Rank: #1, Match: 71.4%, Within Tolerance: 7/7
+Mean Absolute Error: 2.8s
+Total Net Error: +11.3s
+================================================================================
+
+#   Track                                      Expected   Detected      Error Status
+--------------------------------------------------------------------------------
+1   Europe Endless                                575.0s      572.0s       -3.0s OK 
+2   The Hall of Mirrors                           470.0s      468.9s       -1.1s OK 
+3   Les Mannequins                                370.0s      370.4s       +0.4s OK 
+4   Trans Europe Express                          400.0s      403.6s       +3.6s OK 
+5   Metal on Metal                                412.0s      415.2s       +3.2s OK 
+6   Franz Schubert                                265.0s      265.6s       +0.6s OK 
+7   Endless Endless                                45.0s       52.6s       +7.6s OK 
+
+--- ERROR PATTERNS ---
+
+
+================================================================================
+Album: Heather Nova - Pearl
+Rank: #1, Match: 72.7%, Within Tolerance: 16/22
+Mean Absolute Error: 50.2s
+Total Net Error: -118.0s
+================================================================================
+
+#   Track                                      Expected   Detected      Error Status
+--------------------------------------------------------------------------------
+1   The Wounds We Bled                            231.1s      227.8s       -3.4s OK 
+2   All the Rivers                                240.7s      238.2s       -2.6s OK 
+3   Rewild Me                                     253.2s      248.9s       -4.2s OK 
+4   Some Things Just Come Undone                  218.2s      213.2s       -5.0s OK 
+5   After All This Time                           274.4s      533.6s     +259.2s BAD
+6   Over the Fields                               267.2s      276.6s       +9.4s OK 
+7   Just Kids                                     279.6s      250.2s      -29.4s BAD
+8   Don’t Worry What the Expert...                263.5s        6.5s     -257.0s BAD
+9   See Yourself                                  318.3s      313.6s       -4.6s OK 
+10  Vincent                                       296.2s      290.2s       -6.0s OK 
+11  Your Words                                    223.6s      214.8s       -8.8s OK 
+1                                                 244.0s        0.3s     -243.7s BAD
+2                                                 201.0s      229.7s      +28.6s BAD
+3                                                 216.0s      411.5s     +195.5s BAD
+4                                                 144.0s      137.3s       -6.7s OK 
+5                                                 232.0s      226.1s       -5.9s OK 
+6                                                 187.0s      182.8s       -4.2s OK 
+7                                                 248.0s      242.8s       -5.2s OK 
+8                                                 173.0s      166.1s       -6.9s OK 
+9                                                 138.0s      129.3s       -8.7s OK 
+10                                                303.9s      301.1s       -2.7s OK 
+11                                                202.8s      196.9s       -5.9s OK 
+
+--- ERROR PATTERNS ---
+
+Consecutive Over-Allocations:
+  Tracks [5]: [259.25]
+  Tracks [14]: [195.49]
+
+Consecutive Under-Allocations:
+  Tracks [8]: [-256.97]
+  Tracks [12]: [-243.7]
+
+
+================================================================================
+Album: The Police - Zenyattà Mondatta
+Rank: #1, Match: 72.7%, Within Tolerance: 8/11
+Mean Absolute Error: 46.7s
+Total Net Error: -65.8s
+================================================================================
+
+#   Track                                      Expected   Detected      Error Status
+--------------------------------------------------------------------------------
+1   Don’t Stand So Close to Me                    244.0s        0.3s     -243.7s BAD
+2   Driven to Tears                               201.0s      229.7s      +28.6s BAD
+3   When the World Is Running D...                216.0s      411.5s     +195.5s BAD
+4   Canary in a Coalmine                          144.0s      137.3s       -6.7s OK 
+5   Voices Inside My Head                         232.0s      226.1s       -5.9s OK 
+6   Bombs Away                                    187.0s      182.8s       -4.2s OK 
+7   De Do Do Do, De Da Da Da                      248.0s      242.8s       -5.2s OK 
+8   Behind My Camel                               173.0s      166.1s       -6.9s OK 
+9   Man in a Suitcase                             138.0s      129.3s       -8.7s OK 
+10  Shadows in the Rain                           303.9s      301.1s       -2.7s OK 
+11  The Other Way of Stopping                     202.8s      196.9s       -5.9s OK 
+
+--- ERROR PATTERNS ---
+
+Consecutive Over-Allocations:
+  Tracks [3]: [195.49]
+
+Consecutive Under-Allocations:
+  Tracks [1]: [-243.7]
+
+
+================================================================================
+PROPOSED REFINEMENT STRATEGIES
+================================================================================
+
+Summary across 6 albums (best matches only):
+  - Albums with complementary error pairs: 1 pairs found
+  - Albums with cascade patterns: 5
+  - Albums with systematic offset: 4
+
+STRATEGY 1: Complementary Error Correction
+--------------------------------------------------------------------------------
+Pattern: One track over-allocated, next track under-allocated by similar amount
+Cause: Boundary misplaced between two tracks
+Solution:
+  - Detect pairs where track[i].error > +30s AND track[i+1].error < -30s
+  - AND abs(track[i].error) ~= abs(track[i+1].error) (within 20s)
+  - Search for better boundary between tracks i and i+1
+  - Use energy minimum detection in +/-30s window around expected boundary
+  - Accept if BOTH tracks move closer to tolerance
+
+STRATEGY 2: Cascade Refinement (Already Implemented)
+--------------------------------------------------------------------------------
+Pattern: Multiple consecutive tracks with large errors (>30s)
+Status: [OK] Implemented with full-album validation
+Effectiveness: Fixed Eagles (+30% improvement)
+
+STRATEGY 3: Systematic Offset Correction
+--------------------------------------------------------------------------------
+Pattern: Total album duration differs from MusicBrainz by >30s
+Cause: First boundary misplaced, propagating error throughout album
+Solution:
+  - Calculate cumulative error from start
+  - If cumulative error grows monotonically, suspect first boundary
+  - Search for better first boundary in +/-60s window
+  - Recalculate all subsequent boundaries based on energy minima
+
+STRATEGY 4: Fine-Grained Boundary Adjustment
+--------------------------------------------------------------------------------
+Pattern: Tracks with 10-30s errors (just outside tolerance)
+Solution:
+  - For tracks with 10s < |error| < 30s:
+  - Search +/-15s window around detected boundary
+  - Use energy minimum + zero-crossing detection
+  - Only accept if moves within tolerance WITHOUT breaking adjacent tracks
+

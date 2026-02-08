@@ -527,4 +527,4 @@ For batch archival:
 - **Archive Index:** `workflows/REG002_archive_index.md`
 - **Specification:** `wip/auto_archive_completed_plans_spec.md`
 - **WKMP Documentation:** `docs/` (complete technical specifications)
-- **Microservices Architecture:** WKMP uses 5 independent HTTP servers (AP, UI, PD, AI, LE)
+- **Microservices Architecture:** WKMP uses 6 independent HTTP servers (AP, UI, PD, AI, LE, DR)

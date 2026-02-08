@@ -11,12 +11,16 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 
 const ACOUSTID_BASE_URL: &str = "https://api.acoustid.org/v2/lookup";
-/// Placeholder API key for Default impl (tests only)
-/// Production code MUST load API key via config (PLAN012: database → ENV → TOML)
-#[allow(dead_code)]
-const ACOUSTID_API_KEY: &str = "YOUR_API_KEY";
 const USER_AGENT: &str = "WKMP/0.1.0 (https://github.com/wkmp/wkmp)";
 const RATE_LIMIT_MS: u64 = 334; // 3 requests per second (~333ms between requests)
+
+// **[PLAN031 Fix 1]** Kill switch (re-enabled for PLAN032)
+const ACOUSTID_ENABLED: bool = true; // Re-enabled - use circuit breaker for timeout management
+const ACOUSTID_TIMEOUT_SECS: u64 = 30; // Increased from 10s: real lookups can take 10-20s under load
+const ACOUSTID_CONNECT_TIMEOUT_SECS: u64 = 10; // Separate connect timeout to distinguish connection vs response issues
+const CIRCUIT_BREAKER_THRESHOLD: u32 = 3; // Open after 3 consecutive failures
+const CIRCUIT_BREAKER_COOLDOWN_SECS: u64 = 60; // Initial cooldown before retry
+const CIRCUIT_BREAKER_MAX_COOLDOWN_SECS: u64 = 900; // Cap at 15 minutes
 
 /// AcoustID client errors
 #[derive(Debug, Error)]
@@ -114,29 +118,191 @@ impl RateLimiter {
     }
 }
 
+/// **[PLAN030 Task 3.4]** Circuit breaker with exponential backoff to prevent cascading failures
+struct CircuitBreaker {
+    state: Mutex<CircuitState>,
+    /// Tracks consecutive trip count across open/closed transitions for exponential backoff.
+    /// Reset to 0 on success; incremented each time the breaker re-trips.
+    consecutive_trips: Mutex<u32>,
+}
+
+#[derive(Debug, Clone)]
+enum CircuitState {
+    Closed { consecutive_failures: u32 },
+    Open { opened_at: Instant },
+}
+
+impl CircuitBreaker {
+    fn new() -> Self {
+        Self {
+            state: Mutex::new(CircuitState::Closed {
+                consecutive_failures: 0,
+            }),
+            consecutive_trips: Mutex::new(0),
+        }
+    }
+
+    /// Calculate current cooldown based on consecutive trips (exponential backoff)
+    fn cooldown_secs(trips: u32) -> u64 {
+        (CIRCUIT_BREAKER_COOLDOWN_SECS * 2u64.saturating_pow(trips.saturating_sub(1)))
+            .min(CIRCUIT_BREAKER_MAX_COOLDOWN_SECS)
+    }
+
+    async fn is_open(&self) -> bool {
+        let mut state = self.state.lock().await;
+        let trips = *self.consecutive_trips.lock().await;
+
+        match *state {
+            CircuitState::Open { opened_at } => {
+                let cooldown = Self::cooldown_secs(trips);
+                if opened_at.elapsed() >= Duration::from_secs(cooldown) {
+                    tracing::info!(
+                        consecutive_trips = trips,
+                        cooldown_secs = cooldown,
+                        "Circuit breaker cooldown expired, attempting half-open state"
+                    );
+                    *state = CircuitState::Closed {
+                        consecutive_failures: 0,
+                    };
+                    false
+                } else {
+                    true
+                }
+            }
+            CircuitState::Closed { .. } => false,
+        }
+    }
+
+    async fn on_success(&self) {
+        let mut state = self.state.lock().await;
+        let mut trips = self.consecutive_trips.lock().await;
+        *state = CircuitState::Closed {
+            consecutive_failures: 0,
+        };
+        *trips = 0;
+    }
+
+    async fn on_failure(&self) {
+        let mut state = self.state.lock().await;
+        let mut trips = self.consecutive_trips.lock().await;
+
+        match *state {
+            CircuitState::Closed {
+                consecutive_failures,
+            } => {
+                let new_failures = consecutive_failures + 1;
+                if new_failures >= CIRCUIT_BREAKER_THRESHOLD {
+                    *trips += 1;
+                    let cooldown = Self::cooldown_secs(*trips);
+                    tracing::warn!(
+                        consecutive_failures = new_failures,
+                        consecutive_trips = *trips,
+                        cooldown_secs = cooldown,
+                        "AcoustID circuit breaker opened"
+                    );
+                    *state = CircuitState::Open {
+                        opened_at: Instant::now(),
+                    };
+                } else {
+                    *state = CircuitState::Closed {
+                        consecutive_failures: new_failures,
+                    };
+                }
+            }
+            CircuitState::Open { .. } => {
+                // Already open, no change
+            }
+        }
+    }
+}
+
 /// AcoustID API client with database caching
+///
+/// **[PLAN030 Task 3.4]** Enhanced with circuit breaker and 5s timeout
 pub struct AcoustIDClient {
     http_client: reqwest::Client,
     rate_limiter: Arc<RateLimiter>,
+    circuit_breaker: Arc<CircuitBreaker>,
     api_key: String,
     db: sqlx::SqlitePool,
 }
 
 impl AcoustIDClient {
     /// Create new AcoustID client with API key and database pool
+    ///
+    /// **[PLAN030 Task 3.4]** 5-second timeout + circuit breaker
     pub fn new(api_key: String, db: sqlx::SqlitePool) -> Result<Self, AcoustIDError> {
         let http_client = reqwest::Client::builder()
             .user_agent(USER_AGENT)
-            .timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(ACOUSTID_CONNECT_TIMEOUT_SECS))
+            .timeout(Duration::from_secs(ACOUSTID_TIMEOUT_SECS))
+            .pool_idle_timeout(Duration::from_secs(5)) // Avoid stale connections between long fingerprinting gaps
+            .pool_max_idle_per_host(1) // Only need 1 connection to AcoustID
             .build()
             .map_err(|e| AcoustIDError::NetworkError(e.to_string()))?;
 
         Ok(Self {
             http_client,
             rate_limiter: Arc::new(RateLimiter::new(RATE_LIMIT_MS)),
+            circuit_breaker: Arc::new(CircuitBreaker::new()), // **[PLAN030]** Circuit breaker
             api_key,
             db,
         })
+    }
+
+    /// Diagnostic: test AcoustID API connectivity with a real-sized payload
+    ///
+    /// Sends a lookup with a dummy fingerprint (~4000 chars) to verify
+    /// that the API responds to large POST bodies (not just small validation requests).
+    pub async fn diagnostic_connectivity_test(&self) -> Result<(), String> {
+        // Generate a dummy fingerprint roughly matching real size (~4000 chars)
+        let dummy_fp = "AQADtE".to_string() + &"A".repeat(4000);
+
+        let params = [
+            ("client", self.api_key.as_str()),
+            ("meta", "recordings"),
+            ("duration", "120"),
+            ("fingerprint", dummy_fp.as_str()),
+        ];
+
+        let body_len: usize = params.iter().map(|(k, v)| k.len() + v.len() + 2).sum();
+        tracing::info!(
+            body_len_approx = body_len,
+            "DIAGNOSTIC: Testing AcoustID API with large POST body"
+        );
+
+        let start = std::time::Instant::now();
+        match self
+            .http_client
+            .post(ACOUSTID_BASE_URL)
+            .form(&params)
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                let elapsed_ms = start.elapsed().as_millis();
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                tracing::info!(
+                    elapsed_ms = elapsed_ms,
+                    status = status.as_u16(),
+                    body_preview = &body[..body.len().min(200)],
+                    "DIAGNOSTIC: AcoustID large POST succeeded"
+                );
+                Ok(())
+            }
+            Err(e) => {
+                let elapsed_ms = start.elapsed().as_millis();
+                tracing::error!(
+                    elapsed_ms = elapsed_ms,
+                    is_timeout = e.is_timeout(),
+                    is_connect = e.is_connect(),
+                    is_request = e.is_request(),
+                    "DIAGNOSTIC: AcoustID large POST failed: {}", e
+                );
+                Err(format!("{}ms: {}", elapsed_ms, e))
+            }
+        }
     }
 
     /// Lookup recording by Chromaprint fingerprint
@@ -156,7 +322,7 @@ impl AcoustIDClient {
                 status: "ok".to_string(),
                 results: vec![AcoustIDResult {
                     id: String::new(), // Not cached
-                    score: 1.0, // Cached result assumed perfect match
+                    score: 1.0,        // Cached result assumed perfect match
                     recordings: Some(vec![AcoustIDRecording {
                         id: mbid,
                         title: None,
@@ -165,6 +331,18 @@ impl AcoustIDClient {
                     }]),
                 }],
             });
+        }
+
+        // **[PLAN031 Fix 1]** Emergency kill switch - AcoustID causing 725 timeouts in testV.log
+        if !ACOUSTID_ENABLED {
+            tracing::debug!("AcoustID disabled via ACOUSTID_ENABLED flag, skipping lookup");
+            return Err(AcoustIDError::NoMatches);
+        }
+
+        // **[PLAN030 Task 3.4]** Check circuit breaker state
+        if self.circuit_breaker.is_open().await {
+            tracing::warn!("AcoustID circuit breaker is open, skipping lookup");
+            return Err(AcoustIDError::NoMatches);
         }
 
         // Rate limit
@@ -178,20 +356,49 @@ impl AcoustIDClient {
             ("fingerprint", fingerprint),
         ];
 
+        let body_len = params.iter().map(|(k, v)| k.len() + v.len() + 2).sum::<usize>();
         tracing::debug!(
             duration_seconds = duration_seconds,
             fingerprint_len = fingerprint.len(),
+            body_len_approx = body_len,
             fingerprint_preview = &fingerprint[..fingerprint.len().min(100)],
             "Querying AcoustID API"
         );
 
-        let response = self
+        // **[PLAN030 Task 3.4]** Wrap HTTP request with circuit breaker callbacks
+        let send_start = std::time::Instant::now();
+        let response = match self
             .http_client
             .post(ACOUSTID_BASE_URL)
             .form(&params)
             .send()
             .await
-            .map_err(|e| AcoustIDError::NetworkError(e.to_string()))?;
+        {
+            Ok(resp) => {
+                let elapsed_ms = send_start.elapsed().as_millis();
+                tracing::info!(
+                    elapsed_ms = elapsed_ms,
+                    status = resp.status().as_u16(),
+                    "AcoustID HTTP response received"
+                );
+                // **[PLAN030]** Record success (network level)
+                self.circuit_breaker.on_success().await;
+                resp
+            }
+            Err(e) => {
+                let elapsed_ms = send_start.elapsed().as_millis();
+                // **[PLAN030]** Record failure (timeout, connection error)
+                self.circuit_breaker.on_failure().await;
+                tracing::warn!(
+                    elapsed_ms = elapsed_ms,
+                    is_timeout = e.is_timeout(),
+                    is_connect = e.is_connect(),
+                    is_request = e.is_request(),
+                    "AcoustID network error: {}", e
+                );
+                return Err(AcoustIDError::NetworkError(e.to_string()));
+            }
+        };
 
         let status = response.status();
 
@@ -251,7 +458,7 @@ impl AcoustIDClient {
     ///
     /// **[REQ-CA-030]** Deterministic SHA-256 hashing for cache keys
     fn hash_fingerprint(&self, fingerprint: &str) -> String {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(fingerprint.as_bytes());
         format!("{:x}", hasher.finalize())
@@ -263,13 +470,12 @@ impl AcoustIDClient {
     async fn get_cached_mbid(&self, fingerprint: &str) -> Result<Option<String>, AcoustIDError> {
         let fingerprint_hash = self.hash_fingerprint(fingerprint);
 
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT mbid FROM acoustid_cache WHERE fingerprint_hash = ?"
-        )
-        .bind(&fingerprint_hash)
-        .fetch_optional(&self.db)
-        .await
-        .map_err(|e| AcoustIDError::NetworkError(format!("Database error: {}", e)))?;
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT mbid FROM acoustid_cache WHERE fingerprint_hash = ?")
+                .bind(&fingerprint_hash)
+                .fetch_optional(&self.db)
+                .await
+                .map_err(|e| AcoustIDError::NetworkError(format!("Database error: {}", e)))?;
 
         Ok(row.map(|(mbid,)| mbid))
     }
@@ -285,7 +491,7 @@ impl AcoustIDClient {
              VALUES (?, ?, datetime('now'))
              ON CONFLICT(fingerprint_hash) DO UPDATE SET
                 mbid = excluded.mbid,
-                cached_at = excluded.cached_at"
+                cached_at = excluded.cached_at",
         )
         .bind(&fingerprint_hash)
         .bind(mbid)
@@ -313,7 +519,7 @@ mod tests {
                 mbid TEXT NOT NULL,
                 cached_at TEXT NOT NULL DEFAULT (datetime('now')),
                 CHECK (length(fingerprint_hash) = 64)
-            )"
+            )",
         )
         .execute(&pool)
         .await

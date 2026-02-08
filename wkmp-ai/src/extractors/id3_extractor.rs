@@ -87,7 +87,9 @@ impl ID3Extractor {
             })?;
 
         // Get primary tag (ID3v2 preferred, falls back to others)
-        let tag = tagged_file.primary_tag().or_else(|| tagged_file.first_tag());
+        let tag = tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag());
 
         let Some(tag) = tag else {
             debug!(file = ?file_path, "No tags found in audio file");
@@ -99,6 +101,7 @@ impl ID3Extractor {
         let artist = self.extract_artist(tag);
         let album = self.extract_album(tag);
         let recording_mbid = self.extract_musicbrainz_recording_id(tag);
+        let isrc = self.extract_isrc(tag);
 
         // Extract additional fields
         let mut additional = std::collections::HashMap::new();
@@ -148,26 +151,47 @@ impl ID3Extractor {
             artist,
             album,
             recording_mbid,
+            isrc,
             additional,
         })
     }
 
     fn extract_title(&self, tag: &Tag) -> Option<ConfidenceValue<String>> {
-        tag.title().map(|title| {
-            ConfidenceValue::new(title.to_string(), self.base_confidence, "ID3")
-        })
+        tag.title()
+            .map(|title| ConfidenceValue::new(title.to_string(), self.base_confidence, "ID3"))
     }
 
     fn extract_artist(&self, tag: &Tag) -> Option<ConfidenceValue<String>> {
-        tag.artist().map(|artist| {
-            ConfidenceValue::new(artist.to_string(), self.base_confidence, "ID3")
-        })
+        tag.artist()
+            .map(|artist| ConfidenceValue::new(artist.to_string(), self.base_confidence, "ID3"))
     }
 
     fn extract_album(&self, tag: &Tag) -> Option<ConfidenceValue<String>> {
-        tag.album().map(|album| {
-            ConfidenceValue::new(album.to_string(), self.base_confidence, "ID3")
-        })
+        tag.album()
+            .map(|album| ConfidenceValue::new(album.to_string(), self.base_confidence, "ID3"))
+    }
+
+    /// Extract ISRC (International Standard Recording Code) from tags
+    ///
+    /// ISRC format: CC-XXX-YY-NNNNN (12 characters without hyphens)
+    /// - CC: Country code (2 chars)
+    /// - XXX: Registrant code (3 chars)
+    /// - YY: Year (2 digits)
+    /// - NNNNN: Designation code (5 digits)
+    fn extract_isrc(&self, tag: &Tag) -> Option<ConfidenceValue<String>> {
+        // Try standard ISRC key first
+        if let Some(isrc) = tag.get_string(&ItemKey::Isrc) {
+            // Normalize: remove hyphens
+            let normalized = isrc.replace('-', "");
+            if is_valid_isrc(&normalized) {
+                debug!(isrc = %normalized, "Found ISRC in ID3 tags");
+                // High confidence for ISRC - authoritative identifier
+                return Some(ConfidenceValue::new(normalized, 0.95, "ID3-ISRC"));
+            } else {
+                warn!(isrc = %isrc, "Invalid ISRC format in ID3 tags");
+            }
+        }
+        None
     }
 
     fn extract_musicbrainz_recording_id(&self, tag: &Tag) -> Option<ConfidenceValue<String>> {
@@ -185,11 +209,7 @@ impl ID3Extractor {
                 if is_valid_mbid(mbid) {
                     debug!(mbid = %mbid, "Found MusicBrainz Recording ID in ID3 tags");
                     // Higher confidence when MBID is present (0.9 - authoritative)
-                    return Some(ConfidenceValue::new(
-                        mbid.to_string(),
-                        0.9,
-                        "ID3-MBID",
-                    ));
+                    return Some(ConfidenceValue::new(mbid.to_string(), 0.9, "ID3-MBID"));
                 } else {
                     warn!(mbid = %mbid, "Invalid MusicBrainz Recording ID format in ID3 tags");
                 }
@@ -246,7 +266,7 @@ impl SourceExtractor for ID3Extractor {
 
         Ok(ExtractionResult {
             metadata: Some(metadata),
-            identity: None,      // ID3 extractor doesn't perform identity resolution
+            identity: None,       // ID3 extractor doesn't perform identity resolution
             musical_flavor: None, // Musical flavor comes from other extractors
         })
     }
@@ -255,6 +275,38 @@ impl SourceExtractor for ID3Extractor {
 // ============================================================================
 // Utility Functions
 // ============================================================================
+
+/// Validate ISRC format (International Standard Recording Code)
+///
+/// ISRC format (12 characters, no hyphens): CCXXXYYNNNNN
+/// - CC: Country code (2 uppercase letters)
+/// - XXX: Registrant code (3 alphanumeric)
+/// - YY: Year (2 digits)
+/// - NNNNN: Designation code (5 digits)
+fn is_valid_isrc(isrc: &str) -> bool {
+    // Must be exactly 12 characters
+    if isrc.len() != 12 {
+        return false;
+    }
+
+    let chars: Vec<char> = isrc.chars().collect();
+
+    // First 2 characters: country code (letters)
+    if !chars[0].is_ascii_alphabetic() || !chars[1].is_ascii_alphabetic() {
+        return false;
+    }
+
+    // Characters 3-5: registrant code (alphanumeric)
+    if !chars[2].is_ascii_alphanumeric()
+        || !chars[3].is_ascii_alphanumeric()
+        || !chars[4].is_ascii_alphanumeric()
+    {
+        return false;
+    }
+
+    // Characters 6-12: year (2 digits) + designation code (5 digits)
+    chars[5..].iter().all(|c| c.is_ascii_digit())
+}
 
 /// Validate MusicBrainz ID format (UUID v4)
 ///
@@ -280,8 +332,7 @@ fn is_valid_mbid(mbid: &str) -> bool {
     }
 
     // Verify all characters are hex digits or hyphens
-    mbid.chars()
-        .all(|c| c.is_ascii_hexdigit() || c == '-')
+    mbid.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
 }
 
 // ============================================================================
@@ -332,6 +383,32 @@ mod tests {
         assert!(!is_valid_mbid("not-a-uuid"));
         assert!(!is_valid_mbid("550e8400e29b41d4a716446655440000")); // No hyphens
         assert!(!is_valid_mbid("550e8400-e29b-41d4-a716-446655440000-extra")); // Too long
+    }
+
+    #[test]
+    fn test_valid_isrc_format() {
+        // Valid ISRCs (12 characters, normalized without hyphens)
+        assert!(is_valid_isrc("USRC17607839")); // US standard format
+        assert!(is_valid_isrc("GBAYE0000351")); // UK format
+        assert!(is_valid_isrc("BRBMG0300729")); // Brazil format
+        assert!(is_valid_isrc("QM7281917295")); // Registrant with digits
+
+        // Invalid formats
+        assert!(!is_valid_isrc("USRC1760783")); // Too short (11 chars)
+        assert!(!is_valid_isrc("USRC176078399")); // Too long (13 chars)
+        assert!(!is_valid_isrc("12RC17607839")); // Digits in country code
+        assert!(!is_valid_isrc("USRC1760783A")); // Letter in designation code
+        assert!(!is_valid_isrc("")); // Empty
+        assert!(!is_valid_isrc("US-RC1-76-07839")); // With hyphens (should be pre-normalized)
+    }
+
+    #[test]
+    fn test_isrc_normalization() {
+        // ISRCs with hyphens should be normalized before validation
+        let isrc_with_hyphens = "US-RC1-76-07839";
+        let normalized = isrc_with_hyphens.replace('-', "");
+        assert_eq!(normalized, "USRC17607839");
+        assert!(is_valid_isrc(&normalized));
     }
 
     #[tokio::test]

@@ -10,12 +10,12 @@ Defines deployment, process management, and operational configuration for WKMP's
 
 ## Overview
 
-**[DEP-OVR-010]** WKMP consists of **5 independent microservices** that communicate via HTTP/REST APIs. This document specifies how to deploy, start, stop, configure, and monitor these processes across different operating systems and deployment scenarios.
+**[DEP-OVR-010]** WKMP consists of **6 independent microservices** that communicate via HTTP/REST APIs. This document specifies how to deploy, start, stop, configure, and monitor these processes across different operating systems and deployment scenarios.
 
-**[DEP-OVR-020]** The version (Full, Lite, Minimal) determines which of the **5 microservices** run:
-- **Full Version** (all 5): Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest
-- **Lite Version** (3 of 5): Audio Player, User Interface, Program Director
-- **Minimal Version** (2 of 5): Audio Player, User Interface
+**[DEP-OVR-020]** The version (Full, Lite, Minimal) determines which of the **6 microservices** run:
+- **Full Version** (all 6): Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest, Database Review
+- **Lite Version** (3 of 6): Audio Player, User Interface, Program Director
+- **Minimal Version** (2 of 6): Audio Player, User Interface
 
 ## 1. Module Binaries
 
@@ -25,6 +25,7 @@ Defines deployment, process management, and operational configuration for WKMP's
 - `wkmp-le` - Lyric Editor
 - `wkmp-pd` - Program Director
 - `wkmp-ai` - Audio Ingest
+- `wkmp-dr` - Database Review
 
 **[DEP-BIN-020]** Binaries shall be installed in a standard location:
 - **Linux**: `/usr/local/bin/` or `/opt/wkmp/bin/`
@@ -32,6 +33,87 @@ Defines deployment, process management, and operational configuration for WKMP's
 - **Windows**: `C:\Program Files\WKMP\bin\`
 
 ## 2. Configuration Files
+
+### 2.0a. Configuration Hierarchy Overview
+
+WKMP has three distinct configuration layers that operate independently:
+
+**Layer 1: Root Folder Resolution (System Bootstrap)**
+
+**Purpose:** Determine where `wkmp.db` database file is stored
+
+**Mechanism:** 4-tier priority (CLI > ENV > TOML > Default)
+
+**Documented In:** [ADR-003-zero_configuration_strategy.md](ADR-003-zero_configuration_strategy.md)
+
+**Applies To:** ALL 6 microservices (identical resolution pattern)
+
+**Example:**
+```
+User runs: wkmp-ui --root-folder /custom/music
+Result: Database at /custom/music/wkmp.db
+```
+
+---
+
+**Layer 2: Module Configuration (Service Discovery)**
+
+**Purpose:** Auto-discover module ports and enable/disable modules
+
+**Mechanism:** Database table `module_config` (auto-populated on first run)
+
+**Documented In:** [IMPL001-database_schema.md](IMPL001-database_schema.md) `module_config` table
+
+**Applies To:** Module startup and inter-module communication
+
+**Example:**
+```sql
+SELECT port FROM module_config WHERE module_id = 'wkmp-ui';
+-- Returns: 5720
+```
+
+**Note:** Users should NOT manually edit this table. Defaults are correct for 99% of deployments.
+
+---
+
+**Layer 3: Application Settings (User Preferences)**
+
+**Purpose:** Playback parameters, timeslots, user preferences, library paths
+
+**Mechanism:** Database table `settings` (user-editable via UI)
+
+**Documented In:** [IMPL016-settings_reference.md](IMPL016-settings_reference.md)
+
+**Applies To:** Application behavior (not infrastructure)
+
+**Example:**
+```sql
+UPDATE settings SET value = '{"volume": 0.8}' WHERE key = 'playback.volume';
+```
+
+---
+
+**Configuration Flow Diagram:**
+
+```
+[System Start]
+     |
+     v
+[Layer 1: Root Folder Resolution] --> /home/user/Music/wkmp.db
+     |
+     v
+[Layer 2: Module Config Discovery] --> wkmp-ui binds to port 5720
+     |
+     v
+[Layer 3: Application Settings Load] --> Playback volume = 0.8
+     |
+     v
+[Application Running]
+```
+
+**Key Principle:** Each layer is independent. Changing root folder doesn't affect module ports. Changing module ports doesn't affect playback settings.
+
+---
 
 ### 2.1. Configuration File Location
 
@@ -828,12 +910,13 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 
 ### 13.1. Full Version
 
-**[DEP-VER-FULL-010]** Deploy and enable all 5 modules:
+**[DEP-VER-FULL-010]** Deploy and enable all 6 modules:
 - Audio Player (required)
 - User Interface (required)
 - Lyric Editor (on-demand)
 - Program Director (required)
 - Audio Ingest (required)
+- Database Review (on-demand)
 
 **Note:** Lyric Editor (wkmp-le) is launched on-demand by User Interface when user requests lyric editing, not automatically at startup.
 

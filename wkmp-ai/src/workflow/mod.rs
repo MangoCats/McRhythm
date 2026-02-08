@@ -19,8 +19,9 @@
 
 pub mod boundary_detector;
 pub mod event_bridge;
-pub mod pipeline;  // PLAN024: 3-tier pipeline orchestrator
-pub mod storage;   // PLAN024: Database storage for processed passages
+pub mod memory_tracker; // Memory usage tracking for audio buffers
+pub mod pipeline; // PLAN024: 3-tier pipeline orchestrator
+pub mod storage; // PLAN024: Database storage for processed passages
 
 use crate::types::{ExtractionResult, ValidationResult};
 
@@ -45,7 +46,7 @@ pub struct PassageBoundary {
 ///
 /// **[AIA-PERF-046]** Cache decoded audio to avoid re-decoding for each passage.
 /// Boundary detection decodes entire file; this struct allows passages to reuse that audio.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FileAudioData {
     /// Detected passage boundaries
     pub boundaries: Vec<PassageBoundary>,
@@ -55,6 +56,9 @@ pub struct FileAudioData {
     pub sample_rate: u32,
     /// Number of channels (1=mono, 2=stereo)
     pub num_channels: u8,
+    /// Memory tracking guard (automatically deallocates on drop)
+    #[allow(dead_code)]
+    _memory_guard: Option<memory_tracker::MemoryGuard>,
 }
 
 /// SPEC017 tick rate constant
@@ -108,6 +112,8 @@ pub enum WorkflowEvent {
         end_time: i64,
         /// Boundary detection confidence (0.0-1.0)
         confidence: f64,
+        /// Unix timestamp (seconds since epoch)
+        timestamp: i64,
     },
 
     /// Passage processing started
@@ -116,6 +122,8 @@ pub enum WorkflowEvent {
         passage_index: usize,
         /// Total passages detected in file
         total_passages: usize,
+        /// Unix timestamp (seconds since epoch)
+        timestamp: i64,
     },
 
     /// Extraction phase progress
@@ -126,18 +134,24 @@ pub enum WorkflowEvent {
         extractor: String,
         /// Status message (e.g., "extracting", "complete", "failed")
         status: String,
+        /// Unix timestamp (seconds since epoch)
+        timestamp: i64,
     },
 
     /// Fusion phase started
     FusionStarted {
         /// Passage index (0-based)
         passage_index: usize,
+        /// Unix timestamp (seconds since epoch)
+        timestamp: i64,
     },
 
     /// Validation phase started
     ValidationStarted {
         /// Passage index (0-based)
         passage_index: usize,
+        /// Unix timestamp (seconds since epoch)
+        timestamp: i64,
     },
 
     /// Passage processing completed
@@ -148,6 +162,8 @@ pub enum WorkflowEvent {
         quality_score: f64,
         /// Validation status (e.g., "accepted", "rejected")
         validation_status: String,
+        /// Unix timestamp (seconds since epoch)
+        timestamp: i64,
     },
 
     /// File processing completed
@@ -178,4 +194,65 @@ pub enum WorkflowEvent {
         /// Error message from AcoustID API
         error_message: String,
     },
+
+    // --- Album Matching Events (PLAN_am30_integration) ---
+    /// **[PLAN_am30_integration]** Single-track vs album check completed
+    ///
+    /// Emitted after SingleTrackDiscriminator analyzes the file to determine
+    /// whether it should be processed as a single track or full album.
+    SingleTrackCheckCompleted {
+        /// Path to audio file
+        file_path: String,
+        /// Discrimination score from SingleTrackDiscriminator
+        score: f64,
+        /// Whether file is classified as single track (score >= threshold)
+        is_single_track: bool,
+    },
+
+    /// **[PLAN_am30_integration]** Album matching started
+    ///
+    /// Emitted when file is routed to album matching pipeline.
+    AlbumMatchingStarted {
+        /// Path to audio file
+        file_path: String,
+        /// Unix timestamp (seconds since epoch)
+        timestamp: i64,
+    },
+
+    /// **[PLAN_am30_integration]** Album matching completed successfully
+    AlbumMatchingCompleted {
+        /// Path to audio file
+        file_path: String,
+        /// Whether album was successfully matched
+        matched: bool,
+        /// Number of tracks identified
+        track_count: usize,
+        /// Match percentage (0-100)
+        match_percentage: f64,
+        /// Unix timestamp (seconds since epoch)
+        timestamp: i64,
+    },
+
+    /// **[PLAN_am30_integration]** Album matching failed
+    AlbumMatchingFailed {
+        /// Path to audio file
+        file_path: String,
+        /// Reason for failure
+        reason: String,
+        /// Unix timestamp (seconds since epoch)
+        timestamp: i64,
+    },
+
+    /// **[PLAN_am30_integration]** Album matching fell back to single-song processing
+    AlbumMatchingFallback {
+        /// Path to audio file
+        file_path: String,
+        /// Reason for fallback
+        reason: String,
+        /// Unix timestamp (seconds since epoch)
+        timestamp: i64,
+    },
+
+    /// **[PLAN032]** Analysis log entry for real-time UI feedback
+    AnalysisLogEvent(wkmp_common::events::AnalysisLogEntry),
 }

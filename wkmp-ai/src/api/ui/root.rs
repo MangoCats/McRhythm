@@ -137,7 +137,10 @@ pub async fn root_page() -> impl IntoResponse {
         </div>
     </header>
     <div class="content">"#,
-        version, &git_hash[..8], build_profile, build_timestamp
+        version,
+        &git_hash[..8],
+        build_profile,
+        build_timestamp
     );
 
     Html(format!(
@@ -156,7 +159,6 @@ pub async fn root_page() -> impl IntoResponse {
     <h2>Quick Start</h2>
     <p>
         <a href=\"/import-progress\" class=\"button\">Start Import</a>
-        <a href=\"/segment-editor\" class=\"button\">Segment Editor</a>
         <a href=\"/settings\" class=\"button\">Settings</a>
         <a href=\"http://localhost:5725/\" target=\"_blank\" class=\"button\">Database Review</a>
     </p>
@@ -181,4 +183,3 @@ pub async fn root_page() -> impl IntoResponse {
         html
     ))
 }
-

@@ -282,6 +282,8 @@ The following items will be addressed when Program Director is fully specified:
 ## Cooldown System
 <a name="cooldown-system"></a>
 
+> **Entity Definitions:** Song, Artist, and Work entities are defined in [REQ002-entity_definitions.md](REQ002-entity_definitions.md). See [REQ002:90-189 § 2.0 Entity Relationship Overview](REQ002-entity_definitions.md#20-entity-relationship-overview) for cooldown tracking relationships.
+
 **[PD-COOL-010]** The cooldown system prevents too-frequent replay of songs, artists, and works.
 
 **[PD-COOL-015]** Cooldowns are **global (system-wide)**: All users see the same cooldown state. The system assumes all listeners hear all songs as they are played, so cooldowns apply to passage selection for everyone collectively.

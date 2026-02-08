@@ -16,7 +16,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-OV-010]** WKMP is a music player that selects passages to play based on user preferences for [musical flavor](SPEC003-musical_flavor.md#quantitative-definition) at various times of day.
 
-**Architectural Note:** WKMP is implemented as a microservices architecture with **5 independent HTTP-based modules**: Audio Player, User Interface, Lyric Editor, Program Director, and Audio Ingest. See [Architecture](SPEC001-architecture.md) for complete design.
+**Architectural Note:** WKMP is implemented as a microservices architecture with **6 independent HTTP-based modules**: Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest, and Database Review. See [Architecture](SPEC001-architecture.md) for complete design.
 
 ### Microservice UI Ownership
 
@@ -357,6 +357,41 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 > **See [Library Management](SPEC008-library_management.md) for file scanning workflows, metadata extraction details, and MusicBrainz integration process.**
 > **See [Crossfade Design](SPEC002-crossfade.md#default-configuration) for default passage timing point values.**
 
+### Album Matching
+
+**[REQ-PI-AM-010]** wkmp-ai MUST identify album editions from single-file recordings with ≥90% track count accuracy
+- Match detected track boundaries against MusicBrainz release metadata
+- Support albums stored as single continuous audio file (CD rips, vinyl recordings)
+- Validate match quality by comparing expected vs detected track counts
+
+**[REQ-PI-AM-020]** wkmp-ai MUST support multi-stage fallback algorithm for robust matching
+- Stage 2: Parameter grid search (180 threshold/duration combinations)
+- Stage 3: Dynamic programming assembly for over-segmented tracks
+- Stage 4: RMS quiet spot detection when silence analysis fails
+- Stage 5: Extra track merging for bonus material and hidden tracks
+
+**[REQ-PI-AM-030]** wkmp-ai MUST discover 10-25 candidate editions per album via comprehensive MusicBrainz search
+- Multi-strategy search: basic, CamelCase splitting, fuzzy matching, wildcard fixes
+- Handle artist/album name variations, typos, and alternative spellings
+- Early-exit optimization: stop on first strategy finding ≥10 candidates
+
+**[REQ-PI-AM-040]** wkmp-ai MUST score and rank editions by metadata similarity
+- Jaro-Winkler algorithm for artist/album name comparison
+- Scoring weights: 60% artist similarity, 40% album similarity
+- Filter to top 20 editions before detailed analysis
+
+**[REQ-PI-AM-050]** wkmp-ai MUST achieve ≤10s mean track boundary error for matched albums
+- Sample-accurate boundary detection using silence thresholds
+- Tolerance: Allow ±10s deviation from expected track durations
+- Validation: ≥65% tracks within tolerance for match success
+
+**[REQ-PI-AM-060]** wkmp-ai MUST support caching for performance optimization
+- Cache MusicBrainz API responses to reduce network latency
+- Single-pass audio analysis: WindowDbProfile for 180x speedup
+- Early-exit optimization: 87.6% of albums avoid full parameter sweep
+
+> **See [Album Matching Specification](SPEC033-album_matching.md) for complete algorithm design, performance optimizations, and stage-specific requirements.**
+
 ### Library Edge Cases
 
 **[REQ-PI-090]** Zero-song passage library handling
@@ -508,6 +543,23 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 > **See [UI Specification - Network Status Indicators](SPEC009-ui_specification.md#network-status-indicators) for complete status display design.**
 > **See [Architecture - Network Error Handling](SPEC001-architecture.md#network-error-handling) for retry algorithm and connection handling.**
+
+### Import Progress Display
+
+**[REQ-IPD-010]** Import progress UI provides real-time feedback during audio file import (Full version only)
+- **[REQ-IPD-011]** Display elapsed time since import started
+- **[REQ-IPD-012]** Display estimated remaining time based on processing rate
+- **[REQ-IPD-013]** Display current file being processed
+- **[REQ-IPD-014]** Display overall progress (files completed / total files)
+
+**[REQ-IPD-020]** Time display update frequency requirements
+- **[REQ-IPD-021]** Elapsed time counter MUST update at least once every 15 seconds
+- **[REQ-IPD-022]** Estimated remaining time calculation MUST update at least once every 60 seconds
+- **[REQ-IPD-023]** Updates MUST occur regardless of file processing activity (independent of per-file progress events)
+
+**Rationale:** Users expect time displays to update regularly even during long-running operations on individual files. Static time displays create perception that the import is frozen.
+
+> **See [Audio Ingest Architecture - Section 5: Time Estimates](SPEC032-audio_ingest_architecture.md#section-5-time-estimates-req-aia-ui-005) for implementation design.**
 
 ### Playback State
 

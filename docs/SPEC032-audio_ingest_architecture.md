@@ -10,7 +10,7 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 
 ## Overview
 
-**[AIA-OV-010]** wkmp-ai is the Audio Ingest microservice responsible for importing user music collections into the WKMP database with accurate MusicBrainz identification and optimal passage timing.
+**[AIA-OV-010]** wkmp-ai is the Audio Ingest microservice responsible for automatic audio file import and passage identification for music library construction.
 
 **Module Identity:**
 - **Name:** wkmp-ai (Audio Ingest)
@@ -18,17 +18,60 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 - **Version:** Full only (not in Lite/Minimal)
 - **Technology:** Rust, Tokio (async), Axum (HTTP + SSE)
 
-**Purpose:** Guide new users through intelligent audio import workflow:
+**Purpose:** Automate music library construction through intelligent audio import workflow:
 1. File discovery and audio format verification
 2. Metadata extraction (ID3 tags, filename, folder context)
-3. **Passage boundary detection first** (silence-based segmentation provides structural clues)
-4. **Contextual MusicBrainz matching** (metadata + segment patterns narrow candidate list)
-5. **Per-segment audio fingerprinting** (Chromaprint for each segment individually)
-6. **Evidence-based MBID identification** (combine metadata, patterns, and fingerprints)
-7. Amplitude-based lead-in/lead-out detection (optimize crossfade points)
-8. AcousticBrainz musical flavor data retrieval (only for confirmed MBIDs)
+3. Hash-based duplicate detection with bidirectional linking
+4. Silence-based passage boundary detection
+5. Per-passage audio fingerprinting via AcoustID API
+6. Song matching with confidence assessment (High/Medium/Low/None)
+7. Amplitude-based lead-in/lead-out point detection (define valid overlap regions for crossfades)
+8. Musical flavor data retrieval (AcousticBrainz → Essentia fallback)
 
-**Key Innovation:** Segmentation-first approach leverages structural patterns (track count, gap timing) combined with metadata context to narrow MusicBrainz search space before expensive fingerprinting, resulting in higher accuracy and confidence.
+**In Scope:** Automatic ingest workflow for music library construction
+
+**Out of Scope:**
+- Quality control and audio issue detection (future wkmp-qa microservice)
+- Manual passage editing and MBID revision (future wkmp-pe microservice)
+
+---
+
+## Scope Definition
+
+**[AIA-SCOPE-010]** wkmp-ai implements **automatic audio file ingest only**:
+
+**In Scope (Automatic Ingest):**
+- File discovery, metadata extraction, hash-based deduplication
+- Silence-based segmentation and passage boundary detection
+- Chromaprint fingerprinting per potential passage
+- Song matching via AcoustID + MusicBrainz with confidence scoring
+- Amplitude analysis for lead-in/lead-out detection
+- Musical flavor retrieval (AcousticBrainz → Essentia fallback)
+- Database population with files, passages, songs, and relationships
+
+**Out of Scope (Future Microservices):**
+- **Quality Control (wkmp-qa):** Skip/gap/quality issue detection and reporting
+- **Passage Editing (wkmp-pe):** User-directed fade point definition, manual MBID revision
+
+**Rationale:** Single-responsibility microservices enable focused development and independent deployment.
+
+---
+
+## Two-Stage Development Roadmap
+
+**[AIA-ROADMAP-010]** wkmp-ai development follows a two-stage roadmap:
+
+**Stage One: Root Folder Import (Current Scope)**
+- **Constraint:** Import from root folder or subfolders only
+- **Workflow:** Select folder → Scan → Process → Ingest complete
+- **Target:** Initial library construction from primary music collection location
+
+**Stage Two: External Folder Import (Future Enhancement)**
+- **Feature:** Import from folders outside root folder
+- **Workflow:** Select external folder → Identify files → Copy/move to root → Ingest
+- **Target:** Incorporate music from external drives, downloads, CDs
+
+**Current Implementation:** Stage One only (root folder constraint enforced)
 
 ---
 
@@ -66,12 +109,109 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 - If not running, button shows "Install Full Version to enable import"
 - No embedded import UI in wkmp-ui (wkmp-ai owns all import UX)
 
+**[AIA-UI-025]** Folder selection UI implementation (Step 2 of workflow):
+- **Technology:** Server-side directory tree component (HTML/CSS/JavaScript)
+  - No HTML5 File API (not supported for folder selection in browsers)
+  - Server-side directory traversal with client-side tree rendering
+- **UI Layout:**
+  ```
+  ┌─────────────────────────────────────────────┐
+  │ Select Folder to Import                     │
+  ├─────────────────────────────────────────────┤
+  │ Root Folder: /home/user/Music              │
+  │                                             │
+  │ ▼ Music (root folder)                       │
+  │   ▼ Albums                                  │
+  │     ▶ The Beatles                           │
+  │     ▶ Pink Floyd                            │
+  │   ▼ Compilations                            │
+  │     ▶ Best of 70s                           │
+  │   ▶ Singles                                 │
+  │                                             │
+  │ [Select This Folder] [Cancel]               │
+  └─────────────────────────────────────────────┘
+  ```
+- **Stage One Constraint Enforcement:**
+  - Tree only displays root folder and descendants (subfolders any depth)
+  - External folders not visible in tree (cannot be selected)
+  - Stage Two (future): Add "Browse External Folders" button at top
+- **User Interaction:**
+  - Click folder name → Highlight folder
+  - Click expand icon (▶/▼) → Expand/collapse subfolder tree
+  - Click "Select This Folder" → Validate path (Stage One check), proceed to scanning
+  - Validation error → Display modal: "Stage Two feature - coming soon"
+- **API Endpoints:**
+  - Folder tree endpoint: `GET /api/folders/tree` (see API Endpoint Reference)
+  - Folder validation endpoint: `POST /api/folders/validate` (see API Endpoint Reference)
+- **Performance:**
+  - Lazy loading: Only load subfolders when parent expanded
+  - Cache folder tree in memory (invalidate on refresh button click)
+
 **[AIA-UI-030]** After import completion:
 - wkmp-ai displays "Import Complete" with link back to wkmp-ui
 - User returns to wkmp-ui (http://localhost:5720) to use library
 - wkmp-ui detects new files via database watch or SSE event from wkmp-ai
 
 **See:** [On-Demand Microservices](../CLAUDE.md#on-demand-microservices) for architectural pattern
+
+---
+
+## API Endpoint Reference
+
+**[AIA-API-010]** Complete list of wkmp-ai HTTP endpoints:
+
+### Import Workflow Endpoints
+- `POST /import/start` - Start import session (returns session_id)
+- `GET /import/events` - SSE endpoint for real-time progress updates (broadcasts to all clients)
+- `GET /import/status/{session_id}` - Polling fallback for progress status
+- `POST /import/cancel` - Cancel active import session
+
+### AcoustID API Key Management
+- `GET /api/settings/acoustid_api_key` - Check if key configured, return masked key
+- `POST /import/validate-acoustid` - Validate key against AcoustID API (test lookup)
+- `POST /import/acoustid-key` - Update key and resume paused session
+- `POST /import/skip-acoustid` - Skip AcoustID for current session
+
+### Folder Selection Endpoints (Stage One)
+- `GET /api/folders/tree?root={path}` - Get folder tree (root and descendants only)
+- `POST /api/folders/validate` - Validate selected folder (Stage One constraint check)
+
+### File Classification Endpoints
+- `GET /api/import/file-classification` - Get file classification report with pagination
+- `GET /api/import/file-classification?category={audio|image|other}&offset={n}&limit={n}` - Paginated category files
+
+### UI Page Endpoints
+- `GET /` - Import wizard home page
+- `GET /import-progress` - Real-time progress display with SSE
+- `GET /file-report` - File classification report page (available after SCANNING completes)
+- `GET /segment-editor` - Waveform editor for passage boundaries (future)
+- `GET /settings` - Settings configuration UI
+- `GET /import-complete` - Import completion summary page
+
+### Static Assets
+- `GET /static/wkmp-ui.css` - Shared UI styles
+- `GET /static/import-progress.js` - Import progress page logic
+- `GET /static/wkmp-sse.js` - SSE connection utilities
+
+**See Also:**
+- SSE event structures: "Real-Time Progress Updates" section
+- AcoustID validation flow: "AcoustID API Key Validation" section
+- Folder selection: "Folder Selection UI Implementation" section
+
+---
+
+## Five-Step Workflow
+
+**[AIA-WORKFLOW-010]** wkmp-ai import workflow consists of five high-level steps. See "Import Workflow State Machine" section for detailed state transitions, semantics, and visual diagram.
+
+**Brief Overview:**
+1. **API Key Validation** - Validate/prompt for AcoustID API key
+2. **Folder Selection** - Select folder to scan (Stage One: root folder constraint)
+3. **Scanning** - Discover audio files via directory traversal
+4. **Processing** - Process files through 10-phase pipeline (parallel workers)
+5. **Completion** - Display summary and return to wkmp-ui
+
+**State Progression:** `IDLE → API_KEY_VALIDATION → FOLDER_SELECTION → SCANNING → PROCESSING → COMPLETED`
 
 ### Shared Database
 
@@ -111,6 +251,733 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 
 ---
 
+## Duplicate Detection Strategy
+
+**[AIA-DUPL-010]** wkmp-ai uses a two-tier duplicate detection strategy:
+
+**Tier 1: Filename Matching (Phase 1)**
+- Query `files` table by exact path and last modified time metadata match
+- If found with completed passages: Skip file entirely (already processed)
+- Rationale: Avoid re-processing already-imported files
+
+**Tier 2: Hash-Based Matching (Phase 2)**
+- Compute file content hash (SHA-256)
+- Query `files.matching_hashes` JSON field for files with matching hash
+- If match found with status: `'INGEST COMPLETE'`:
+  - Create bidirectional link: `current.matching_hashes ← match.fileId` AND `match.matching_hashes ← current.fileId`
+  - Mark current file status: `'DUPLICATE HASH'`
+  - Skip remaining phases (duplicate content detected)
+- Rationale: Detect renamed files, reorganized files, duplicate copies
+
+**Bidirectional Linking:**
+```sql
+-- Example: File A (hash=abc123) matches File B (hash=abc123, already processed)
+UPDATE files SET matching_hashes = json_insert(matching_hashes, '$[#]', 'fileB_uuid') WHERE file_id = 'fileA_uuid';
+UPDATE files SET matching_hashes = json_insert(matching_hashes, '$[#]', 'fileA_uuid') WHERE file_id = 'fileB_uuid';
+```
+
+**Benefits:**
+- **Fast skip:** Filename matching avoids expensive hash computation for already-processed files
+- **Reorganization tolerance:** Hash matching detects moved/renamed files
+- **Bidirectional links:** Users can discover all copies of same audio content
+- **No false positives:** Hash collision probability negligible (2^-256 for SHA-256)
+
+---
+
+## File Classification
+
+**[AIA-CLASSIFY-010]** During the SCANNING phase (Step 3), wkmp-ai classifies ALL discovered files into three categories:
+
+**File Categories:**
+1. **Audio Files:** Files with audio format extensions (MP3, FLAC, OGG, M4A, AAC, OPUS, WAV, etc.)
+2. **Still Image Files:** Files with image format extensions (JPG, JPEG, PNG, GIF, BMP, WEBP, etc.)
+3. **Other Files:** All remaining files not matching audio or image extensions
+
+**Classification Scope:**
+- **Root folder scan:** ALL files under selected folder (not just audio files)
+- **Recursive traversal:** Include all subfolders to any depth
+- **Symlink handling:** Do NOT follow symlinks/junctions (same as audio file scanning per [AIA-SEC-010])
+- **Hidden files:** Respect `skip_hidden_files` setting (default: skip hidden files)
+
+**Implementation:**
+- **Extension matching:** Case-insensitive extension lookup (`.mp3` == `.MP3`)
+- **Classification data structure:** Three separate `Vec<PathBuf>` lists maintained during scan
+- **No file content inspection:** Classification based on extension only (fast, no I/O per file)
+
+**[AIA-CLASSIFY-020]** File category extension lists:
+
+**Audio Extensions (Supported Formats per REQ-PI-020):**
+```rust
+const AUDIO_EXTENSIONS: &[&str] = &[
+    ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".opus", ".wav"
+];
+```
+
+**Image Extensions (Album Art per REQ-ART-020):**
+```rust
+const IMAGE_EXTENSIONS: &[&str] = &[
+    ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tiff", ".tif"
+];
+```
+
+**Other Files:**
+- Any extension not matching audio or image lists
+- Files without extensions
+
+**[AIA-CLASSIFY-030]** Classification results stored in import session state:
+
+**Session State Extension:**
+```rust
+pub struct ImportSession {
+    // ... existing fields ...
+    pub classified_files: FileClassification,
+}
+
+pub struct FileClassification {
+    pub audio_files: Vec<FileInfo>,
+    pub image_files: Vec<FileInfo>,
+    pub other_files: Vec<FileInfo>,
+}
+
+pub struct FileInfo {
+    pub path: PathBuf,
+    pub size_bytes: u64,
+    pub modified_at: SystemTime,
+}
+```
+
+**Benefits:**
+- **Single scan:** Classification happens during existing directory traversal (no additional I/O)
+- **Complete inventory:** Users see ALL files discovered, not just audio files
+- **Post-scan analysis:** Report provides comprehensive root folder content overview
+
+---
+
+## File Classification Report UI
+
+**[AIA-CLASSIFY-UI-010]** After SCANNING phase completion, wkmp-ai provides a dedicated report page at `/file-report`:
+
+**UI Access:**
+- **Route:** `GET /file-report`
+- **When Available:** After SCANNING phase completes (before PROCESSING phase starts)
+- **Access Method:** Link displayed in progress page: "View File Classification Report"
+- **Report Persistence:** Available throughout entire import session (survives page refresh)
+
+**UI Layout:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ File Classification Report                                  │
+├─────────────────────────────────────────────────────────────┤
+│ Scanned Folder: /home/user/Music                           │
+│                                                             │
+│ ┌─────────────┬─────────────┬─────────────┐                │
+│ │ Audio Files │ Image Files │ Other Files │                │
+│ │   (1,247)   │    (342)    │     (15)    │                │
+│ └─────────────┴─────────────┴─────────────┘                │
+│                                                             │
+│ [X] Audio Files (1,247 files, 8.2 GB)        [Selected]    │
+│ ┌─────────────────────────────────────────────────────────┐│
+│ │ Path                                    Size   Modified ││
+│ │ /home/user/Music/Album1/track01.flac   42 MB  2024-01-15││
+│ │ /home/user/Music/Album1/track02.flac   38 MB  2024-01-15││
+│ │ /home/user/Music/Album2/song.mp3        5 MB  2023-12-20││
+│ │ ... (1,244 more files)                                  ││
+│ │                                                          ││
+│ │ [Scroll for more files]                                 ││
+│ └─────────────────────────────────────────────────────────┘│
+│                                                             │
+│ [Continue to Processing] [Cancel Import]                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**[AIA-CLASSIFY-UI-020]** Category Tab Behavior:
+
+**Tab Selection:**
+- Click category tab → Switch active file list display
+- Active tab highlighted with bold/color styling
+- Tab label shows count: `"Audio Files (1,247)"`
+- Tab label shows total size in human-readable format: `"8.2 GB"`
+
+**Per-Category Display:**
+- **Scrollable List:** Infinite scroll or pagination (if >1000 files, paginate 500 per page)
+- **Columns:**
+  - **Path:** Full absolute path (left-aligned)
+  - **Size:** Human-readable format (right-aligned)
+    - Bytes: `"1,234 B"` (if < 1 KB)
+    - Kilobytes: `"42.5 KB"` (if < 1 MB)
+    - Megabytes: `"15.3 MB"` (if < 1 GB)
+    - Gigabytes: `"2.1 GB"` (if >= 1 GB)
+  - **Modified:** Date only (YYYY-MM-DD format) for files <1 year old, full timestamp for older files
+- **Sorting:** Default = alphabetical by path (ascending)
+- **No filtering:** Display all files in category (search/filter out of scope)
+
+**[AIA-CLASSIFY-UI-030]** Human-readable size formatting algorithm:
+
+```rust
+pub fn format_file_size(size_bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+
+    if size_bytes < KB {
+        format!("{} B", size_bytes)
+    } else if size_bytes < MB {
+        format!("{:.1} KB", size_bytes as f64 / KB as f64)
+    } else if size_bytes < GB {
+        format!("{:.1} MB", size_bytes as f64 / MB as f64)
+    } else {
+        format!("{:.1} GB", size_bytes as f64 / GB as f64)
+    }
+}
+```
+
+**[AIA-CLASSIFY-UI-040]** Report Page API Endpoint:
+
+**Endpoint:** `GET /api/import/file-classification`
+
+**Response (200 OK):**
+```json
+{
+  "session_id": "uuid",
+  "scanned_folder": "/home/user/Music",
+  "audio_files": {
+    "count": 1247,
+    "total_size_bytes": 8812634112,
+    "files": [
+      {
+        "path": "/home/user/Music/Album1/track01.flac",
+        "size_bytes": 44040192,
+        "modified_at": "2024-01-15T14:23:00Z"
+      },
+      // ... (up to 500 files, paginate if more)
+    ]
+  },
+  "image_files": {
+    "count": 342,
+    "total_size_bytes": 45678912,
+    "files": [ /* ... */ ]
+  },
+  "other_files": {
+    "count": 15,
+    "total_size_bytes": 1234567,
+    "files": [ /* ... */ ]
+  }
+}
+```
+
+**Pagination Parameters:**
+- `?category=audio&offset=0&limit=500` - Get audio files 0-499
+- `?category=image&offset=500&limit=500` - Get image files 500-999
+
+**Error Responses:**
+- `404 Not Found` - Session not found or SCANNING phase not yet completed
+- `409 Conflict` - Import session still in SCANNING phase (report not ready)
+
+**[AIA-CLASSIFY-UI-050]** Integration with Import Workflow:
+
+**Workflow Modification:**
+1. **SCANNING Phase Completes** → Store `FileClassification` in session state
+2. **Progress Page Update** → Display link: "View File Classification Report"
+3. **User Clicks Link** → Navigate to `/file-report` (new tab or modal)
+4. **User Reviews Report** → Switch between categories, scroll file lists
+5. **User Clicks "Continue to Processing"** → Return to progress page, PROCESSING phase begins
+6. **Alternative: User Clicks "Cancel Import"** → Cancel session, return to home
+
+**Non-Blocking Design:**
+- Report viewing is **optional** (user can skip directly to PROCESSING)
+- Report does **not** block workflow progression
+- If user skips report, PROCESSING begins automatically after SCANNING completes
+
+**Persistence:**
+- Classification data persists in session state (survives page refresh)
+- Report accessible at any time after SCANNING completes
+- Classification data discarded when session ends (COMPLETED or CANCELLED)
+
+---
+
+## Settings Management
+
+### Two-Stage Database Initialization
+
+**[AIA-INIT-010]** wkmp-ai uses a two-stage database initialization pattern to read RESTART_REQUIRED parameters before configuring the production database pool.
+
+**Stage 1: Bootstrap - Read RESTART_REQUIRED Parameters**
+
+```rust
+// Create minimal 1-connection pool
+let bootstrap_pool = SqlitePoolOptions::new()
+    .max_connections(1)
+    .connect(&db_path).await?;
+
+// Read 4 RESTART_REQUIRED parameters
+let config = read_restart_params(&bootstrap_pool).await?;
+
+// Close bootstrap pool (release resources)
+bootstrap_pool.close().await;
+```
+
+**Parameters Read (RESTART_REQUIRED per IMPL016):**
+1. `ai_database_connection_pool_size` - Production pool size (default: 96 connections)
+2. `ai_database_lock_retry_ms` - SQLite busy_timeout per connection (default: 250ms)
+3. `ai_database_max_lock_wait_ms` - Total retry budget (default: 5000ms)
+4. `ai_processing_thread_count` - Worker parallelism (default: NULL, auto-detect CPU cores + 1)
+
+**Stage 2: Production - Create Configured Pool**
+
+```rust
+// Create production pool with Stage 1 configuration
+let pool = SqlitePoolOptions::new()
+    .max_connections(config.connection_pool_size)
+    .acquire_timeout(Duration::from_millis(config.max_lock_wait_ms))
+    .connect_with(
+        SqliteConnectOptions::new()
+            .busy_timeout(Duration::from_millis(config.lock_retry_ms))
+            .journal_mode(SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+    )
+    .await?;
+```
+
+**Benefits:**
+- **Configuration-Driven:** Pool size and timeouts read from database settings
+- **Clean Separation:** Bootstrap vs. production phases clearly separated
+- **Minimal Overhead:** ~10-20ms one-time cost at startup (<2% of total startup time)
+- **Memory Efficient:** Bootstrap connection released before production pool creation
+- **Auto-Detection:** CPU-based thread count when not configured
+- **Zero Risk:** SQLite handles multiple open/close cycles safely
+
+**Performance Impact:**
+- Bootstrap phase: 1 connection, 1 SELECT query, ~10-20ms
+- Production phase: N connections (configured), PRAGMA setup, ~50-100ms
+- Total overhead: <30ms added to startup (negligible)
+
+**Implementation:** See `wkmp-ai/src/models/bootstrap_config.rs` for complete two-stage initialization logic.
+
+---
+
+### Runtime Settings
+
+**[AIA-SETTINGS-010]** wkmp-ai reads the following settings from the database `settings` table at workflow start:
+
+- `silence_threshold_dB` - Silence detection threshold (Phase 4 SEGMENTING)
+- `silence_min_duration_ticks` - Minimum silence duration (Phase 4 SEGMENTING)
+- `minimum_passage_audio_duration_ticks` - Minimum non-silence for valid audio (Phase 4 SEGMENTING)
+- `lead_in_threshold_dB` - Lead-in detection threshold (Phase 8 AMPLITUDE)
+- `lead_out_threshold_dB` - Lead-out detection threshold (Phase 8 AMPLITUDE)
+- `acoustid_api_key` - AcoustID API key (Phase 5 FINGERPRINTING, Phase 6 SONG_MATCHING)
+
+For complete parameter definitions (type, default, range, units, modification impact, presets), see [IMPL016-settings_reference.md](IMPL016-settings_reference.md).
+
+**Parameter Loading Pattern:**
+- Read from `settings` table at workflow start (after pool creation)
+- If NULL or missing: Use compiled default, then store to database for future use
+
+**Thread Count Auto-Initialization (MANDATORY):**
+```rust
+// At workflow start (REQUIRED behavior):
+let thread_count = match read_setting("ai_processing_thread_count") {
+    Some(value) => value,  // Use stored value (user tuning supported)
+    None => {
+        let cpu_count = num_cpus::get();
+        let computed = cpu_count + 1;  // Algorithm: CPU_core_count + 1
+        write_setting("ai_processing_thread_count", computed);  // REQUIRED: Persist for future use
+        computed
+    }
+};
+```
+
+**Auto-Initialization Persistence Requirements:**
+- **MUST persist computed value:** When `ai_processing_thread_count` is NULL, compute `num_cpus::get() + 1` and write to database BEFORE starting processing
+- **MUST use persisted value:** Subsequent sessions use stored value (no re-computation unless user deletes setting)
+- **MUST support user tuning:** Users can override auto-computed value via direct database update
+- **Rationale:** Preserve auto-computed value for consistency across sessions, enable user performance tuning
+
+**Benefits:**
+- **Auto-initialization:** Sensible defaults without user configuration
+- **User tuning:** Users can override auto-computed thread count via database update
+- **Persistent:** Settings retained across sessions (no re-computation overhead)
+- **Centralized:** All microservices share `settings` table (wkmp-wide configuration)
+
+---
+
+## UI Progress Display Specification
+
+### Consolidated UI Layout
+
+**[AIA-UI-PROGRESS-010]** The import progress page (`/import-progress`) uses a **6-section consolidated layout** that dynamically displays all workflow phases and detailed statistics via real-time SSE updates.
+
+**Six UI Sections:**
+
+#### Section 1: Workflow Checklist (REQ-AIA-UI-001)
+- **Purpose:** High-level phase status overview for entire import workflow
+- **Display:** All workflow phases with status indicators
+  - `○` Pending - Phase not yet started
+  - `⟳` In Progress - Phase currently active
+  - `✓` Completed - Phase finished successfully
+  - `⚠` Completed With Warnings - Phase finished with warnings
+  - `✗` Failed - Phase encountered errors
+- **Format:** Compact single-line per phase: `"Phase Name • Description • Progress Summary"`
+- **Example:** `"⟳ FINGERPRINTING • Chromaprint analysis • In Progress - 250/1000 processed"`
+- **Dynamic:** Updates status and progress counters in real-time via SSE
+- **Implementation:** `import-progress.js:377-412` (updateWorkflowChecklist)
+
+#### Section 2: Active Phase Progress (REQ-AIA-UI-002)
+- **Purpose:** Current phase progress bar with file completion tracking
+- **Display:** `"Current Phase: {state}"` with visual percentage bar (0-100%)
+- **Format:** `"{current} / {total} files"` with gradient-filled progress bar
+- **Update Frequency:** Every SSE event (throttled to 100ms client-side per REQ-AIA-UI-NF-001)
+- **Example:** `"Current Phase: PROCESSING"` `"250 / 1000 files"` `[███████░░░] 25%`
+- **Implementation:** `import-progress.js:348-354`
+
+#### Section 3: Sub-Task Status (REQ-AIA-UI-003)
+- **Purpose:** Breakdown for phases with subtasks (e.g., confidence levels in IDENTIFYING phase)
+- **Display:** Shown only when active phase has subtasks defined
+- **Format:** Color-coded items with success/failure/skip counts
+  - Green border: Success rate >95%
+  - Yellow border: Success rate 85-95%
+  - Red border: Success rate <85%
+- **Example (IDENTIFYING phase):**
+  ```
+  ✓ High Confidence: 450 success
+  ⚠ Medium Confidence: 320 success
+  ✗ Low Confidence: 180 success
+  ✗ No Confidence: 50 success
+  ```
+- **Visibility:** Hidden when no subtasks, shown when `activePhase.subtasks.length > 0`
+- **Implementation:** `import-progress.js:338-345`
+
+#### Section 4: Current File Display (REQ-AIA-UI-004)
+- **Purpose:** File currently being processed by workflow
+- **Display:** `"Currently Processing: {file_path}"`
+- **Format:**
+  - Full relative path if <80 characters
+  - Basename only if ≥80 characters (truncated)
+- **Update Source:** `event.current_file` from SSE `ImportProgressUpdate` event
+- **Example:** `"Currently Processing: Artist/Album/Track 05 - Song Title.mp3"`
+- **Implementation:** `import-progress.js:356-360`, `truncateFilename:609-613`
+
+#### Section 5: Time Estimates (REQ-AIA-UI-005)
+- **Purpose:** Elapsed and estimated remaining time for import session
+- **Display:** Two-column layout (flexbox, stacks vertically on mobile)
+  - Left: `"Elapsed Time"` - Time since import started
+  - Right: `"Estimated Remaining"` - Calculated based on processing rate
+- **Format:** Human-readable duration (e.g., `"2h 15m 30s"`, `"45m 12s"`, `"30s"`)
+- **Calculation:**
+  - Elapsed: Server-side based on `start_time.elapsed()`
+  - Remaining: Server-side based on `(total - current) / processing_rate`
+- **Fallback:** `"Estimating..."` shown until sufficient data for rate calculation
+- **Update Frequency:** Per [REQ-IPD-020]:
+  - **[REQ-IPD-021]** Elapsed time updates at least every 15 seconds
+  - **[REQ-IPD-022]** Estimated remaining updates at least every 60 seconds
+  - **[REQ-IPD-023]** Updates independent of per-file progress events
+- **Implementation:** `import-progress.js:362-368`, `formatSeconds:616-624`, `ProgressManager::spawn_time_update_task`
+
+#### Section 6: Phase Statistics (PLAN024)
+- **Purpose:** Detailed phase-specific metrics (implements the "13 UI progress sections" via dynamic display)
+- **Display:** Scrollable container with metric cards for all 13 workflow phases
+- **Format:** Each phase renders as a card with phase name and phase-specific metrics
+- **Visibility:** Shown once `phase_statistics` array populated in SSE events (after PROCESSING begins)
+- **Content:** Phase-specific data (see Phase Statistics Detail below)
+- **Scrollable Lists:** PROCESSING (worker activity), RECORDING (passage list), AMPLITUDE (passage list) use scrollable containers (max-height: 200px)
+- **Implementation:** `import-progress.js:370-374`, `displayPhaseStatistics:421-571`
+
+---
+
+### Phase Statistics Display Format
+
+**[AIA-UI-021]** Section 6 (Phase Statistics) dynamically displays metrics for all 13 workflow phases. Each phase renders with phase-specific format:
+
+| Phase | Metrics Displayed | Display Format | Implementation |
+|-------|-------------------|----------------|----------------|
+| **SCANNING** | Potential files found, scanning status | `"{count} potential files found"` + scanning indicator | `import-progress.js:447-449` |
+| **PROCESSING** | Completed/started/total files, worker activity, max workers | `"Processing {completed} of {total} ({started} started) ingest_max_concurrent_jobs {max_workers}"` + **scrollable worker list** (see Worker Activity Tracking) | `import-progress.js:451-497` |
+| **FILENAME_MATCHING** | Completed filenames found (early exit optimization) | `"{count} completed filenames found"` | `import-progress.js:499-501` |
+| **HASHING** | Hashes computed, duplicate matches found | `"{hashes_computed} hashes computed, {matches_found} matches found"` | `import-progress.js:503-505` |
+| **EXTRACTING** | Successful metadata extractions, failures | `"Metadata successfully extracted from {successful_extractions} files, {failures} failures"` | `import-progress.js:507-509` |
+| **SEGMENTING** | Files processed, potential passages, finalized passages, songs identified | `"{files_processed} files, {potential_passages} potential passages, {finalized_passages} finalized passages, {songs_identified} songs identified"` | `import-progress.js:511-513` |
+| **FINGERPRINTING** | Passages fingerprinted, successful AcoustID matches | `"{passages_fingerprinted} potential passages fingerprinted, {successful_matches} successfully matched"` | `import-progress.js:515-517` |
+| **SONG_MATCHING** | Confidence level breakdown (High/Medium/Low/None) | `"{high_confidence} high, {medium_confidence} medium, {low_confidence} low, {no_confidence} no confidence"` | `import-progress.js:519-521` |
+| **RECORDING** | Recorded passages with song titles and file paths | **Scrollable list** (max-height: 200px):<br>`"{song_title} in {file_path}"` per passage<br>Fallback: `"No passages recorded yet"` | `import-progress.js:523-534` |
+| **AMPLITUDE** | Analyzed passages with timing details (lead-in/lead-out) | **Scrollable list** (max-height: 200px):<br>`"{song_title} {passage_length_seconds}s lead-in {lead_in_ms} ms lead-out {lead_out_ms} ms"`<br>Fallback: `"No passages analyzed yet"` | `import-progress.js:536-547` |
+| **FLAVORING** | Flavor source breakdown (pre-existing/AcousticBrainz/Essentia/failed) | `"{pre_existing} pre-existing, {acousticbrainz} by AcousticBrainz, {essentia} by Essentia, {failed} could not be flavored"` | `import-progress.js:549-551` |
+| **PASSAGES_COMPLETE** | Passages completed (Phase 10 finalization) | `"{passages_completed} passages completed"` | `import-progress.js:553-555` |
+| **FILES_COMPLETE** | Files completed (entire pipeline) | `"{files_completed} files completed"` | `import-progress.js:557-559` |
+
+**Scrollable Sections:** PROCESSING (worker list), RECORDING (passage list), AMPLITUDE (passage list) use scrollable containers when content exceeds 200px height.
+
+**Dynamic Rendering:** Phase statistics cards appear/update as workflow progresses through phases. Early-phase statistics (SCANNING, FILENAME_MATCHING) appear first, later-phase statistics (FLAVORING, FILES_COMPLETE) appear as workflow reaches those phases.
+
+---
+
+### Worker Activity Tracking
+
+**[AIA-UI-010]** The PROCESSING phase (Section 6) displays **real-time worker thread activity** showing exactly what each parallel worker is doing:
+
+**Display Format:**
+```
+Worker {worker_id}: {phase_name} - {file_path}[passage_timing] Started {elapsed} seconds ago
+```
+
+**Example Output:**
+```
+Processing 42 of 1000 (58 started) ingest_max_concurrent_jobs 8
+
+Worker thread-1: Phase 5 Fingerprinting - Artist/Album/Track.mp3 [2:15-5:30] Started 3.2 seconds ago
+Worker thread-2: Phase 8 Amplitude - Another/Song.flac Started 1.8 seconds ago
+Worker thread-3: Phase 6 Song Matching - Third/File.mp3 [0:00-3:45] Started 0.5 seconds ago
+```
+
+**Live Updates:**
+- Client-side elapsed time calculation updates every 100ms (independent of SSE throttle)
+- Based on `phase_started_at` timestamp from server
+- Scrollable list when worker count exceeds display area (max-height: 200px)
+- Automatically hidden when no active workers (`workers.length === 0`)
+
+**Data Structure (SSE):** Worker activity data is embedded in the `ImportProgressUpdate` event under `phase_statistics` array. See "Real-Time Progress Updates" section for complete event structure. Worker-specific fields:
+
+```json
+{
+  "worker_id": "thread-1",
+  "file_path": "Artist/Album/Track.mp3",
+  "file_index": 42,
+  "phase_name": "Phase 5 Fingerprinting",
+  "phase_started_at": "2025-11-15T10:34:56Z",
+  "passage_start_seconds": 135.0,
+  "passage_end_seconds": 330.0
+}
+```
+
+**Purpose:**
+- Provides visibility into parallel processing behavior
+- Helps diagnose stalls/bottlenecks (e.g., worker stuck on one file for extended time)
+- Shows which workflow phases are CPU-intensive (multiple workers on same phase)
+- Displays passage-level granularity (passage timing shown for phases 4-8)
+
+**Implementation:**
+- Server: `wkmp-ai/src/services/workflow_orchestrator/mod.rs:2291-2371` (set_worker_phase functions)
+- Client: `import-progress.js:452-497` (worker list rendering), `startWorkerLiveUpdates:726-757` (100ms update interval)
+
+---
+
+### AcoustID API Key Validation
+
+**[AIA-SEC-030]** Pre-import and mid-session API key validation with modal prompt:
+
+**Validation Flow:**
+
+1. **Pre-Import Check (On "Start Import" Click):**
+   - Client checks `GET /api/settings/acoustid_api_key` (5 second timeout)
+   - If not configured → Show modal
+   - If configured → Validate via `POST /import/validate-acoustid` (10 second timeout)
+   - If invalid → Show modal with error message
+   - If valid → Proceed to import
+
+2. **Mid-Session Check (Import Paused):**
+   - If AcoustID API returns 400 "invalid API key" during import
+   - Workflow transitions to `PAUSED` state
+   - SSE event includes `current_operation` with error message
+   - Client displays modal automatically
+
+3. **User Actions:**
+   - **Enter Valid API Key:**
+     - User enters key in input field
+     - Client sends `POST /import/acoustid-key` with session_id and api_key
+     - Server validates key against AcoustID API
+     - If valid: Key saved to settings, session resumed from pause point
+     - If invalid: Error displayed, modal remains open
+   - **Skip AcoustID:**
+     - User clicks "Skip AcoustID" button
+     - Client sends `POST /import/skip-acoustid` with session_id
+     - Import continues without fingerprint-based identification (reduced accuracy)
+     - AcoustID skipped for remainder of session only
+
+**Modal UI Elements:**
+- **Header:** `"AcoustID API Key Required"`
+- **Error Message Display:** Shows validation error or missing key message
+- **Instructions:**
+  - Option 1: Enter valid API key (link to `https://acoustid.org/new-application`)
+  - Option 2: Skip AcoustID (continue without fingerprint identification)
+- **Input Field:** Text input for API key (Enter key submits)
+- **Buttons:**
+  - `"Submit Key"` (primary, blue) - Validate and save key
+  - `"Skip AcoustID"` (secondary, gray) - Continue without AcoustID
+- **Inline Error:** Displays validation errors below input field
+
+**Pause/Resume Behavior:**
+- Import pauses mid-session if key becomes invalid (e.g., key revoked, rate limit exceeded)
+- Workers halt at next file boundary (in-progress files complete)
+- User provides valid key → Workers resume from exact pause point
+- User skips → Workers resume, AcoustID phase skipped for remaining files
+
+**API Endpoints:** See "API Endpoint Reference" section for complete endpoint specifications
+
+**Implementation:**
+- Server: `wkmp-ai/src/api/settings.rs` (settings endpoints), `wkmp-ai/src/services/api_key_validator.rs` (validation logic)
+- Client: `import-progress.js:12-154` (validation functions), `import-progress.rs:552-585` (modal HTML)
+
+---
+
+### UI Performance Optimization
+
+**[AIA-UI-NF-001]** Client-side SSE event throttling to prevent UI thrashing:
+
+- **Maximum Update Rate:** 10 updates/second (100ms throttle interval)
+- **Purpose:** Prevent excessive DOM manipulation during high-frequency SSE events
+- **Implementation:** Client-side timestamp check, drops events received within 100ms window
+- **Location:** `import-progress.js:283-287`
+- **Behavior:**
+  ```javascript
+  const now = Date.now();
+  if (now - lastUpdateTime < UPDATE_THROTTLE_MS) {
+      return; // Skip this update
+  }
+  lastUpdateTime = now;
+  ```
+
+**[AIA-UI-NF-002]** Mobile-responsive layout:
+
+- **Breakpoint:** 768px screen width
+- **Adaptations:**
+  - Body padding reduced (10px instead of 20px)
+  - Time estimates stack vertically (flexbox column direction)
+  - All sections remain scrollable horizontally if needed
+- **Implementation:** `import-progress.rs:322-332` (CSS @media query)
+
+**Rationale:**
+- Throttling prevents browser lag during rapid SSE updates (e.g., 100 files/second processing)
+- Mobile layout maintains usability on phones/tablets
+- SSE events continue at full rate (no server throttling), UI updates selectively
+
+---
+
+## Status Field Enumeration
+
+**[AIA-STATUS-010]** Database tables use status fields with defined enumerations:
+
+**files.status:**
+- `'PENDING'` - File discovered, not yet processed
+- `'PROCESSING'` - File currently in pipeline
+- `'INGEST COMPLETE'` - All passages and songs complete (Phase 10)
+- `'DUPLICATE HASH'` - Duplicate content detected (Phase 2)
+- `'NO AUDIO'` - File has <100ms non-silence (Phase 4)
+
+**passages.status:**
+- `'PENDING'` - Passage detected, not yet processed
+- `'INGEST COMPLETE'` - Amplitude analysis complete (Phase 8)
+
+**songs.status:**
+- `'PENDING'` - Song created, flavor not yet retrieved
+- `'FLAVOR READY'` - Musical flavor data successfully retrieved (Phase 9)
+- `'FLAVORING FAILED'` - Flavor retrieval failed (both AcousticBrainz and Essentia)
+
+**Status Transitions:**
+
+**files:** `PENDING → PROCESSING → [HASHING] → [NO AUDIO | DUPLICATE HASH | (continue)] → INGEST COMPLETE`
+
+**passages:** `PENDING → INGEST COMPLETE`
+
+**songs:** `PENDING → [FLAVOR READY | FLAVORING FAILED]`
+
+**Database Queries:**
+```sql
+-- Find incomplete files (for resume functionality)
+SELECT * FROM files WHERE status IN ('PENDING', 'PROCESSING');
+
+-- Find files needing retry (flavoring failed)
+SELECT DISTINCT f.* FROM files f
+  JOIN passages p ON p.file_id = f.file_id
+  JOIN passage_songs ps ON ps.passage_id = p.passage_id
+  JOIN songs s ON s.song_id = ps.song_id
+WHERE s.status = 'FLAVORING FAILED';
+```
+
+**Enforcement:**
+- Database triggers enforce valid status values (optional)
+- Application code validates status before writes
+- Status transitions logged for debugging
+
+---
+
+## Lead-In/Lead-Out vs Fade-In/Fade-Out Distinction
+
+**[AIA-TIMING-010]** wkmp-ai Phase 8 (Amplitude Analysis) detects **lead-in and lead-out points only**. These are fundamentally different concepts from fade-in/fade-out:
+
+**Lead-In/Lead-Out Points ([SPEC002:XFD-PT-030, XFD-PT-040](SPEC002-crossfade.md#point-definitions)):**
+- **Purpose:** Define valid overlap regions where passages MAY play simultaneously with adjacent passages
+- **Definition (Lead-In Point):** Latest time the previous passage may still be playing ([SPEC002:XFD-PT-030](SPEC002-crossfade.md#point-definitions))
+- **Definition (Lead-Out Point):** Earliest time the next passage may start playing ([SPEC002:XFD-PT-040](SPEC002-crossfade.md#point-definitions))
+- **Nature:** Single absolute tick positions within the passage (not durations, not ranges)
+- **Audio Processing:** No volume modification or fading occurs at these points
+- **Use Case:** Enable crossfade scheduling (determine when passages can overlap without listener distraction)
+- **Detection Method:** Amplitude-based (scan for audio exceeding threshold)
+- **wkmp-ai Responsibility:** Detect and record these points automatically (Phase 8)
+
+**Fade-In/Fade-Out Points ([SPEC002:XFD-PT-020, XFD-PT-050](SPEC002-crossfade.md#point-definitions)):**
+- **Purpose:** Define volume envelope for passage playback (modify audible volume over time)
+- **Definition (Fade-In Point):** When volume reaches 100% ([SPEC002:XFD-PT-020](SPEC002-crossfade.md#point-definitions))
+- **Definition (Fade-Out Point):** When volume begins decreasing ([SPEC002:XFD-PT-050](SPEC002-crossfade.md#point-definitions))
+- **Nature:** Two absolute tick positions per fade (start and end points for each fade curve)
+- **Audio Processing:** Apply fade curves to modify volume (5 curve types per [SPEC002](SPEC002-crossfade.md))
+- **Use Case:** Smooth passage starts/ends (e.g., passages extracted from middle of continuous music)
+- **Detection Method:** Requires musical judgment (not automatable via amplitude analysis alone)
+- **wkmp-ai Responsibility:** None (leave all fade fields NULL, manual definition deferred to wkmp-pe)
+
+**Database Fields (Automatic vs Manual):**
+```sql
+-- Automatically detected by wkmp-ai Phase 8 (Amplitude Analysis):
+lead_in_start_ticks   INTEGER  -- Single point: latest time previous passage may play
+lead_out_start_ticks  INTEGER  -- Single point: earliest time next passage may start
+
+-- Left NULL by wkmp-ai (manual definition in wkmp-pe):
+fade_in_start_ticks   INTEGER  -- Fade curve start: passage start → fade-in point
+fade_in_end_ticks     INTEGER  -- Fade curve end: volume reaches 100%
+fade_out_start_ticks  INTEGER  -- Fade curve start: volume begins decreasing
+-- (fade_out_end_ticks is always end_time_ticks per SPEC002)
+```
+
+**Key Distinction Summary:**
+- **Lead-In/Lead-Out:** Define WHEN passages may overlap (scheduling boundaries, no volume change)
+- **Fade-In/Fade-Out:** Define HOW passage volume changes over time (volume envelope, independent of overlap)
+- **Independence:** Lead and fade points are independent per [SPEC002:XFD-CONS-020](SPEC002-crossfade.md#constraints)
+  - Lead-In may be before, after, or equal to Fade-In
+  - Lead-Out may be before, after, or equal to Fade-Out
+  - All four points may be equal (no overlap, no fades)
+
+**Example Passage (60-second track):**
+```
+Database Values (after wkmp-ai Phase 8):
+  start_time_ticks      = 0 ticks (0.0s)
+  lead_in_start_ticks   = 141120000 ticks (5.0s)  ← Detected by amplitude analysis
+  fade_in_start_ticks   = NULL                    ← Not detected (requires manual definition)
+  fade_in_end_ticks     = NULL                    ← Not detected (requires manual definition)
+  fade_out_start_ticks  = NULL                    ← Not detected (requires manual definition)
+  lead_out_start_ticks  = 1552320000 ticks (55.0s) ← Detected by amplitude analysis
+  end_time_ticks        = 1693440000 ticks (60.0s)
+
+Interpretation:
+  - Passage may overlap with previous passage from 0.0s-5.0s (lead-in region)
+  - Passage may overlap with next passage from 55.0s-60.0s (lead-out region)
+  - No volume fades applied (fade fields NULL → constant volume 1.0 throughout)
+  - User may later define fades via wkmp-pe if desired (e.g., fade-in from 0s-2s)
+```
+
+**Rationale for Automatic Lead-In/Lead-Out Only:**
+- **Amplitude-based detection:** Reliable for determining "when music is present" (threshold-based)
+- **Objective criteria:** Lead points have clear audio-level triggers (e.g., >45dB RMS)
+- **Fade points require judgment:** Artistic decision about how aggressively to fade volume
+  - Some users prefer gentle fades (fade-in over 5 seconds)
+  - Others prefer abrupt fades (fade-in over 0.5 seconds)
+  - No single "correct" answer determinable from audio amplitude alone
+- **Separation of concerns:** wkmp-ai provides automatic analysis, wkmp-pe provides manual refinement
+
+**See Also:**
+- [SPEC002 Crossfade Design](SPEC002-crossfade.md) - Complete timing point specification
+- [SPEC002:XFD-PT-070](SPEC002-crossfade.md#point-definitions) - Lead-In/Lead-Out definition
+- [SPEC002:XFD-PT-080](SPEC002-crossfade.md#point-definitions) - Fade-In/Fade-Out definition (independent of simultaneous playback)
+- [SPEC025 Amplitude Analysis](SPEC025-amplitude_analysis.md) - Lead-in/lead-out detection algorithm
+
+---
+
 ## Component Architecture
 
 ### High-Level Structure
@@ -118,233 +985,92 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 ```
 wkmp-ai/
 ├── src/
-│   ├── main.rs                    # HTTP server (Axum), port 5723
-│   │                              # Zero-config DB initialization (SPEC031)
-│   ├── api/                       # HTTP route handlers
-│   │   ├── import_workflow.rs     # /import/* endpoints
-│   │   ├── amplitude_analysis.rs  # /analyze/* endpoints
-│   │   ├── parameters.rs          # /parameters/* endpoints
-│   │   └── metadata.rs            # /metadata/* endpoints
-│   ├── services/                  # Business logic
-│   │   ├── file_scanner.rs        # Directory traversal, file discovery
-│   │   ├── metadata_extractor.rs  # Tag parsing (lofty) + filename/folder context
-│   │   ├── silence_detector.rs    # Silence-based boundary detection
-│   │   ├── pattern_analyzer.rs    # Segment pattern analysis (NEW)
-│   │   ├── contextual_matcher.rs  # MusicBrainz search with metadata+pattern (NEW)
-│   │   ├── fingerprinter.rs       # Per-segment Chromaprint fingerprinting
-│   │   ├── acoustid_client.rs     # AcoustID API client (NEW)
-│   │   ├── confidence_assessor.rs # Evidence combination for MBID confidence (NEW)
-│   │   ├── musicbrainz_client.rs  # MusicBrainz API client (recording details)
-│   │   ├── acousticbrainz_client.rs # AcousticBrainz API client (musical flavor)
-│   │   ├── amplitude_analyzer.rs  # RMS analysis, lead-in/lead-out detection
-│   │   ├── essentia_runner.rs     # Essentia subprocess integration (fallback)
-│   │   └── parameter_manager.rs   # Parameter loading/saving
-│   ├── models/                    # Data structures
-│   │   ├── import_session.rs      # Import workflow state machine
-│   │   ├── amplitude_profile.rs   # Amplitude envelope data structure
-│   │   ├── parameters.rs          # Parameter definitions
-│   │   └── import_result.rs       # Import operation results
-│   └── db/                        # Database access
-│       └── queries.rs             # SQL queries for import operations
+│   ├── main.rs                       # HTTP server (Axum), port 5723
+│   │                                 # Zero-config DB initialization (SPEC031)
+│   │                                 # API key validation (Step 1)
+│   ├── api/                          # HTTP route handlers
+│   │   ├── import_workflow.rs        # /import/* endpoints
+│   │   ├── folder_selector.rs        # /select-folder/* endpoints (NEW - Step 2)
+│   │   ├── ui/
+│   │   │   ├── import_progress.rs    # /import-progress UI (6-section layout, 13 phase statistics)
+│   │   │   ├── root.rs               # / homepage
+│   │   │   ├── settings.rs           # /settings UI
+│   │   │   └── segment_editor.rs     # /segment-editor UI
+│   │   ├── sse.rs                    # /import/events SSE endpoint
+│   │   ├── amplitude_analysis.rs     # /analyze/* endpoints
+│   │   ├── parameters.rs             # /parameters/* endpoints
+│   │   └── settings.rs               # /api/settings/* REST endpoints
+│   ├── services/                     # Business logic
+│   │   ├── api_key_validator.rs      # AcoustID API key validation (NEW - Phase 5 prereq)
+│   │   ├── file_scanner.rs           # Directory traversal, symlink/junction detection
+│   │   ├── filename_matcher.rs       # Filename matching logic (NEW - Phase 1)
+│   │   ├── hash_deduplicator.rs      # Hash-based duplicate detection (NEW - Phase 2)
+│   │   ├── metadata_extractor.rs     # Tag parsing with merge logic (Phase 3)
+│   │   ├── silence_detector.rs       # Silence-based segmentation + NO AUDIO detection (Phase 4)
+│   │   ├── fingerprinter.rs          # Per-passage Chromaprint fingerprinting (Phase 5)
+│   │   ├── acoustid_client.rs        # AcoustID API client (Phase 5)
+│   │   ├── confidence_assessor.rs    # Song matching with confidence (Phase 6)
+│   │   ├── musicbrainz_client.rs     # MusicBrainz API client (Phase 6)
+│   │   ├── amplitude_analyzer.rs     # Lead-in/lead-out detection (Phase 8)
+│   │   ├── acousticbrainz_client.rs  # AcousticBrainz API client (Phase 9)
+│   │   ├── essentia_runner.rs        # Essentia subprocess (Phase 9 fallback)
+│   │   ├── settings_manager.rs       # Database settings table management (NEW)
+│   │   └── workflow_orchestrator/    # 10-phase pipeline coordination
+│   │       ├── mod.rs                # Per-file pipeline state machine
+│   │       ├── phase_filename_matching.rs
+│   │       ├── phase_hashing.rs
+│   │       ├── phase_extracting.rs
+│   │       ├── phase_segmenting.rs
+│   │       ├── phase_fingerprinting.rs
+│   │       ├── phase_song_matching.rs
+│   │       ├── phase_recording.rs
+│   │       ├── phase_amplitude.rs
+│   │       ├── phase_flavoring.rs
+│   │       └── phase_passages_complete.rs
+│   ├── models/                       # Data structures
+│   │   ├── import_session.rs         # Import workflow state machine, phase tracking
+│   │   ├── amplitude_profile.rs      # Amplitude envelope data structure
+│   │   ├── parameters.rs             # Parameter definitions (import settings)
+│   │   └── import_result.rs          # Import operation results
+│   └── db/                           # Database access
+│       ├── files.rs                  # Files table (status, matching_hashes)
+│       ├── passages.rs               # Passages table (status)
+│       ├── songs.rs                  # Songs table (status)
+│       ├── settings.rs               # Settings table
+│       └── sessions.rs               # Import session persistence
+├── static/                           # Frontend assets
+│   ├── import-progress.js            # Import progress UI logic (6 sections, worker tracking)
+│   ├── wkmp-sse.js                   # SSE connection utilities
+│   └── wkmp-ui.css                   # Shared UI styles
 ```
 
 ### Component Responsibilities
 
-**[AIA-COMP-010]** Component responsibility matrix:
+**[AIA-COMP-010]** Component responsibility matrix (10-phase pipeline):
 
-| Component | Responsibility | Input | Output |
-|-----------|---------------|-------|--------|
-| **file_scanner** | Discover audio files in directory tree | Root folder path | List of file paths |
-| **metadata_extractor** | Parse ID3/Vorbis/MP4 tags + extract filename/folder context | File path | Title, artist, album, duration, folder structure |
-| **silence_detector** | Detect passage boundaries via silence analysis | Audio PCM data, threshold | List of (start, end) time pairs (sample-accurate, converted to ticks per SPEC017) |
-| **pattern_analyzer** | Analyze segment structural patterns | Segment list (count, durations, gaps) | Pattern metadata (likely source type, track count) |
-| **contextual_matcher** | Search MusicBrainz using metadata + pattern | Metadata + segment pattern | Candidate releases/recordings with match scores |
-| **fingerprinter** | Generate Chromaprint fingerprints per segment | Audio PCM data (per segment) | Base64 fingerprint string per segment |
-| **acoustid_client** | Query AcoustID API for MBID candidates | Fingerprint string | List of (MBID, confidence score) per segment |
-| **confidence_assessor** | Combine evidence for high-confidence MBID match | Metadata match + pattern match + fingerprint scores | Final MBID with confidence level per passage |
-| **musicbrainz_client** | Query MusicBrainz API for recording details | Recording MBID | Recording, artist, work, album metadata |
-| **acousticbrainz_client** | Query AcousticBrainz API for musical flavor | Recording MBID | Musical flavor vector (JSON) |
-| **amplitude_analyzer** | Detect lead-in/lead-out points | Audio PCM data, parameters | Lead-in duration, lead-out duration (sample-accurate, converted to ticks per SPEC017) |
-| **essentia_runner** | Run Essentia analysis (fallback) | Audio file path | Musical flavor vector (JSON) |
-| **parameter_manager** | Load/save import parameters | Parameter name | Parameter value |
+| Component | Responsibility | Phase | Input | Output |
+|-----------|---------------|-------|-------|--------|
+| **api_key_validator** | Validate AcoustID API key, prompt user if invalid | Pre-workflow | API key string | Valid/Invalid + user acknowledgment |
+| **file_scanner** | Discover audio files, skip symlinks/junctions | Step 3 | Root folder path | List of valid audio file paths |
+| **filename_matcher** | Match files by path/filename/metadata | Phase 1 | File path | Skip/Reuse/New + fileId |
+| **hash_deduplicator** | Compute hash, detect duplicates, create bidirectional links | Phase 2 | File content | Hash, duplicate status, matching_hashes links |
+| **metadata_extractor** | Parse tags, merge with existing metadata | Phase 3 | File path | Title, artist, album, duration, merged metadata |
+| **silence_detector** | Detect passage boundaries, detect NO AUDIO | Phase 4 | Audio PCM, thresholds from settings | Potential passage time ranges (ticks) or NO AUDIO status |
+| **fingerprinter** | Generate Chromaprint fingerprints per passage | Phase 5 | Audio PCM per passage | Base64 fingerprint string per passage |
+| **acoustid_client** | Query AcoustID API for MBID candidates | Phase 5 | Fingerprint string | List of (MBID, confidence score) |
+| **confidence_assessor** | Combine metadata + fingerprint evidence | Phase 6 | Metadata + fingerprint scores | MBID with confidence (High/Medium/Low/None) per passage |
+| **musicbrainz_client** | Query MusicBrainz API for recording details | Phase 6 | Recording MBID | Recording, artist, work, album metadata |
+| **amplitude_analyzer** | Detect lead-in/lead-out points | Phase 8 | Audio PCM, thresholds from settings | Lead-in/lead-out absolute positions (ticks), fade fields NULL |
+| **acousticbrainz_client** | Query AcousticBrainz API for musical flavor | Phase 9 | Recording MBID | Musical flavor vector (JSON) |
+| **essentia_runner** | Run Essentia analysis (fallback for Phase 9) | Phase 9 | Audio file path | Musical flavor vector (JSON) |
+| **settings_manager** | Read/write database settings table with defaults | All phases | Setting key | Setting value (with auto-initialization) |
+| **workflow_orchestrator** | Coordinate 10-phase pipeline per file | Step 4 | File list, settings | Import results per file |
 
-### Intelligence-Gathering Components (NEW)
+**Note:** The following components have been removed from the refined workflow specification (PLAN024):
+- **Pattern Analyzer** - Structural pattern analysis for contextual matching (out of scope for automatic ingest)
+- **Contextual Matcher** - MusicBrainz search using metadata + pattern clues (simplified to metadata + fingerprint only)
 
-**[AIA-COMP-020]** The improved pipeline uses an evidence-based approach to MBID identification with three new logical components:
-
-#### Pattern Analyzer
-
-**Purpose:** Analyze structural patterns in segmented audio to provide contextual clues for identification
-
-**Inputs:**
-- List of detected segments (count, start times, end times, gap durations)
-- Audio file metadata (total duration, format)
-
-**Analysis Performed:**
-- **Track count:** Number of segments detected (e.g., 12 segments suggests album)
-- **Gap patterns:** Consistent 2-3 second gaps suggest CD rips; longer/variable gaps suggest vinyl/cassette
-- **Segment durations:** Statistical analysis (mean, variance) to classify content type
-- **Likely source media:** CD (consistent gaps, precise timing) vs. Vinyl (variable gaps, side markers) vs. Cassette (noise floor changes)
-
-**Outputs:**
-- Pattern metadata structure:
-  - `track_count: usize`
-  - `likely_source_media: SourceMedia` (CD/Vinyl/Cassette/Unknown)
-  - `gap_pattern: GapPattern` (Consistent/Variable/None)
-  - `segment_durations: Vec<f64>`
-  - `confidence: f64` (0.0-1.0)
-
-**Example:**
-```
-Input: 12 segments, 2.1s gaps (±0.3s), durations 180-360s
-Output: {
-  track_count: 12,
-  likely_source_media: CD,
-  gap_pattern: Consistent,
-  confidence: 0.92
-}
-```
-
-#### Contextual Matcher
-
-**Purpose:** Search MusicBrainz database using combined metadata and structural pattern clues to narrow candidate list before fingerprinting
-
-**Inputs:**
-- Extracted metadata (ID3 tags, filename, folder structure)
-- Pattern analysis results (track count, source media type)
-- Audio file characteristics (total duration, format)
-
-**Matching Strategy:**
-
-**Single-Segment Files:**
-```
-1. Parse metadata: artist, title, album from ID3 tags
-2. Search MusicBrainz:
-   - Query: artist + title (exact and fuzzy match)
-   - Filter by duration (±10% tolerance)
-3. Return ranked candidate recordings with match scores
-```
-
-**Multi-Segment Files:**
-```
-1. Parse metadata: album artist, album title, folder structure
-2. Identify likely album structure:
-   - If 12 tracks + CD pattern → likely full album CD rip
-   - If 6-8 tracks + vinyl pattern → likely vinyl side rip
-3. Search MusicBrainz releases:
-   - Query: artist + album (exact and fuzzy match)
-   - Filter by track count (exact match or ±1 tolerance)
-   - Filter by total duration (±5% tolerance)
-4. For each candidate release:
-   - Fetch track list (track count, track durations)
-   - Calculate alignment score:
-     * Track count match: 40% weight
-     * Duration alignment: 30% weight (sum of per-track duration differences)
-     * Metadata quality: 30% weight (artist/album name similarity)
-5. Return ranked candidate releases with match scores (0.0-1.0)
-```
-
-**Outputs:**
-- For single-segment files: `Vec<(RecordingMBID, MatchScore)>`
-- For multi-segment files: `Vec<(ReleaseMBID, TrackList, MatchScore)>`
-
-**Example:**
-```
-Input: {
-  metadata: { artist: "Pink Floyd", album: "Dark Side of the Moon" },
-  pattern: { track_count: 10, total_duration: 2580s }
-}
-
-Output: [
-  (ReleaseMBID("abc123"), TrackList[10 tracks], MatchScore(0.95)),
-  (ReleaseMBID("def456"), TrackList[10 tracks], MatchScore(0.87)),
-  ...
-]
-```
-
-#### Confidence Assessor
-
-**Purpose:** Combine evidence from multiple sources (metadata, pattern, fingerprints) to make high-confidence MBID identification decisions
-
-**Inputs:**
-- Metadata match scores (from contextual matcher)
-- Pattern match scores (from pattern analyzer)
-- Fingerprint match scores (from AcoustID API, per segment)
-- User preference parameters (confidence thresholds)
-
-**Evidence Combination Algorithm:**
-
-**For Single-Segment Files:**
-```
-1. Collect evidence:
-   - Metadata score: 0.0-1.0 (from contextual matcher)
-   - Fingerprint score: 0.0-1.0 (from AcoustID API)
-   - Duration match: 0.0-1.0 (actual vs. expected duration difference)
-
-2. Weighted combination:
-   confidence = (0.3 * metadata_score) + (0.6 * fingerprint_score) + (0.1 * duration_match)
-
-3. Decision:
-   - confidence >= 0.85: ACCEPT (high confidence)
-   - 0.60 <= confidence < 0.85: REVIEW (manual verification recommended)
-   - confidence < 0.60: REJECT (insufficient confidence, mark as zero-song passage)
-```
-
-**For Multi-Segment Files:**
-```
-1. Collect evidence per segment:
-   - Contextual match: Release-level match score (0.0-1.0)
-   - Pattern alignment: Track count + duration alignment (0.0-1.0)
-   - Per-segment fingerprints: Individual AcoustID scores (0.0-1.0 per segment)
-
-2. Per-segment scoring:
-   For each segment i:
-     segment_confidence[i] = (0.2 * contextual_score) +
-                            (0.2 * pattern_score) +
-                            (0.6 * fingerprint_score[i])
-
-3. Overall confidence:
-   overall_confidence = mean(segment_confidence) * consistency_bonus
-   where consistency_bonus = 1.0 if all segments match same release, 0.8 otherwise
-
-4. Decision:
-   - overall_confidence >= 0.85 AND min(segment_confidence) >= 0.70: ACCEPT
-   - 0.65 <= overall_confidence < 0.85: REVIEW
-   - overall_confidence < 0.65: REJECT (mark segments as zero-song passages)
-```
-
-**Outputs:**
-- Per-passage identification result:
-  - `mbid: Option<RecordingMBID>` (Some if accepted, None if rejected)
-  - `confidence: f64` (0.0-1.0)
-  - `decision: Decision` (Accept/Review/Reject)
-  - `evidence_summary: EvidenceSummary` (breakdown of contributing factors)
-
-**Example:**
-```
-Input: {
-  contextual_match: 0.92,
-  pattern_match: 0.88,
-  fingerprint_scores: [0.95, 0.91, 0.93, 0.89, ...] (per segment)
-}
-
-Output: {
-  decision: ACCEPT,
-  confidence: 0.91,
-  evidence_summary: {
-    contextual: 0.92,
-    pattern: 0.88,
-    fingerprint_mean: 0.92,
-    fingerprint_min: 0.89
-  }
-}
-```
-
-**Benefits of Evidence-Based Approach:**
-- **Higher accuracy:** Multi-factor evidence reduces false positives
-- **Confidence transparency:** User can see why identification succeeded/failed
-- **Flexible thresholds:** Configurable confidence levels per user preference
-- **Graceful degradation:** Falls back to zero-song passages when confidence insufficient
+These features may be reconsidered for future quality-control or manual-editing microservices (wkmp-qa, wkmp-pe).
 
 ---
 
@@ -352,42 +1078,56 @@ Output: {
 
 ### Workflow States
 
-**[AIA-WF-010]** Import session progresses through defined states:
+**[AIA-WF-010]** Import session progresses through 5 high-level workflow steps:
 
 ```
                     POST /import/start
                            │
                            ▼
-                   ┌───────────────┐
-                   │   SCANNING    │  (Batch: Directory traversal, file discovery)
-                   └───────┬───────┘
+                ┌──────────────────────┐
+                │ API_KEY_VALIDATION   │  (Step 1: Validate AcoustID API key, prompt if needed)
+                └──────────┬───────────┘
                            │
                            ▼
-                   ┌───────────────┐
-                   │  PROCESSING   │  (Per-file pipeline: Verify → Extract → Segment →
-                   │               │   Match → Fingerprint → Identify → Amplitude → Flavor → DB)
-                   │               │  (4 parallel workers, files processed to completion)
-                   └───────┬───────┘
+                ┌──────────────────────┐
+                │  FOLDER_SELECTION    │  (Step 2: Select folder, enforce Stage One constraint)
+                └──────────┬───────────┘
                            │
                            ▼
-                   ┌───────────────┐
-                   │   COMPLETED   │
-                   └───────────────┘
+                ┌──────────────────────┐
+                │      SCANNING        │  (Step 3: Directory traversal, file discovery, symlink skip)
+                └──────────┬───────────┘
+                           │
+                           ▼
+                ┌──────────────────────┐
+                │     PROCESSING       │  (Step 4: 10-phase per-file pipeline, N parallel workers)
+                │                      │  Each file: FILENAME MATCHING → HASHING → EXTRACTING →
+                │                      │  SEGMENTING → FINGERPRINTING → SONG MATCHING →
+                │                      │  RECORDING → AMPLITUDE → FLAVORING → PASSAGES COMPLETE
+                └──────────┬───────────┘
+                           │
+                           ▼
+                ┌──────────────────────┐
+                │      COMPLETED       │  (Step 5: Session complete, summary displayed)
+                └──────────────────────┘
 
                    Cancel available at any state → CANCELLED
                    Error in any state → FAILED (with error details)
 ```
 
 **State Semantics:**
-- **SCANNING:** Batch file discovery (parallel magic byte verification)
-- **PROCESSING:** Per-file pipeline with 4 concurrent workers
-  - Each worker processes one file through entire pipeline: Verify → Extract → Segment → Match → Fingerprint → Identify → Amplitude → Flavor → DB
+- **API_KEY_VALIDATION:** Validate stored `acoustid_api_key`, prompt user if invalid/missing
+- **FOLDER_SELECTION:** UI for folder selection, enforce Stage One constraint (root folder only)
+- **SCANNING:** Batch file discovery (parallel magic byte verification, symlink/junction skip)
+- **PROCESSING:** Per-file 10-phase pipeline with N parallel workers (thread count from settings)
+  - Each worker processes one file through 10 phases sequentially
   - Progress reported as files completed (e.g., "2,581 / 5,736 files")
   - Workers pick next unprocessed file upon completion
-- **COMPLETED:** All files successfully processed
+  - Phase-level statistics broadcasted via SSE (13 progress sections)
+- **COMPLETED:** All files dispositioned (complete or failed), summary displayed
 
 **Legacy Phase States (Deprecated):**
-The following fine-grained phase states (EXTRACTING, FINGERPRINTING, SEGMENTING, ANALYZING, FLAVORING) are deprecated in favor of the unified PROCESSING state. These legacy states may appear in database schema or logs but represent obsolete batch-phase architecture.
+The following fine-grained phase states (EXTRACTING, FINGERPRINTING, SEGMENTING, ANALYZING, FLAVORING) are deprecated in favor of the unified PROCESSING state with 10-phase per-file pipeline. These legacy states may appear in database schema or logs but represent obsolete batch-phase architecture.
 
 ### State Persistence
 
@@ -433,72 +1173,70 @@ async fn start_import(root_folder: PathBuf, params: ImportParameters) -> ImportS
 
 **[AIA-ASYNC-020]** Parallel per-file processing architecture:
 
-**Strategy:** Process multiple files concurrently through PLAN024 pipeline (N files in flight simultaneously)
+**Strategy:** Process multiple files concurrently through 10-phase per-file pipeline (N workers processing different files simultaneously)
 
 **Architecture:**
 ```
-Phase 1: SCANNING + EXTRACTING (Batch)
-  └─ Discover all audio files (parallel magic byte verification)
-  └─ Extract metadata and calculate hashes (parallel with Rayon)
-     Output: Vec<AudioFile> of processed files
+Step 3: SCANNING (Batch File Discovery)
+  └─ Directory traversal, parallel magic byte verification
+  └─ Skip symlinks/junctions
+     Output: List of valid audio file paths
 
-Phase 2: PLAN024 Pipeline (Parallel File Processing)
-  ├─ File 1: SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
-  ├─ File 2:   SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
-  ├─ File 3:     SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
-  └─ File N:       SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
+Step 4: PROCESSING (Parallel Worker Pool)
+  ├─ Worker 1: File A → 10-Phase Pipeline → Complete
+  ├─ Worker 2: File B → 10-Phase Pipeline → Complete
+  ├─ Worker 3: File C → 10-Phase Pipeline → Complete
+  └─ Worker N: File D → 10-Phase Pipeline → Complete
 
-  Pipeline Phase Abbreviations:
-    SEGMENTING:     Boundary detection (silence-based segmentation)
-    FINGERPRINTING: Chromaprint → AcoustID extraction per passage
-    IDENTIFYING:    MusicBrainz resolution (metadata fusion)
-    ANALYZING:      Amplitude analysis for crossfade timing
-    FLAVORING:      Musical characteristics extraction (Essentia)
+  Each Worker Processes One File Sequentially Through 10 Phases:
+    (See "Per-File Pipeline Implementation Requirements" section below for complete
+    phase definitions, algorithms, and data flow)
 
   Parallelism Pattern:
-    - N files in flight simultaneously (N = CPU count, clamped 2-8)
-    - FuturesUnordered maintains constant parallelism level
-    - Each file processes through all phases sequentially
+    - N workers operate concurrently (N from ai_processing_thread_count setting)
+    - Each worker processes one file through all 10 phases sequentially
+    - Workers pick next unprocessed file upon completion
     - Files complete in any order (non-deterministic)
 ```
 
 **Key Characteristics:**
-- **Hybrid approach:** Batch scanning/extracting (Phase 1) + parallel per-file processing (Phase 2)
-- **Adaptive parallelism:** N = num_cpus::get().clamp(2, 8)
-- **Constant in-flight tasks:** FuturesUnordered spawns next file when current completes
-- **Better resource utilization:** CPU-intensive operations (boundary detection, fingerprinting) happen concurrently with I/O-bound operations (MusicBrainz API calls)
-- **Smooth phase progress:** Multiple files advancing through different phases simultaneously
+- **Per-file sequential pipeline:** Each file goes through all 10 phases before next file starts in same worker
+- **Adaptive parallelism:** N from `ai_processing_thread_count` setting (auto-initialized: `CPU_core_count + 1`)
+- **Constant worker utilization:** FuturesUnordered maintains constant parallelism level
+- **Balanced resource usage:** CPU-intensive (FINGERPRINTING), I/O-bound (EXTRACTING), and network-bound (SONG MATCHING) operations happen concurrently across workers
+- **Fine-grained progress:** Report files completed (e.g., "2,581 / 5,736 files")
 
 **Implementation:**
 ```rust
-// Actual implementation (mod.rs:613-1107)
-let parallelism_level = num_cpus::get().clamp(2, 8);
-let mut file_iter = files.iter().enumerate();
+// Get thread count from settings (auto-initializes if NULL)
+let parallelism_level = db::settings::get_or_init_processing_thread_count(&db).await?;
+
+let mut file_iter = discovered_files.iter().enumerate();
 let mut tasks = FuturesUnordered::new();
 
-// Seed initial batch
+// Seed initial worker pool
 for _ in 0..parallelism_level {
-    if let Some((idx, file)) = file_iter.next() {
-        tasks.push(spawn_file_task(idx, file.path, pipeline_ref));
+    if let Some((idx, file_path)) = file_iter.next() {
+        tasks.push(process_file_through_10_phases(idx, file_path, db.clone()));
     }
 }
 
 // Process completions and spawn next file
 while let Some((idx, path, result)) = tasks.next().await {
-    // ... handle result ...
+    // ... handle result, update progress ...
 
     // Maintain parallelism level
-    if let Some((idx, file)) = file_iter.next() {
-        tasks.push(spawn_file_task(idx, file.path, pipeline_ref));
+    if let Some((idx, file_path)) = file_iter.next() {
+        tasks.push(process_file_through_10_phases(idx, file_path, db.clone()));
     }
 }
 ```
 
-**Default Parallelism:** CPU-adaptive (2-8 concurrent file operations)
-- Low-end systems (2 cores): parallelism_level=2
-- Mid-range systems (4-6 cores): parallelism_level=4-6
-- High-end systems (8+ cores): parallelism_level=8 (capped)
-- Automatically adjusts to system capabilities
+**Default Parallelism:** CPU-adaptive via auto-initialization
+- Algorithm: `CPU_core_count + 1` (persisted to database on first run)
+- Example: 4-core system → 5 concurrent workers
+- Example: 8-core system → 9 concurrent workers
+- User-configurable via `settings.ai_processing_thread_count`
 
 ### Per-File Pipeline Benefits
 
@@ -517,12 +1255,12 @@ Cancellation:
 
 **2. Better Resource Utilization**
 ```
-Batch Phase Processing (Current):
+Batch Phase Processing (Deprecated):
   Phase 3 (Fingerprinting): [CPU: 95%] [I/O: 5%] [Network: 0%]
   Phase 6 (Flavoring):      [CPU: 5%]  [I/O: 5%] [Network: 90%]
   → Resources underutilized during different phases
 
-Per-File Pipeline (Proposed):
+Per-File Pipeline (Current Architecture):
   Worker 1: Fingerprinting   [CPU: 95%] [I/O: 5%] [Network: 0%]
   Worker 2: API call waiting [CPU: 5%]  [I/O: 5%] [Network: 90%]
   Worker 3: Analyzing        [CPU: 95%] [I/O: 5%] [Network: 0%]
@@ -583,47 +1321,122 @@ async fn process_file_complete(
 
 **2. Pipeline Stages (Sequential per File)**
 ```
-For each file, execute in order:
-  1. Verify audio format (magic bytes, decodability check)
-  2. Extract metadata (Lofty: ID3/Vorbis/MP4 tags, plus filename/folder context)
-  3. Calculate file hash (SHA-256)
-  4. Detect passage boundaries via silence detection (gives structural clues)
-     └─ Analyze segment pattern (count, gap durations, segment lengths)
-  5. Contextual MusicBrainz search (metadata + segment pattern)
-     ├─ Single-segment files: Search by artist+title from metadata
-     └─ Multi-segment files: Match segment pattern to album/release track lists
-  6. Per-segment Chromaprint fingerprinting (tokio::task::spawn_blocking for CPU work)
-     └─ Generate fingerprint for EACH segment individually (not whole file)
-  7. Per-segment AcoustID API lookup (rate-limited, async)
-     └─ Get MBID candidates for each segment
-  8. MBID confidence assessment (combine evidence)
-     ├─ Metadata match strength (artist, album, track names)
-     ├─ Pattern match strength (track count, durations align with release)
-     └─ Fingerprint match strength (AcoustID scores per segment)
-  9. Analyze amplitude for each passage (lead-in/lead-out detection)
-  10. Fetch AcousticBrainz musical flavor data (rate-limited, async)
-      └─ Only for recordings with confirmed MBIDs
-  11. Convert all timing points to ticks and write to database (atomic transaction)
-      └─ Convert seconds → INTEGER ticks per SPEC017 (ticks = seconds * 28,224,000)
-      └─ Write: file, passages (with tick-based timing), songs, relationships
-  12. Increment completion counter
+For each file, execute in order (10-phase pipeline):
+
+  Phase 1: FILENAME MATCHING
+    └─ Check if file path/name already exists in database
+    └─ Output: Skip (already processed), Reuse (update metadata), or New (create fileId)
+
+  Phase 2: HASHING
+    └─ Calculate SHA-256 hash of file content
+    └─ Check for duplicate hash in database
+    └─ If duplicate: Create bidirectional link via matching_hashes JSON field, mark DUPLICATE HASH, stop
+    └─ Output: Unique hash (continue) or DUPLICATE HASH (stop)
+
+  Phase 3: EXTRACTING
+    └─ Parse metadata tags (Lofty: ID3/Vorbis/MP4)
+    └─ Merge with existing metadata using JSON object merge algorithm:
+       a. Load existing metadata JSON from database (or empty object {} if NULL)
+       b. For each key-value pair in newly extracted metadata:
+          - If new value is non-NULL: Set merged[key] = new_value (overwrite existing)
+          - If new value is NULL: Preserve existing[key] (no change)
+       c. Keys present in existing but absent in new: Preserved unchanged
+       d. Result: Union of old and new metadata, with new non-NULL values taking precedence
+    └─ Output: Title, artist, album, duration, merged metadata JSON
+
+  Phase 4: SEGMENTING
+    └─ Decode audio PCM, detect silence using thresholds from settings table:
+       - silence_threshold_dB (default: 60dB RMS, empirically optimized)
+       - silence_min_duration_ticks (default: 56448000 ticks = 2000ms = 2.0s, empirically optimized)
+    └─ Identify potential passage boundaries (audio segments between silence)
+    └─ Calculate total non-silence duration across all potential passages
+    └─ NO AUDIO detection (file-level check):
+       a. If total non-silence duration < minimum_passage_audio_duration_ticks (see Settings Management):
+          - Mark files.status = 'NO AUDIO'
+          - STOP processing this file (skip remaining phases)
+          - Log: "File has insufficient non-silence, marked NO AUDIO"
+       b. Otherwise: Continue to fingerprinting (Phase 5)
+    └─ Filter potential passages by minimum duration:
+       - Each potential passage MUST be ≥ minimum_passage_audio_duration_ticks (see Settings Management)
+       - Passages shorter than minimum: Discarded (not viable for playback)
+    └─ Output: Potential passage time ranges (ticks) OR NO AUDIO status (stop)
+
+  Phase 5: FINGERPRINTING
+    └─ Generate Chromaprint fingerprint PER PASSAGE (tokio::task::spawn_blocking for CPU work)
+    └─ Query AcoustID API per passage (rate-limited, async)
+    └─ Output: List of (MBID, confidence score) per passage
+
+  Phase 6: SONG MATCHING
+    └─ Combine metadata + fingerprint evidence per passage
+    └─ Assess confidence level for each potential passage:
+       - High: Fingerprint match + metadata match (title/artist/duration aligned)
+       - Medium: Fingerprint match OR strong metadata match
+       - Low: Weak fingerprint or metadata evidence
+       - None: No fingerprint match, no metadata match (zero-song passage)
+    └─ Apply zero-song passage merging algorithm:
+       a. Identify sequences of adjacent passages with None confidence
+       b. Merge contiguous None-confidence passages into single passage:
+          - New start_time_ticks = first passage start
+          - New end_time_ticks = last passage end
+          - Discard intermediate silence boundaries
+       c. Exception: Preserve boundaries if silence duration >30 seconds
+          (likely intentional track separation, not embedded silence)
+       d. Rationale: Unidentifiable audio likely one continuous section
+          (ambient, spoken word, sound effects, etc.)
+    └─ Output: MBID with confidence (High/Medium/Low/None) per finalized passage
+
+  Phase 7: RECORDING
+    └─ Write passages to database (atomic transaction)
+    └─ Convert all timing points to ticks per SPEC017 (ticks = seconds * 28,224,000)
+    └─ Create songs, artists, works, albums, passage_songs relationships
+    └─ Output: Persisted passages with passageId
+
+  Phase 8: AMPLITUDE
+    └─ Perform amplitude analysis to detect lead-in and lead-out absolute tick positions
+       - Algorithm: RMS envelope calculation, threshold detection, quick-ramp handling
+       - Complete algorithm specification: [SPEC025-amplitude_analysis.md](SPEC025-amplitude_analysis.md)
+       - Thresholds: `lead_in_threshold_dB`, `lead_out_threshold_dB` (from settings table, see Settings Management)
+    └─ Record absolute tick positions: `lead_in_start_ticks`, `lead_out_start_ticks`
+    └─ Leave fade fields NULL: `fade_in_start_ticks`, `fade_in_end_ticks`, `fade_out_start_ticks` (manual definition deferred to wkmp-pe)
+    └─ Mark passages.status = 'INGEST COMPLETE'
+    └─ Output: Lead-in/lead-out absolute positions persisted (NOT durations, NOT fades)
+
+  Phase 9: FLAVORING
+    └─ Check if passage has associated song (passage_songs table)
+       └─ If no song: Skip flavoring (zero-song passage), continue to Phase 10
+    └─ Check if song.status = 'FLAVOR READY' (pre-existing flavor from previous import)
+       └─ If true: Skip flavor retrieval (increment 'pre-existing' counter), continue to Phase 10
+    └─ Otherwise: Query AcousticBrainz API for musical flavor (rate-limited, async)
+    └─ Fallback to Essentia if AcousticBrainz fails
+    └─ Mark songs.status = 'FLAVOR READY' or 'FLAVORING FAILED'
+    └─ Output: Musical flavor vector (JSON) or failure status
+
+  Phase 10: PASSAGES COMPLETE
+    └─ Mark files.status = 'INGEST COMPLETE'
+    └─ Increment completion counter
+    └─ Broadcast progress event via SSE
 ```
 
 **Rationale for Sequence:**
-- **Segmentation before fingerprinting** provides structural clues (track count, gap patterns)
-- **Contextual search** (metadata + pattern) narrows MusicBrainz candidates efficiently
-- **Per-segment fingerprints** more accurate than whole-file fingerprints for multi-track files
-- **Evidence combination** (metadata + pattern + fingerprints) achieves high-confidence MBID matches
+- **Filename matching first** avoids redundant processing of existing files
+- **Hashing before extraction** catches duplicate content early (skip expensive operations)
+- **Segmentation before fingerprinting** provides passage boundaries for per-passage fingerprints
+- **Per-passage fingerprints** more accurate than whole-file fingerprints for multi-track files
+- **Evidence combination** (metadata + fingerprints) achieves high-confidence MBID matches
+- **Recording before amplitude** ensures passages exist in database for amplitude updates
 - **Flavor retrieval last** occurs only after confident identification (avoids wasted API calls)
 
 **3. Parallel Execution**
 ```rust
 use futures::stream::{self, StreamExt};
 
+// Get thread count from settings (auto-initialized: CPU_core_count + 1)
+let worker_count = db::settings::get_or_init_processing_thread_count(&db).await?;
+
 let results: Vec<Result<ProcessedFileResult, ImportError>> =
     stream::iter(discovered_files)
-        .map(|file| process_file_complete(file, db, fingerprinter, rate_limiter))
-        .buffer_unordered(4)  // 4 concurrent workers
+        .map(|file_path| process_file_through_10_phases(file_path, db.clone()))
+        .buffer_unordered(worker_count)  // N concurrent workers
         .collect()
         .await;
 ```
@@ -695,6 +1508,107 @@ if cancel_token.is_cancelled() {
 }
 ```
 
+### CPU-Intensive Operation Yielding
+
+**[AIA-ASYNC-050]** Prevention of async runtime starvation during CPU-intensive operations:
+
+**Problem:** CPU-bound operations (SHA-256 hashing, Chromaprint fingerprinting, RMS amplitude analysis) can block Tokio's async runtime for extended periods, starving other tasks and causing worker threads to appear "stalled" despite consuming CPU.
+
+**Root Cause:** Running synchronous CPU-intensive work directly on Tokio's async thread pool prevents the scheduler from executing other tasks, leading to:
+- Database lock contention (workers holding connections during CPU work)
+- SSE heartbeat delays (event broadcasting blocked)
+- UI unresponsiveness (progress updates delayed)
+- Apparent "stalling" despite high CPU usage
+
+**Solution: Two-Tier Approach**
+
+**1. Wrap CPU-Intensive Operations in `spawn_blocking`**
+- Move synchronous blocking operations off async runtime onto dedicated blocking thread pool
+- Applies to: Chromaprint FFI calls, synchronous audio decoding
+- **Example:**
+```rust
+// INCORRECT: Blocks async runtime
+let fingerprint = fingerprinter.fingerprint_segment(file_path, start_sec, end_sec)?;
+
+// CORRECT: Uses blocking thread pool
+let fingerprint = tokio::task::spawn_blocking(move || {
+    fingerprinter.fingerprint_segment(&file_path_clone, start_sec, end_sec)
+})
+.await??;
+```
+
+**2. Periodic Yielding Within Long Operations**
+- For operations that must run on async runtime or blocking pool, periodically yield control back to scheduler
+- Prevents single operation from monopolizing thread for extended periods
+- Controlled by `ai_longwork_yield_interval_ms` setting
+
+**Setting: `ai_longwork_yield_interval_ms`**
+- **Type:** Integer (milliseconds)
+- **Default:** 990 (just under 1 second)
+- **Purpose:** Interval for periodic yielding during CPU-intensive operations
+- **Behavior:**
+  - Value > 0: Yield every N milliseconds during long operations
+  - Value = 0: Disable yielding (faster execution, risk of starvation)
+- **Tradeability:** Users can trade responsiveness for raw performance
+
+**Operations Using Yield Timers:**
+1. **SHA-256 Hash Calculation (Phase 2):**
+   - Yields every 990ms while processing large MP3 files (chunk-by-chunk hashing)
+   - Uses `std::thread::yield_now()` in `spawn_blocking` context
+2. **Amplitude Analysis (Phase 8):**
+   - Yields every 990ms during RMS calculation on PCM buffers
+   - Uses `tokio::task::yield_now().await` in async context
+3. **Audio Decoding (Phases 4, 5, 8):**
+   - Yields every 990ms during Symphonia packet decoding
+   - Prevents stalls on very long audio files (multi-hour mixes)
+
+**Implementation Pattern (Async Context):**
+```rust
+let mut last_yield = Instant::now();
+let yield_enabled = yield_interval_ms > 0;
+
+loop {
+    // Yield periodically to Tokio scheduler
+    if yield_enabled && last_yield.elapsed().as_millis() >= yield_interval_ms as u128 {
+        tokio::task::yield_now().await;
+        last_yield = Instant::now();
+    }
+
+    // ... CPU-intensive work (e.g., decode audio packet) ...
+}
+```
+
+**Implementation Pattern (Blocking Context):**
+```rust
+let mut last_yield = Instant::now();
+let yield_enabled = yield_interval_ms > 0;
+
+loop {
+    // Yield periodically to blocking thread pool
+    if yield_enabled && last_yield.elapsed().as_millis() >= yield_interval_ms as u128 {
+        std::thread::yield_now();
+        last_yield = Instant::now();
+    }
+
+    // ... CPU-intensive work (e.g., SHA-256 hashing) ...
+}
+```
+
+**Performance Impact:**
+- **Overhead:** Minimal (~0.1% for 990ms interval on typical operations)
+- **Benefit:** Prevents worker stalling, maintains SSE heartbeat, improves UI responsiveness
+- **Trade-off:** Slightly slower raw CPU performance vs. much better system-wide responsiveness
+
+**Visibility:** This setting is CRITICAL for proper async runtime behavior. It must be:
+- Documented in all CPU-intensive service modules
+- Passed to all long-running operations
+- Visible in settings UI with clear description
+- Tested with both enabled (990ms) and disabled (0ms) configurations
+
+**Related Settings:**
+- `ai_processing_thread_count` - Number of parallel workers (affects contention)
+- `ai_database_max_lock_wait_ms` - Database lock timeout (related symptom of starvation)
+
 ---
 
 ## Real-Time Progress Updates
@@ -703,52 +1617,162 @@ if cancel_token.is_cancelled() {
 
 **[AIA-SSE-010]** wkmp-ai provides SSE endpoint for real-time progress:
 
-**Endpoint:** `GET /events?session_id={uuid}`
+**Endpoint:** `GET /import/events` (no session_id required - server broadcasts to all connected clients)
 
 **Event Types:**
-```json
-// State change event
-{
-  "type": "state_changed",
-  "session_id": "uuid",
-  "old_state": "SCANNING",
-  "new_state": "EXTRACTING",
-  "timestamp": "2025-10-27T12:34:56Z"
-}
 
-// Progress update event
+#### 1. Import Progress Update (Primary Event)
+
+**Event Name:** `ImportProgressUpdate`
+
+**Frequency:** Broadcast every 2 seconds during active import
+
+**Data Structure:**
+```json
 {
-  "type": "progress",
-  "session_id": "uuid",
+  "state": "PROCESSING",
   "current": 250,
   "total": 1000,
-  "operation": "Fingerprinting: artist_album_track.mp3",
-  "timestamp": "2025-10-27T12:34:57Z"
+  "elapsed_seconds": 270,
+  "estimated_remaining_seconds": 810,
+  "current_file": "Artist/Album/Track.mp3",
+  "current_operation": "Processing file 250/1000: Artist/Album/Track.mp3 (Phase 5: FINGERPRINTING)",
+  "phases": [
+    {
+      "phase": "SCANNING",
+      "description": "File discovery",
+      "status": "Completed",
+      "progress_current": 1000,
+      "progress_total": 1000,
+      "subtasks": []
+    },
+    {
+      "phase": "PROCESSING",
+      "description": "Import workflow",
+      "status": "InProgress",
+      "progress_current": 250,
+      "progress_total": 1000,
+      "subtasks": []
+    }
+  ],
+  "phase_statistics": [
+    {
+      "phase_name": "SCANNING",
+      "potential_files_found": 1000,
+      "is_scanning": false
+    },
+    {
+      "phase_name": "PROCESSING",
+      "completed": 250,
+      "started": 258,
+      "total": 1000,
+      "max_workers": 8,
+      "workers": [
+        {
+          "worker_id": "thread-1",
+          "file_path": "Artist/Album/Track.mp3",
+          "file_index": 250,
+          "phase_name": "Phase 5 Fingerprinting",
+          "phase_started_at": "2025-11-15T10:34:56Z",
+          "passage_start_seconds": 135.0,
+          "passage_end_seconds": 330.0
+        }
+      ]
+    },
+    {
+      "phase_name": "FINGERPRINTING",
+      "passages_fingerprinted": 320,
+      "successful_matches": 280
+    },
+    {
+      "phase_name": "SONG_MATCHING",
+      "high_confidence": 200,
+      "medium_confidence": 60,
+      "low_confidence": 15,
+      "no_confidence": 5
+    },
+    {
+      "phase_name": "RECORDING",
+      "recorded_passages": [
+        {
+          "song_title": "Song Title",
+          "file_path": "Artist/Album/Track.mp3"
+        }
+      ]
+    },
+    {
+      "phase_name": "AMPLITUDE",
+      "analyzed_passages": [
+        {
+          "song_title": "Song Title",
+          "passage_length_seconds": 245.5,
+          "lead_in_ms": 1500,
+          "lead_out_ms": 2000
+        }
+      ]
+    },
+    {
+      "phase_name": "FLAVORING",
+      "pre_existing": 50,
+      "acousticbrainz": 180,
+      "essentia": 30,
+      "failed": 10
+    }
+  ],
+  "timestamp": "2025-11-15T12:34:57Z"
 }
+```
 
-// Error event
-{
-  "type": "error",
-  "session_id": "uuid",
-  "file_path": "corrupt_file.mp3",
-  "error_code": "DECODE_ERROR",
-  "error_message": "Failed to decode audio",
-  "timestamp": "2025-10-27T12:34:58Z"
-}
+**Purpose:** Primary event for UI updates, contains all data needed to render all 6 UI sections
 
-// Completion event
+**Client Handling:** `import-progress.js:280-292` (event listener), `updateUI:327-375` (UI update logic)
+
+#### 2. Import Session Completed
+
+**Event Name:** `ImportSessionCompleted`
+
+**Frequency:** Once per import session (when all files processed)
+
+**Data Structure:**
+```json
 {
-  "type": "completed",
   "session_id": "uuid",
   "files_processed": 982,
   "files_failed": 18,
   "passages_created": 1024,
   "duration_seconds": 320,
-  "timestamp": "2025-10-27T12:40:00Z"
+  "timestamp": "2025-11-15T12:40:00Z"
 }
 ```
 
-**Reconnection:** Client may disconnect/reconnect, missed events available via `/import/status` polling
+**Purpose:** Signals import completion, triggers redirect to import-complete page
+
+**Client Handling:** `import-progress.js:294-309` (closes SSE, redirects after 2s delay)
+
+#### 3. Import Session Failed
+
+**Event Name:** `ImportSessionFailed`
+
+**Frequency:** Once per import session (if fatal error occurs)
+
+**Data Structure:**
+```json
+{
+  "session_id": "uuid",
+  "error": "Database connection lost",
+  "timestamp": "2025-11-15T12:35:00Z"
+}
+```
+
+**Purpose:** Signals fatal error, displays error message to user
+
+**Client Handling:** `import-progress.js:311-323` (displays error, closes SSE)
+
+**Reconnection:** Client uses automatic reconnection built into browser EventSource API. If connection drops, browser automatically reconnects. Missed events not recoverable (use `/import/status` polling if critical).
+
+**Implementation:**
+- Server: `wkmp-ai/src/api/sse.rs` (SSE endpoint), `wkmp-ai/src/services/workflow_orchestrator/mod.rs:2100-2233` (event broadcasting)
+- Client: `import-progress.js:264-324` (SSE connection management)
 
 ### Polling Fallback
 
@@ -760,13 +1784,13 @@ if cancel_token.is_cancelled() {
 ```json
 {
   "session_id": "uuid",
-  "state": "ANALYZING",
+  "state": "PROCESSING",
   "progress": {
     "current": 250,
     "total": 1000,
     "percentage": 25.0
   },
-  "current_operation": "Amplitude analysis: track_05.flac",
+  "current_operation": "Processing file 250/1000: track_05.flac (Phase 8: AMPLITUDE)",
   "errors": [
     {
       "file_path": "corrupt_file.mp3",
@@ -827,16 +1851,52 @@ if cancel_token.is_cancelled() {
 let ticks: i64 = (seconds * 28_224_000.0).round() as i64;
 ```
 
-**Database Fields (all INTEGER):**
-- `start_time_ticks` - Passage start point
-- `lead_in_start_ticks` - Lead-in fade start
-- `fade_in_start_ticks` - Fade-in start
-- `fade_in_end_ticks` - Fade-in end (music at full volume)
-- `fade_out_start_ticks` - Fade-out start (begin crossfade)
-- `lead_out_start_ticks` - Lead-out start
-- `end_time_ticks` - Passage end point
+**Database Fields:** See "Lead-In/Lead-Out vs Fade-In/Fade-Out Distinction" section for complete field definitions (all INTEGER ticks, absolute positions relative to file start, wkmp-ai detection behavior).
 
-**Rationale:** Tick-based timing ensures sample-accurate crossfade points across all source sample rates, satisfying [REQ-CF-050] precision requirements. See [SPEC017](SPEC017-sample_rate_conversion.md) for complete tick system specification.
+**Rationale:** Tick-based timing ensures sample-accurate crossfade points across all source sample rates, satisfying [REQ-CF-050] precision requirements. Absolute positioning simplifies crossfade calculations. See [SPEC017](SPEC017-sample_rate_conversion.md) for complete tick system specification and [SPEC025](SPEC025-amplitude_analysis.md) for amplitude timing details.
+
+### Database Integration
+
+**[AIA-INT-040]** wkmp-ai database schema additions for refined workflow:
+
+**Settings Table (New):**
+```sql
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT  -- JSON-encoded value
+);
+```
+- Stores 7 import parameters (see Settings Management section)
+- Shared across all WKMP microservices
+- Auto-initialized with defaults if missing
+- Thread count auto-computed and persisted on first run
+
+**files Table Additions:**
+```sql
+ALTER TABLE files ADD COLUMN status TEXT DEFAULT 'PENDING';
+ALTER TABLE files ADD COLUMN matching_hashes TEXT;  -- JSON array of fileIds
+```
+- `status`: PENDING, PROCESSING, INGEST COMPLETE, DUPLICATE HASH, NO AUDIO
+- `matching_hashes`: JSON array for bidirectional duplicate links
+
+**passages Table Additions:**
+```sql
+ALTER TABLE passages ADD COLUMN status TEXT DEFAULT 'PENDING';
+```
+- `status`: PENDING, INGEST COMPLETE
+- `fade_in`, `fade_out` fields remain NULL (future wkmp-pe responsibility)
+
+**songs Table Additions:**
+```sql
+ALTER TABLE songs ADD COLUMN status TEXT DEFAULT 'PENDING';
+```
+- `status`: PENDING, FLAVOR READY, FLAVORING FAILED
+
+**Automatic Schema Maintenance:**
+- All schema changes via data-driven schema maintenance (SPEC031)
+- No manual migrations required
+- Columns added automatically at startup if missing
+- Zero-configuration database initialization
 
 ---
 
@@ -875,7 +1935,7 @@ let ticks: i64 = (seconds * 28_224_000.0).round() as i64;
 
 | Library Size | Expected Duration | Assumptions |
 |--------------|-------------------|-------------|
-| 100 files | 2-4 minutes | Average 3-minute songs, per-file pipeline with 4 workers |
+| 100 files | 2-4 minutes | Average 3-minute songs, per-file pipeline with N workers (N from ai_processing_thread_count) |
 | 1,000 files | 15-30 minutes | Per-file pipeline, overlapping CPU/network operations |
 | 5,736 files | 90-120 minutes | Real-world library (1.5-2 hours, ~1.46x faster than batch phases) |
 | 10,000 files | 2.5-4 hours | Rate limiting (MusicBrainz, AcoustID), improved from 3-6 hours |
@@ -898,7 +1958,7 @@ Per-File Pipeline Architecture (Required):
 - **Amplitude analysis:** CPU-bound (~2-5s per 3-minute passage, parallelized across workers)
 
 **Why Per-File Pipeline is Faster:**
-- While Worker 1 waits for MusicBrainz API (1 second), Workers 2-4 perform CPU-intensive fingerprinting
+- While Worker 1 waits for MusicBrainz API (1 second), other workers perform CPU-intensive fingerprinting
 - Heterogeneous workload balanced across workers (CPU + I/O + network concurrency)
 - No idle phases waiting for entire batch to complete
 
@@ -908,7 +1968,7 @@ Per-File Pipeline Architecture (Required):
 
 1. **Caching:** Check `acoustid_cache`, `musicbrainz_cache`, `acousticbrainz_cache` before API queries
 2. **Per-Worker Database Batching:** Each worker commits every 10 files (reduces transaction overhead)
-3. **Parallel Per-File Processing:** 4 concurrent workers through full pipeline (CPU/network overlap)
+3. **Parallel Per-File Processing:** N concurrent workers through full pipeline (CPU/network overlap, N from ai_processing_thread_count setting)
 4. **Rate Limiter Coordination:** Shared rate limiter across workers (via `governor` crate)
 5. **Natural Resumability:** Query database for files without passages, process only incomplete files
 
@@ -942,38 +2002,35 @@ Phase 2 (Parallel): Magic byte verification
 **Strategy:** Per-segment Chromaprint fingerprinting after segmentation, with parallel workers processing different files
 
 ```
-Per-File Pipeline (within each worker):
-  1. Decode audio file to PCM (I/O + CPU bound)
-  2. Silence detection → identify segments (CPU bound)
-  3. Extract metadata for contextual matching (I/O bound)
-  4. Contextual MusicBrainz search (network I/O bound)
-  5. For each segment:
-     a. Extract segment PCM data (memory operation)
+Per-File Pipeline: Each worker processes one file through 10 phases sequentially
+  (See "Per-File Pipeline Implementation Requirements" section for complete phase
+  definitions and algorithms)
+
+Performance-Critical Phase Details:
+  Phase 5: FINGERPRINTING - Per-passage processing:
+     a. Extract passage PCM data (memory operation)
      b. Resample to 44.1kHz if needed (CPU bound)
      c. Generate Chromaprint fingerprint via FFI (CPU bound)
         └─ CHROMAPRINT_LOCK mutex serializes chromaprint_new()/chromaprint_free()
            (required for FFTW backend thread safety, negligible overhead ~1-2ms)
-     d. Rate-limited AcoustID API lookup per segment (network I/O bound)
-  6. Confidence assessment (combine metadata + pattern + fingerprint scores)
-  7. Rate-limited MusicBrainz API lookup for confirmed MBIDs (network I/O bound)
-  8. Amplitude analysis per passage (CPU bound)
-  9. Rate-limited AcousticBrainz API lookup (network I/O bound)
-  10. Convert timing to ticks and write to database
-      └─ Convert all passage timing points (seconds → INTEGER ticks per SPEC017)
+     d. Rate-limited AcoustID API lookup per passage (network I/O bound)
 
-Parallel Execution (4 workers):
-  Worker 1: File_001 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
-  Worker 2: File_002 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
-  Worker 3: File_003 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
-  Worker 4: File_004 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
+  Phase 7: RECORDING - Database writes:
+     └─ Convert all passage timing points (seconds → INTEGER ticks per SPEC017)
+
+Parallel Execution (N workers, N from ai_processing_thread_count setting):
+  Worker 1: File_001 → [10-Phase Pipeline] → Complete
+  Worker 2: File_002 → [10-Phase Pipeline] → Complete
+  Worker 3: File_003 → [10-Phase Pipeline] → Complete
+  Worker N: File_004 → [10-Phase Pipeline] → Complete
 ```
 
 **Performance Characteristics:**
-- **Per-segment fingerprints** are more accurate than whole-file fingerprints for multi-track files
-- **Segmentation first** provides structural clues before expensive fingerprinting operations
-- **Contextual matching** (metadata + pattern) narrows MusicBrainz candidates before fingerprinting
-- **CPU-bound operations** (decode, segment, fingerprint) overlap with **network-bound operations** (API calls) across workers
-- While Worker 1 waits for AcoustID API, Workers 2-4 perform CPU-intensive fingerprinting
+- **Per-passage fingerprints** more accurate than whole-file fingerprints for multi-track files
+- **Early exit on duplicates** (Phase 2 hashing) avoids expensive operations for duplicate content
+- **Segmentation before fingerprinting** provides passage boundaries for per-passage fingerprints
+- **CPU-bound operations** (Phase 4-5: SEGMENTING, FINGERPRINTING) overlap with **network-bound operations** (Phase 6, 9: SONG MATCHING, FLAVORING) across workers
+- While Worker 1 waits for AcoustID API (Phase 5), Workers 2-N perform CPU-intensive operations
 - Better resource utilization than batch phase approach (avoids idle CPU during API-heavy phases)
 
 **Thread Safety:**
@@ -1045,27 +2102,69 @@ Example progression:
 ### Input Validation
 
 **[AIA-SEC-010]** Validate all user inputs:
-- Root folder path: Must exist, readable, no symlink loops
-- File paths: Must be within root folder (prevent directory traversal)
-- Parameters: Range validation (e.g., thresholds -100dB to 0dB)
+- **Root folder path:** Must exist, readable, no symlink loops
+- **Selected folder (Step 2):** Must be root folder or subfolder (Stage One constraint)
+  - Validation algorithm:
+    ```rust
+    fn validate_stage_one_folder(selected: &Path, root: &Path) -> Result<(), ValidationError> {
+        // Canonicalize paths (resolve symlinks, normalize separators)
+        let canonical_selected = selected.canonicalize()
+            .map_err(|e| ValidationError::PathNotFound { path: selected.to_path_buf(), source: e })?;
+        let canonical_root = root.canonicalize()
+            .map_err(|e| ValidationError::PathNotFound { path: root.to_path_buf(), source: e })?;
+
+        // Check if selected is root or subfolder of root
+        if canonical_selected.starts_with(&canonical_root) {
+            Ok(())
+        } else {
+            Err(ValidationError::ExternalFolder {
+                selected: canonical_selected,
+                root: canonical_root,
+                message: "Stage Two feature - coming soon. Please select root folder or a subfolder within root."
+            })
+        }
+    }
+    ```
+  - Edge cases handled:
+    - Symbolic links: Resolved via `canonicalize()` before comparison
+    - Relative paths: Converted to absolute via `canonicalize()`
+    - Windows junction points: Treated as symlinks (resolved by `canonicalize()`)
+    - Case sensitivity: Platform-native comparison (case-insensitive on Windows)
+  - Error message if external folder selected: "Stage Two feature - coming soon"
+- **File paths during scanning:** Must be within selected folder (prevent directory traversal)
+- **Symlinks/junctions:** Do NOT follow during scanning (prevent loop vulnerabilities)
+- **Parameters:** Range validation (e.g., thresholds -100dB to 0dB, thread count ≥1)
 
 ### API Key Management
 
 **[AIA-SEC-020]** External API keys stored securely:
-- AcoustID API key: Environment variable or config file
-- Not hardcoded in source
+- AcoustID API key: Stored in database `settings` table
+- Not hardcoded in source code
 - Not exposed in API responses or logs
+- DEBUG-level logging only for validation process
 
-**[AIA-SEC-030]** AcoustID API key validation with user prompting:
-- When AcoustID returns 400 error with "invalid API key" message:
-  - Pause import processing
-  - Prompt user via UI with two options:
-    1. Enter valid AcoustID API key (validate before resuming)
-    2. Skip AcoustID functionality for this session
-- If user skips: Import continues without fingerprint-based identification
-- If user provides key: Validate with test API call before resuming
-- Store user's skip preference for session (don't re-prompt)
-- Log warning when AcoustID is skipped (reduced identification accuracy)
+**[AIA-SEC-030]** AcoustID API key validation (Step 1 of workflow):
+- Validate stored key at workflow start before scanning
+- If invalid/missing: Prompt user for valid key OR acknowledge lack
+- User choice persisted for session (re-prompt next session if still invalid)
+  - **Session-scoped state (in-memory only, not persisted to database):**
+    ```rust
+    struct ImportSession {
+        session_id: Uuid,
+        acoustid_skip_acknowledged: bool,  // True if user chose to skip fingerprinting
+        // ... other session state
+    }
+    ```
+  - **State lifecycle:**
+    - Created when import workflow starts (Step 1)
+    - `acoustid_skip_acknowledged` initialized to `false`
+    - If user acknowledges lack of API key: Set to `true` for this session
+    - Cleared when session ends (Step 5 or cancellation)
+    - Next session starts fresh: Re-prompt for API key validation
+  - **Rationale:** Session-scoped (not persistent) ensures users are reminded to provide API key on each import, maximizing identification accuracy
+- If user acknowledges lack: Phase 5 (Fingerprinting) skipped, metadata-only matching used
+- Log warning when fingerprinting skipped (reduced identification accuracy)
+- See Five-Step Workflow section for complete validation logic
 
 ---
 
@@ -1073,26 +2172,45 @@ Example progression:
 
 ### Unit Tests
 
-**[AIA-TEST-010]** Unit test coverage for:
-- Parameter validation logic
-- State machine transitions
-- Tick conversion calculations
-- Error handling paths
+**[AIA-TEST-010]** Unit test coverage for new/updated components:
+- **Filename matching logic:** Skip/Reuse/New outcomes (Phase 1)
+- **Hash deduplication:** Bidirectional linking, duplicate detection (Phase 2)
+- **Metadata merging:** New overwrites, old preserved (Phase 3)
+- **NO AUDIO detection:** <100ms non-silence threshold (Phase 4)
+- **Confidence scoring:** High/Medium/Low/None classification (Phase 6)
+- **Settings manager:** Read/write with defaults, auto-initialization
+- **Status transitions:** Valid state machine transitions
+- **Tick conversion calculations:** Sample-accurate precision
+- **Thread count auto-initialization:** CPU_core_count + 1 algorithm
 
 ### Integration Tests
 
-**[AIA-TEST-020]** Integration tests with:
+**[AIA-TEST-020]** Integration tests with updated workflow:
+- **API key validation:** Invalid key prompting, user acknowledgment
+- **Folder selection:** Stage One constraint enforcement (root folder only)
+- **5-step workflow:** API key → Folder → Scanning → Processing → Completion
+- **10-phase pipeline:** Per-file sequential processing
+- **Hash-based duplicate detection:** Multiple files with same content
+- **Status field updates:** Database status transitions for files/passages/songs
+- **Settings table operations:** Read/write, defaults, auto-initialization
 - Mock MusicBrainz/AcoustID API responses
-- Sample audio files (various formats, corrupted files)
-- Database operations (in-memory SQLite)
+- Sample audio files (various formats, corrupted files, NO AUDIO files)
+- Database operations (in-memory SQLite with SPEC031 auto-maintenance)
 
-### End-to-End Tests
+### System Tests
 
-**[AIA-TEST-030]** E2E tests:
-- Import small library (10 files)
-- Verify passages created correctly
-- Check musical flavor data populated
-- Validate timing point accuracy (within 10ms)
+**[AIA-TEST-030]** End-to-end system tests:
+- **Small library import:** 10 files, verify 5-step workflow completion
+- **Duplicate detection:** Import same file twice, verify DUPLICATE HASH status
+- **NO AUDIO detection:** Import silent file, verify NO AUDIO status
+- **Zero-song passages:** Import unidentifiable audio, verify None confidence
+- **Flavor retrieval fallback:** Mock AcousticBrainz failure, verify Essentia fallback
+- **13 UI progress sections:** Verify SSE events for all sections
+- **Thread count auto-init:** Verify ai_processing_thread_count persisted
+- **Timing accuracy:** Validate tick-based timing (sample-accurate)
+- **Symlink handling:** Verify symlinks/junctions not followed during scanning
+
+**Test Coverage Target:** 100% of 26 requirements (per PLAN024 traceability matrix)
 
 ---
 
@@ -1100,28 +2218,72 @@ Example progression:
 
 **[AIA-FUTURE-010]** Potential enhancements (not in current scope):
 
-1. **Resume After Interruption**
-   - Persist session state to database
-   - Resume from last processed file
+**Stage Two Features (Next Phase):**
+1. **External Folder Import**
+   - Allow importing from folders outside root folder
+   - File movement/copying to root after identification
+   - Multi-location library management
 
-2. **Incremental Import**
-   - Detect new/modified files only
-   - Skip already-imported files
+**Quality Control Microservice (wkmp-qa):**
+2. **Audio Quality Assessment**
+   - Skip/gap/quality issue detection
+   - Audio quality scoring and reporting
+   - Quality-based filtering and review UI
 
-3. **Conflict Resolution**
-   - Handle duplicate files (same hash)
-   - Merge passages from multiple imports
+**Passage Editing Microservice (wkmp-pe):**
+3. **Manual Passage Editing**
+   - User-directed fade-in/fade-out point definition (currently NULL)
+   - Manual MBID revision and override
+   - Passage boundary adjustment UI
+   - Metadata manual correction UI
 
-4. **Advanced Metadata**
+**General Enhancements:**
+4. **Advanced Musical Analysis**
    - Genre classification (ML model)
    - BPM detection (tempo analysis)
-   - Key detection (musical key)
+   - Musical key detection
+
+**Implemented in PLAN024 (Previously Future):**
+- ✅ Incremental Import (filename matching Phase 1: skip already-processed files)
+- ✅ Duplicate Detection (hash-based Phase 2: bidirectional linking)
+- ✅ Resume After Interruption (query for files without passages, resume processing)
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-10-27
-**Status:** Design specification (implementation pending)
+**Document Version:** 2.2
+**Last Updated:** 2025-11-16
+**Status:** Design specification (PLAN024 refinement - implementation in progress)
+**Changes:**
+- **v2.2 (2025-11-16):**
+  - Added comprehensive "File Classification" section ([AIA-CLASSIFY-010] through [AIA-CLASSIFY-030])
+  - Added "File Classification Report UI" section ([AIA-CLASSIFY-UI-010] through [AIA-CLASSIFY-UI-050])
+  - Enhanced SCANNING phase to classify ALL files into audio/image/other categories
+  - Added `/file-report` UI page endpoint for post-scan file classification viewing
+  - Added `GET /api/import/file-classification` REST endpoint with pagination support
+  - Added `FileClassification` and `FileInfo` data structures to import session state
+  - Added human-readable file size formatting specification ([AIA-CLASSIFY-UI-030])
+  - Updated API Endpoint Reference to include file classification endpoints
+- **v2.1 (2025-11-13):**
+  - Added comprehensive "Lead-In/Lead-Out vs Fade-In/Fade-Out Distinction" section ([AIA-TIMING-010])
+  - Enhanced Phase 8 (AMPLITUDE) with detailed algorithm: 25% scan limit, absolute positions (not durations)
+  - Enhanced Phase 9 (FLAVORING) with pre-existing flavor check logic
+  - Enhanced Phase 3 (EXTRACTING) with metadata merge algorithm (JSON object merge)
+  - Enhanced Phase 6 (SONG MATCHING) with zero-song passage merging algorithm (30-second threshold)
+  - Enhanced Phase 4 (SEGMENTING) with NO AUDIO detection logic (file-level check)
+  - Added Stage One folder validation algorithm to [AIA-SEC-010] (canonicalize + starts_with)
+  - Added session-scoped API key acknowledgment details to [AIA-SEC-030] (in-memory state)
+  - Added thread count auto-initialization persistence requirements (MANDATORY)
+  - Added folder selection UI implementation details ([AIA-UI-025]) with tree component spec
+- **v2.0 (2025-11-12):**
+  - Added Scope Definition, Two-Stage Roadmap, Five-Step Workflow sections
+  - Added Ten-Phase Per-File Pipeline specification
+  - Added Duplicate Detection Strategy, Settings Management, UI Progress Display, Status Field Enumeration sections
+  - Updated Component Architecture for 10-phase pipeline
+  - Updated Import Workflow State Machine for 5-step workflow
+  - Added Database Integration details (settings table, status fields, matching_hashes)
+  - Updated Testing Strategy for 26 requirements (100% coverage target)
+  - Removed deprecated pattern analyzer, contextual matcher components (out of scope)
+  - Clarified out-of-scope features (quality control → wkmp-qa, manual editing → wkmp-pe)
 
 ---
 

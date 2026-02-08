@@ -130,6 +130,72 @@ pub async fn save_passage(pool: &SqlitePool, passage: &Passage) -> Result<()> {
     Ok(())
 }
 
+/// **[PLAN026]** Batch insert/update passages within a transaction
+///
+/// Inserts or updates multiple passages in a single database transaction.
+/// Uses ON CONFLICT to upsert existing passages.
+///
+/// # Arguments
+/// * `tx` - Database transaction (caller manages transaction lifecycle)
+/// * `passages` - Passages to insert/update
+///
+/// # Returns
+/// Number of passages processed
+pub async fn batch_save_passages(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    passages: &[Passage],
+) -> Result<usize> {
+    for passage in passages {
+        sqlx::query(
+            r#"
+            INSERT INTO passages (
+                guid, file_id, start_time_ticks, fade_in_start_ticks, lead_in_start_ticks,
+                lead_out_start_ticks, fade_out_start_ticks, end_time_ticks,
+                fade_in_curve, fade_out_curve, title, user_title, artist, album,
+                musical_flavor_vector, import_metadata, additional_metadata,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(guid) DO UPDATE SET
+                start_time_ticks = excluded.start_time_ticks,
+                fade_in_start_ticks = excluded.fade_in_start_ticks,
+                lead_in_start_ticks = excluded.lead_in_start_ticks,
+                lead_out_start_ticks = excluded.lead_out_start_ticks,
+                fade_out_start_ticks = excluded.fade_out_start_ticks,
+                end_time_ticks = excluded.end_time_ticks,
+                title = excluded.title,
+                user_title = excluded.user_title,
+                artist = excluded.artist,
+                album = excluded.album,
+                musical_flavor_vector = excluded.musical_flavor_vector,
+                import_metadata = excluded.import_metadata,
+                additional_metadata = excluded.additional_metadata,
+                updated_at = CURRENT_TIMESTAMP
+            "#,
+        )
+        .bind(passage.guid.to_string())
+        .bind(passage.file_id.to_string())
+        .bind(passage.start_time_ticks)
+        .bind(passage.fade_in_start_ticks)
+        .bind(passage.lead_in_start_ticks)
+        .bind(passage.lead_out_start_ticks)
+        .bind(passage.fade_out_start_ticks)
+        .bind(passage.end_time_ticks)
+        .bind(&passage.fade_in_curve)
+        .bind(&passage.fade_out_curve)
+        .bind(&passage.title)
+        .bind(&passage.user_title)
+        .bind(&passage.artist)
+        .bind(&passage.album)
+        .bind(&passage.musical_flavor_vector)
+        .bind(&passage.import_metadata)
+        .bind(&passage.additional_metadata)
+        .execute(&mut **tx)
+        .await?;
+    }
+
+    Ok(passages.len())
+}
+
 /// Count passages for a file
 pub async fn count_passages_for_file(pool: &SqlitePool, file_id: Uuid) -> Result<i64> {
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM passages WHERE file_id = ?")
@@ -272,9 +338,16 @@ mod tests {
             .expect("Failed to create in-memory database");
 
         // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-        wkmp_common::db::init::create_files_table(&pool).await.unwrap();
-        wkmp_common::db::init::create_passages_table(&pool).await.unwrap();
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .unwrap();
+        wkmp_common::db::init::create_files_table(&pool)
+            .await
+            .unwrap();
+        wkmp_common::db::init::create_passages_table(&pool)
+            .await
+            .unwrap();
 
         let file_id = Uuid::new_v4();
 
@@ -291,7 +364,9 @@ mod tests {
 
         let passage = Passage::new(file_id, 0.0, 180.0);
 
-        save_passage(&pool, &passage).await.expect("Failed to save passage");
+        save_passage(&pool, &passage)
+            .await
+            .expect("Failed to save passage");
 
         let count = count_passages_for_file(&pool, file_id)
             .await
@@ -548,14 +623,14 @@ mod tests {
         let original_passage = Passage {
             guid: Uuid::new_v4(),
             file_id,
-            start_time_ticks: seconds_to_ticks(10.0),         // Passage starts at 10s
+            start_time_ticks: seconds_to_ticks(10.0), // Passage starts at 10s
             fade_in_start_ticks: Some(seconds_to_ticks(12.0)), // Fade-in starts 2s after passage start
             lead_in_start_ticks: Some(seconds_to_ticks(11.0)), // Lead-in (crossfade overlap) at 11s (within passage)
             lead_out_start_ticks: Some(seconds_to_ticks(185.0)), // Lead-out (crossfade overlap) at 185s (within passage)
             fade_out_start_ticks: Some(seconds_to_ticks(188.0)), // Fade-out starts 2s before passage end
-            end_time_ticks: seconds_to_ticks(190.0),          // Passage ends at 190s
+            end_time_ticks: seconds_to_ticks(190.0),             // Passage ends at 190s
             fade_in_curve: Some("linear".to_string()),
-            fade_out_curve: Some("exponential".to_string()),  // Valid curve: exponential, cosine, linear, logarithmic, equal_power
+            fade_out_curve: Some("exponential".to_string()), // Valid curve: exponential, cosine, linear, logarithmic, equal_power
             title: Some("Test Track".to_string()),
             user_title: None,
             artist: Some("Test Artist".to_string()),
@@ -608,8 +683,7 @@ mod tests {
         // Verify tick values are correct (not seconds or milliseconds)
         // start_time = 10.0 seconds = 282,240,000 ticks
         assert_eq!(
-            loaded_passage.start_time_ticks,
-            282_240_000,
+            loaded_passage.start_time_ticks, 282_240_000,
             "start_time_ticks should be in ticks, not seconds"
         );
 

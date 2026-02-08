@@ -4,7 +4,7 @@
 
 Defines HOW the decoder-buffer chain architecture works to process audio from encoded files to playback-ready buffers. Derived from [Requirements](REQ001-requirements.md) and [Single Stream Playback Architecture](SPEC013-single_stream_playback.md). See [Document Hierarchy](GOV001-document_hierarchy.md) and [Requirements Enumeration](GOV002-requirements_enumeration.md).
 
-> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Single Stream Playback](SPEC013-single_stream_playback.md) | [Single Stream Design](SPEC014-single_stream_design.md) | [Crossfade Design](SPEC002-crossfade.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)
+> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Single Stream Playback](SPEC013-single_stream_playback.md) | [Single Stream Design](SPEC014-single_stream_design.md) | [Crossfade Design](SPEC002-crossfade.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md) | [Settings Reference](IMPL016-settings_reference.md)
 
 ---
 
@@ -152,6 +152,8 @@ See [SPEC007 API-QUEUE-PERSIST-010](SPEC007-api_design.md#post-playbackenqueue) 
 
 - **Structural parameters** (buffer sizes, timing intervals, capacity limits): Read once at engine startup. Changes require complete engine restart to take effect.
 - **Runtime-modifiable parameters** (volume, device selection): Can be changed during operation via API without restart.
+
+> **💡 Comprehensive Reference:** See [IMPL016-settings_reference.md](IMPL016-settings_reference.md) for complete documentation of ALL settings parameters including units, valid ranges, modification impact, interdependencies, and conversion formulas.
 
 See [IMPL001 Database Schema - Settings Table](IMPL001-database_schema.md#settings) for database storage of operating parameters.
 

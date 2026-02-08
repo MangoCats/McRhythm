@@ -593,7 +593,7 @@ See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-pa
 - Import workflow user experience
 
 **Update Policy:**
-- ✅ Update to support Audio Ingest requirements
+- ✅ Update to improve developer UX for Audio Ingest workflows
 - ❌ Must not contradict requirements.md
 
 **Maintained By:** UI lead, UX designer

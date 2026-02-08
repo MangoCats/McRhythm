@@ -1,0 +1,251 @@
+//! Stage 7: Progressive RMS Boundary Refinement
+//!
+//! Engages when at least 2 tracks have duration errors ≥30 seconds after earlier stages.
+//! Uses a three-stage progressive RMS energy scan to precisely locate track boundaries.
+//!
+//! ## Algorithm
+//!
+//! 1. **Identify Problem Range**: First and last tracks with error >10s
+//! 2. **Progressive RMS Scan** for each problem boundary:
+//!    - Coarse: 10% blocks in 1% increments (100 scans)
+//!    - Medium: 1% blocks in 0.1% increments within winning coarse block (100 scans)
+//!    - Fine: 0.1s increments within winning medium block
+//! 3. **Validation**: Accept only if total absolute error improves
+
+use tracing::{debug, info};
+
+use super::boundary_refinement::progressive_rms_scan;
+
+/// Apply Stage 7 progressive refinement if needed
+///
+/// # Arguments
+/// * `detected_boundaries` - Current best boundaries from earlier stages
+/// * `expected_durations` - Expected track durations from MBID edition (seconds)
+/// * `audio_samples` - Raw audio sample data
+/// * `sample_rate` - Sample rate in Hz
+///
+/// # Returns
+/// Refined boundaries if improvement found, otherwise original boundaries
+pub fn apply_stage7_if_needed(
+    detected_boundaries: &[usize],
+    expected_durations: &[f64],
+    audio_samples: &[f32],
+    sample_rate: f64,
+) -> Vec<usize> {
+    // Check engagement criteria: at least 2 tracks with error ≥30s
+    let errors = calculate_track_errors(detected_boundaries, expected_durations, sample_rate);
+    let severe_errors = errors.iter().filter(|&&e| e.abs() >= 30.0).count();
+
+    if severe_errors < 2 {
+        debug!("Stage 7 not needed: only {} tracks with ≥30s error", severe_errors);
+        return detected_boundaries.to_vec();
+    }
+
+    info!("Stage 7 ENGAGED: {} tracks with ≥30s error", severe_errors);
+
+    // Identify problem range
+    let (first_problem, last_problem) = identify_problem_range(&errors);
+
+    if first_problem.is_none() || last_problem.is_none() {
+        debug!("Stage 7: No problem range identified");
+        return detected_boundaries.to_vec();
+    }
+
+    let first_problem = first_problem.unwrap();
+    let last_problem = last_problem.unwrap();
+
+    info!(
+        "Stage 7: Problem range tracks {}-{} ({} tracks, {} boundaries)",
+        first_problem + 1,
+        last_problem + 1,
+        last_problem - first_problem + 1,
+        last_problem - first_problem
+    );
+
+    // Refine problem boundaries
+    let refined = refine_problem_boundaries(
+        detected_boundaries,
+        expected_durations,
+        audio_samples,
+        sample_rate,
+        first_problem,
+        last_problem,
+    );
+
+    // Validate improvement
+    let original_error = calculate_total_absolute_error(detected_boundaries, expected_durations, sample_rate);
+    let refined_error = calculate_total_absolute_error(&refined, expected_durations, sample_rate);
+
+    if refined_error < original_error {
+        let improvement = original_error - refined_error;
+        info!(
+            "Stage 7 ACCEPTED: Total error {:.2}s → {:.2}s (improvement: {:.2}s)",
+            original_error,
+            refined_error,
+            improvement
+        );
+        refined
+    } else {
+        info!(
+            "Stage 7 REJECTED: No improvement ({:.2}s → {:.2}s)",
+            original_error,
+            refined_error
+        );
+        detected_boundaries.to_vec()
+    }
+}
+
+/// Calculate per-track duration errors
+fn calculate_track_errors(
+    boundaries: &[usize],
+    expected_durations: &[f64],
+    sample_rate: f64,
+) -> Vec<f64> {
+    let durations = crate::matching::boundaries_to_durations(boundaries, sample_rate);
+
+    durations
+        .iter()
+        .zip(expected_durations.iter())
+        .map(|(&detected, &expected)| detected - expected)
+        .collect()
+}
+
+/// Identify first and last problem tracks (error >10s)
+fn identify_problem_range(errors: &[f64]) -> (Option<usize>, Option<usize>) {
+    let mut first_problem = None;
+    let mut last_problem = None;
+
+    // Find first problem track (from start)
+    for (i, &error) in errors.iter().enumerate() {
+        if error.abs() > 10.0 {
+            first_problem = Some(i);
+            break;
+        }
+    }
+
+    // Find last problem track (from end)
+    for (i, &error) in errors.iter().enumerate().rev() {
+        if error.abs() > 10.0 {
+            last_problem = Some(i);
+            break;
+        }
+    }
+
+    (first_problem, last_problem)
+}
+
+/// Refine all boundaries in the problem range
+fn refine_problem_boundaries(
+    boundaries: &[usize],
+    expected_durations: &[f64],
+    audio_samples: &[f32],
+    sample_rate: f64,
+    first_problem: usize,
+    last_problem: usize,
+) -> Vec<usize> {
+    let mut refined = boundaries.to_vec();
+
+    // Start from first problem track's beginning
+    let problem_start = boundaries[first_problem];
+
+    // Refine each boundary in problem range
+    for track_idx in first_problem..=last_problem {
+        // Calculate expected boundary position
+        let expected_offset: f64 = expected_durations[first_problem..=track_idx].iter().sum();
+        let expected_boundary = problem_start + (expected_offset * sample_rate) as usize;
+
+        let boundary_idx = track_idx + 1;
+        if boundary_idx >= refined.len() {
+            break;
+        }
+
+        info!(
+            "Stage 7: Refining boundary {} (between tracks {} and {})",
+            boundary_idx,
+            track_idx + 1,
+            track_idx + 2
+        );
+
+        // Progressive RMS scan with ±30s search window
+        const SEARCH_WINDOW_SECS: f64 = 30.0;
+        let window_samples = (SEARCH_WINDOW_SECS * sample_rate) as usize;
+        let search_start = expected_boundary.saturating_sub(window_samples);
+        let search_end = (expected_boundary + window_samples).min(audio_samples.len());
+
+        if let Some(new_boundary) = progressive_rms_scan(
+            audio_samples,
+            expected_boundary,
+            search_start,
+            search_end,
+            sample_rate,
+            track_idx + 1,
+        ) {
+            debug!(
+                "Stage 7: Boundary {} moved from {} to {} (expected: {})",
+                boundary_idx,
+                refined[boundary_idx],
+                new_boundary,
+                expected_boundary
+            );
+            refined[boundary_idx] = new_boundary;
+        }
+    }
+
+    refined
+}
+
+/// Calculate total absolute error across all tracks
+fn calculate_total_absolute_error(
+    boundaries: &[usize],
+    expected_durations: &[f64],
+    sample_rate: f64,
+) -> f64 {
+    let durations = crate::matching::boundaries_to_durations(boundaries, sample_rate);
+
+    durations
+        .iter()
+        .zip(expected_durations.iter())
+        .map(|(&detected, &expected)| (detected - expected).abs())
+        .sum()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_identify_problem_range() {
+        // Errors: [2.0, 5.0, -35.0, 50.0, -40.0, 8.0, 3.0]
+        let errors = vec![2.0, 5.0, -35.0, 50.0, -40.0, 8.0, 3.0];
+        let (first, last) = identify_problem_range(&errors);
+
+        assert_eq!(first, Some(2)); // First track with |error| > 10s
+        assert_eq!(last, Some(4)); // Last track with |error| > 10s
+    }
+
+    #[test]
+    fn test_no_problem_range() {
+        let errors = vec![2.0, -5.0, 8.0, -3.0];
+        let (first, last) = identify_problem_range(&errors);
+
+        assert_eq!(first, None);
+        assert_eq!(last, None);
+    }
+
+    #[test]
+    fn test_calculate_track_errors() {
+        let sample_rate = 44100.0;
+        let boundaries = vec![
+            0,
+            (100.0 * sample_rate) as usize,
+            (210.0 * sample_rate) as usize,
+        ];
+        let expected = vec![100.0, 100.0];
+
+        let errors = calculate_track_errors(&boundaries, &expected, sample_rate);
+
+        assert_eq!(errors.len(), 2);
+        assert!((errors[0] - 0.0).abs() < 0.01); // First track correct
+        assert!((errors[1] - 10.0).abs() < 0.01); // Second track +10s
+    }
+}

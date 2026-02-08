@@ -278,31 +278,18 @@ impl AudioPlayer {
 - Database parameter-controlled activation
 - Documentation and user guide
 
-**Implementation:**
+**Implementation:** See [06_dev_interface.md § Conditional Construction Pattern](06_dev_interface.md) for complete code example.
+
+**Key Pattern:**
 ```rust
-use wkmp_common::config::GlobalParameters;
+// Load parameter from database
+let dev_interface_enabled = params.get_bool("enable_dev_interface")?;
 
-pub async fn create_app(pool: &SqlitePool) -> Result<Router> {
-    // Load dev interface parameter
-    let params = GlobalParameters::load(pool).await?;
-    let dev_interface_enabled = params.get_bool("enable_dev_interface")?;
-
-    let mut app = Router::new()
-        .route("/api/play", post(handle_play))
-        .route("/api/pause", post(handle_pause));
-        // ... other API routes
-
-    // Conditionally construct dev interface (not just gate)
-    if dev_interface_enabled {
-        tracing::info!("Developer interface ENABLED at /dev/");
-        app = app.merge(dev_routes(state));
-    } else {
-        tracing::info!("Developer interface DISABLED");
-        // Routes not constructed - zero overhead
-    }
-
-    Ok(app)
+// Conditionally merge dev routes
+if dev_interface_enabled {
+    app = app.merge(dev_routes(state));  // Only constructed when enabled
 }
+```
 
 fn dev_routes(state: AppState) -> Router {
     Router::new()

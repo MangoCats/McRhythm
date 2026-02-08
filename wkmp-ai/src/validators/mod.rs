@@ -14,11 +14,11 @@
 //! - ✅ TASK-018: Quality Scorer
 
 // Module declarations (implemented validators)
+pub mod completeness_scorer; // TASK-017 ✅
 pub mod consistency_validator; // TASK-016 ✅
-pub mod completeness_scorer;   // TASK-017 ✅
-pub mod quality_scorer;        // TASK-018 ✅
+pub mod quality_scorer; // TASK-018 ✅
 
 // Re-exports for convenience
-pub use consistency_validator::ConsistencyValidator;
 pub use completeness_scorer::CompletenessScorer;
+pub use consistency_validator::ConsistencyValidator;
 pub use quality_scorer::QualityScorer;

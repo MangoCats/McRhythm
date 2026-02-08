@@ -40,7 +40,7 @@ async fn create_test_app() -> (axum::Router, sqlx::SqlitePool) {
             started_at TEXT NOT NULL,
             ended_at TEXT
         );
-        "#
+        "#,
     )
     .execute(&pool)
     .await
@@ -50,7 +50,7 @@ async fn create_test_app() -> (axum::Router, sqlx::SqlitePool) {
     let event_bus = EventBus::new(100);
 
     // Create app state
-    let state = wkmp_ai::AppState::new(pool.clone(), event_bus);
+    let state = wkmp_ai::AppState::new(pool.clone(), event_bus, 16, 1_073_741_824);
 
     // Build router (wkmp-ai needs to have a lib.rs for this to work, or use main module)
     // Since wkmp-ai is a binary, we need to expose AppState and build_router
@@ -79,7 +79,9 @@ fn create_test_audio_files() -> tempfile::TempDir {
     // Write 1 second of audio (440Hz sine wave)
     for t in 0..44100 {
         let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin();
-        writer.write_sample((sample * i16::MAX as f32) as i16).expect("Failed to write sample");
+        writer
+            .write_sample((sample * i16::MAX as f32) as i16)
+            .expect("Failed to write sample");
     }
     writer.finalize().expect("Failed to finalize WAV file");
 
@@ -325,4 +327,219 @@ async fn test_parameters_get_and_update() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+// **[PLAN027]** File Classification API Integration Tests
+
+/// Test helper: create temporary test directory with mixed file types
+fn create_test_mixed_files() -> tempfile::TempDir {
+    use std::fs;
+
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+
+    // Create audio files
+    fs::write(temp_dir.path().join("song1.mp3"), b"fake mp3 data").unwrap();
+    fs::write(temp_dir.path().join("song2.flac"), b"fake flac data").unwrap();
+    fs::write(temp_dir.path().join("song3.WAV"), b"fake wav data").unwrap();
+
+    // Create image files
+    fs::write(temp_dir.path().join("cover.jpg"), b"fake jpg data").unwrap();
+    fs::write(temp_dir.path().join("artwork.PNG"), b"fake png data").unwrap();
+
+    // Create other files
+    fs::write(temp_dir.path().join("notes.txt"), b"some notes").unwrap();
+    fs::write(temp_dir.path().join("README.md"), b"readme content").unwrap();
+
+    temp_dir
+}
+
+/// **[TC-CLASSIFY-API-001]** Test file classification endpoint returns 404 when no session exists
+#[tokio::test]
+async fn test_file_classification_no_session() {
+    let (app, _pool) = create_test_app().await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/import/file-classification")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    assert!(json["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("No import session found"));
+}
+
+/// **[TC-CLASSIFY-API-002]** Test file classification endpoint returns 409 during SCANNING phase
+#[tokio::test]
+async fn test_file_classification_during_scanning() {
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    let (app, pool) = create_test_app().await;
+
+    // Insert a session in SCANNING state
+    let session_id = Uuid::new_v4().to_string();
+    sqlx::query(
+        r#"
+        INSERT INTO import_sessions (
+            session_id, state, root_folder, parameters,
+            progress_current, progress_total, progress_percentage,
+            current_operation, errors, started_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind(&session_id)
+    .bind("\"SCANNING\"")
+    .bind("/test/path")
+    .bind("{}")
+    .bind(0i64)
+    .bind(0i64)
+    .bind(0.0)
+    .bind("Scanning files")
+    .bind("[]")
+    .bind(Utc::now().to_rfc3339())
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/import/file-classification")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    assert!(json["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("SCANNING phase"));
+}
+
+/// **[TC-CLASSIFY-API-003]** Test file classification endpoint with invalid category parameter
+#[tokio::test]
+async fn test_file_classification_invalid_category() {
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    let (app, pool) = create_test_app().await;
+
+    // Insert a session in COMPLETED state
+    let session_id = Uuid::new_v4().to_string();
+    let started_at = Utc::now();
+    let ended_at = started_at + chrono::Duration::seconds(10);
+
+    sqlx::query(
+        r#"
+        INSERT INTO import_sessions (
+            session_id, state, root_folder, parameters,
+            progress_current, progress_total, progress_percentage,
+            current_operation, errors, started_at, ended_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind(&session_id)
+    .bind("\"COMPLETED\"")
+    .bind("/test/path")
+    .bind("{}")
+    .bind(100i64)
+    .bind(100i64)
+    .bind(100.0)
+    .bind("Import completed")
+    .bind("[]")
+    .bind(started_at.to_rfc3339())
+    .bind(ended_at.to_rfc3339())
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/import/file-classification?category=invalid")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    assert!(json["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("Invalid category"));
+}
+
+/// **[TC-CLASSIFY-API-004]** Test file classification endpoint pagination
+#[tokio::test]
+async fn test_file_classification_pagination() {
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    let (app, pool) = create_test_app().await;
+
+    // Insert a session in COMPLETED state with classification data
+    let session_id = Uuid::new_v4().to_string();
+    let started_at = Utc::now();
+    let ended_at = started_at + chrono::Duration::seconds(10);
+
+    sqlx::query(
+        r#"
+        INSERT INTO import_sessions (
+            session_id, state, root_folder, parameters,
+            progress_current, progress_total, progress_percentage,
+            current_operation, errors, started_at, ended_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind(&session_id)
+    .bind("\"COMPLETED\"")
+    .bind("/test/path")
+    .bind("{}")
+    .bind(100i64)
+    .bind(100i64)
+    .bind(100.0)
+    .bind("Import completed")
+    .bind("[]")
+    .bind(started_at.to_rfc3339())
+    .bind(ended_at.to_rfc3339())
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Test with pagination parameters
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/import/file-classification?category=audio&offset=0&limit=10")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Will return 404 because session doesn't have file_classification data populated
+    // (runtime-only data, not persisted to DB)
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

@@ -1,0 +1,8 @@
+[2025-12-31 22:08:15] [INFO] === Starting Experiment: exp1b ===
+[2025-12-31 22:08:15] [INFO] Branch: exp1b-floor-neg0.3
+[2025-12-31 22:08:15] [INFO] Current branch: exp1a-floor-0.0
+[2025-12-31 22:08:15] [INFO] Creating branch: exp1b-floor-neg0.3
+[2025-12-31 22:08:23] [ERROR] FATAL ERROR: Switched to a new branch 'exp1b-floor-neg0.3'
+[2025-12-31 22:08:23] [ERROR] Stack trace: at <ScriptBlock>, C:\Users\Mango Cat\Dev\McRhythm\scripts\run_experiment.ps1: line 68
+at <ScriptBlock>, <No file>: line 5
+[2025-12-31 22:08:30] [ERROR] Failed to return to original branch

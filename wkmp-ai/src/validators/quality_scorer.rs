@@ -205,12 +205,17 @@ impl QualityScorer {
         // Identity reliability (weight: 0.4 of reliability score)
         let identity_reliability = if passage.identity.recording_mbid.is_some() {
             // Use posterior probability if available, otherwise confidence
-            passage.identity.posterior_probability.max(passage.identity.confidence)
+            passage
+                .identity
+                .posterior_probability
+                .max(passage.identity.confidence)
         } else {
             0.0
         };
 
-        if identity_reliability < self.min_high_confidence && passage.identity.recording_mbid.is_some() {
+        if identity_reliability < self.min_high_confidence
+            && passage.identity.recording_mbid.is_some()
+        {
             recommendations.push(format!(
                 "Low identity confidence: {:.1}% (recommend manual verification)",
                 identity_reliability * 100.0
@@ -222,7 +227,11 @@ impl QualityScorer {
             passage.metadata.title.as_ref().map(|v| v.confidence),
             passage.metadata.artist.as_ref().map(|v| v.confidence),
             passage.metadata.album.as_ref().map(|v| v.confidence),
-            passage.metadata.recording_mbid.as_ref().map(|v| v.confidence),
+            passage
+                .metadata
+                .recording_mbid
+                .as_ref()
+                .map(|v| v.confidence),
         ]
         .iter()
         .filter_map(|&c| c)
@@ -337,7 +346,8 @@ impl QualityScorer {
         let can_identify = if passage.identity.recording_mbid.is_some() {
             1.0
         } else {
-            recommendations.push("Missing recording MBID (cannot track playback history)".to_string());
+            recommendations
+                .push("Missing recording MBID (cannot track playback history)".to_string());
             0.0
         };
         usability_components.push(can_identify * 0.4);
@@ -396,6 +406,7 @@ impl Validation for QualityScorer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::matching::ConfidenceTier;
     use crate::types::{ConfidenceValue, FusedFlavor, FusedIdentity, FusedMetadata};
     use std::collections::HashMap;
 
@@ -415,6 +426,7 @@ mod tests {
                 recording_mbid: Some("test-mbid-123".to_string()),
                 confidence: 0.9,
                 posterior_probability: 0.95,
+                confidence_tier: ConfidenceTier::Tier2A,
                 conflicts: vec![],
             },
             metadata: FusedMetadata {
@@ -520,10 +532,7 @@ mod tests {
         // Expected: reliability * 0.35 = 0, but other dimensions still contribute
         assert!(validation.score < 0.80);
         assert!(!validation.issues.is_empty());
-        assert!(validation
-            .issues
-            .iter()
-            .any(|issue| issue.contains("MBID")));
+        assert!(validation.issues.iter().any(|issue| issue.contains("MBID")));
     }
 
     #[tokio::test]

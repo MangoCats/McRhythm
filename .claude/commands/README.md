@@ -541,7 +541,7 @@ See wip/doc_hierarchy_validation_2025-10-28.md
 
 **What It Does:**
 - Extracts all API endpoint specifications from SPEC007-api_design.md
-- Scans all 5 microservices for Axum route definitions
+- Scans all 6 microservices for Axum route definitions
 - Analyzes handler function signatures and types
 - Compares specification vs implementation:
   - Endpoint existence

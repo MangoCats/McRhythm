@@ -21,7 +21,7 @@ serde_json = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "time"] }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 sqlx = { workspace = true }
@@ -37,6 +37,7 @@ lofty = "0.19"
 async-stream = "0.3"
 async-trait = "0.1"
 futures = "0.3"
+parking_lot = "0.12"
 # Audio fingerprinting
 # Platform-specific: static linking on Windows, dynamic on Linux/macOS
 chromaprint-sys-next = { version = "1.6" }
@@ -47,6 +48,10 @@ urlencoding = "2.1"
 sha2 = "0.10"
 # String similarity (Levenshtein distance)
 strsim = "0.11"
+# Regular expressions for pattern matching
+regex = "1.10"
+# Local time formatting for tracing
+time = { version = "0.3", features = ["local-offset", "macros", "formatting"] }
 # Audio decoding and resampling
 symphonia = { version = "0.5", features = ["all"] }
 rubato = "0.15"
@@ -56,6 +61,8 @@ tower-http = { version = "0.6", features = ["fs", "set-header"] }
 tower = { workspace = true }
 # Temporary files for audio processing
 tempfile = "3.8"
+# PLAN029 Task 2.2: Memory monitoring
+sysinfo = "0.32"
 
 [build-dependencies]
 chrono = { workspace = true }
@@ -69,3 +76,7 @@ serial_test = "3.0"
 # Windows-specific: Enable static linking for chromaprint to avoid DLL dependencies
 [target.'cfg(windows)'.dependencies]
 chromaprint-sys-next = { version = "1.6", features = ["static"] }
+
+[features]
+# Enable benchmark tests (requires test fixtures)
+benchmark_tests = []

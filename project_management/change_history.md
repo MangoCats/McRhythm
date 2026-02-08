@@ -6,6 +6,64 @@
 
 ---
 
+## 2026-02-08 10:10:06 -0500
+
+**PLAN034: Fix Single-Threaded Import Pipeline**
+
+Three-layer fix to enable true multi-threaded file processing in wkmp-ai:
+
+**Fix C — Amplitude analysis in spawn_blocking:**
+- `AmplitudeAnalyzer::analyze_file` converted from async to sync; added `#[derive(Clone)]`
+- `PassageAmplitudeAnalyzer` wraps call in `tokio::task::spawn_blocking`
+- Removed `yield_interval_ms` field/parameter (no longer needed)
+- Updated all callers: amplitude_analysis API, pipeline_plan025, tests
+
+**Fix A — Auto-detect thread count:**
+- Default `ai_processing_thread_count` changed from 1 → `available_parallelism().min(8)` (fallback 4)
+- `max_blocking_threads` changed from 2× to 3× (hash + fingerprint + amplitude concurrent)
+
+**Fix B — tokio::spawn for true task distribution:**
+- `WorkflowOrchestrator` wrapped in `Arc` at creation site
+- `execute_import_plan024`, `phase_processing_per_file` take `self: &Arc<Self>`
+- Worker pool uses `tokio::spawn` instead of direct future push in FuturesUnordered
+- Added JoinError handling for panicked tasks
+
+**Files changed:** 8 files, 80 insertions, 92 deletions
+**Tests:** 798 passed, 0 failed
+
+---
+
+## 2026-02-03 08:37:09 -0500 | Hash: c41175d9f8cd40a0a86e8fbfadcd4e9e8b45ed97
+
+**Album Matching: Duration Filter Widening + Artist-Relaxed Fallback Search**
+
+Implements two strategies to fix albums rejected during edition filtering:
+
+**Strategy B — Duration Filter Widening:**
+- `MIN_DURATION_RATIO` changed from 85% to 80% in constants.rs
+- Allows borderline editions like Guardians of the Galaxy (84.95% ratio)
+- filtering.rs now imports constants instead of local values
+
+**Strategy A — Artist-Relaxed Fallback Search:**
+- New `album_only_search()` method in musicbrainz_client.rs (~90 lines)
+- Searches MusicBrainz by album title only, bypassing artist constraint
+- Addresses mismatches like "Disney" vs "Lin-Manuel Miranda" (Moana)
+- Triggers when: no match, last track error >60s, or name_score <0.60
+- Deduplicates against primary editions before orchestration
+- Uses fallback if better name_score (prioritizes name accuracy)
+
+**New constants in constants.rs:**
+- `MIN_DURATION_RATIO: f64 = 0.80`
+- `MAX_DURATION_RATIO: f64 = 1.25`
+- `FALLBACK_SEARCH_LIMIT: usize = 25`
+
+**Regression test (200 albums):** 0 regressions, 3 fixes
+- NativeAmericanFluteLullabies: 93.8% → 100% (fallback)
+- LiveAtTheAncienneBelgique: newly matched
+- TheGreatestShowman: newly matched
+
+---
+
 ## Instructions
 
 This file is automatically maintained by the `/commit` workflow. Each commit appends:
@@ -21,7 +79,7 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-11-12 20:55:45 -0500
+### 2025-11-12 20:55:45 -0500 | Hash: 43fc541ebd9f48ddd42cde4b0950e812fb5cd976
 
 **Archive PLAN023 WKMP-AI Recode Plan**
 

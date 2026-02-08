@@ -100,7 +100,9 @@ impl ChromaprintAnalyzer {
         // This handles: validation, start, f32→i16 conversion, feed, finish, get_fingerprint
         let fingerprint = ctx
             .generate_fingerprint(samples, sample_rate, num_channels)
-            .map_err(|e| ExtractionError::Internal(format!("Fingerprint generation failed: {}", e)))?;
+            .map_err(|e| {
+                ExtractionError::Internal(format!("Fingerprint generation failed: {}", e))
+            })?;
 
         debug!(
             fingerprint_length = fingerprint.len(),
@@ -165,7 +167,12 @@ impl SourceExtractor for ChromaprintAnalyzer {
         let samples_clone = samples.clone();
         let base_confidence = self.base_confidence;
         let fingerprint = tokio::task::spawn_blocking(move || {
-            Self::generate_fingerprint_sync(&samples_clone, sample_rate, num_channels, base_confidence)
+            Self::generate_fingerprint_sync(
+                &samples_clone,
+                sample_rate,
+                num_channels,
+                base_confidence,
+            )
         })
         .await
         .map_err(|e| ExtractionError::Internal(format!("Fingerprint task panicked: {}", e)))??;
@@ -224,11 +231,9 @@ mod tests {
     #[test]
     fn test_generate_fingerprint_empty_samples() {
         let analyzer = ChromaprintAnalyzer::new();
-        let result = ChromaprintAnalyzer::generate_fingerprint_sync(&[], 44100, 2, analyzer.base_confidence);
-        assert!(
-            result.is_err(),
-            "Should fail for empty audio samples"
-        );
+        let result =
+            ChromaprintAnalyzer::generate_fingerprint_sync(&[], 44100, 2, analyzer.base_confidence);
+        assert!(result.is_err(), "Should fail for empty audio samples");
         assert!(matches!(result.unwrap_err(), ExtractionError::Internal(_)));
     }
 
@@ -237,10 +242,20 @@ mod tests {
         let analyzer = ChromaprintAnalyzer::new();
         let samples = vec![0.0f32; 44100]; // 1 second of silence
 
-        let result = ChromaprintAnalyzer::generate_fingerprint_sync(&samples, 44100, 0, analyzer.base_confidence);
+        let result = ChromaprintAnalyzer::generate_fingerprint_sync(
+            &samples,
+            44100,
+            0,
+            analyzer.base_confidence,
+        );
         assert!(result.is_err(), "Should fail for 0 channels");
 
-        let result = ChromaprintAnalyzer::generate_fingerprint_sync(&samples, 44100, 3, analyzer.base_confidence);
+        let result = ChromaprintAnalyzer::generate_fingerprint_sync(
+            &samples,
+            44100,
+            3,
+            analyzer.base_confidence,
+        );
         assert!(result.is_err(), "Should fail for 3 channels");
     }
 
@@ -260,7 +275,10 @@ mod tests {
         };
 
         let result = analyzer.extract(&ctx).await;
-        assert!(result.is_err(), "Should fail when no audio samples provided");
+        assert!(
+            result.is_err(),
+            "Should fail when no audio samples provided"
+        );
     }
 
     #[tokio::test]
@@ -279,7 +297,10 @@ mod tests {
         };
 
         let result = analyzer.extract(&ctx).await;
-        assert!(result.is_err(), "Should fail when sample rate not specified");
+        assert!(
+            result.is_err(),
+            "Should fail when sample rate not specified"
+        );
     }
 
     #[tokio::test]

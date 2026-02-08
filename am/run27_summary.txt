@@ -1,0 +1,138 @@
+[2m2025-11-25T15:32:09.120548-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   38 Special - Anthology: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.120565-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Ace of Base - Happy Nation (U.S. Version) (Remastered): -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.120579-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Alice In Chains - Greatest Hits: -50dB, 1.5s → 100.0%
+[2m2025-11-25T15:32:09.120592-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Allman Brothers - At Fillmore East: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.120639-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Ambrosia - The Essentials: Ambrosia: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.120653-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Asia - Gold: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.120665-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   BTS - Wings: -56dB, 0.3s → 100.0%
+[2m2025-11-25T15:32:09.120677-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Bear's Den - Islands: -58dB, 1.5s → 95.0%
+[2m2025-11-25T15:32:09.120691-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Beck - Hyperspace: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.120704-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Robyn - Body Talk: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.120716-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Bjork - Vespertine: -50dB, 2.5s → 100.0%
+[2m2025-11-25T15:32:09.120728-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Blackmore's Night - Beyond the Sunset: -58dB, 2s → 76.5%
+[2m2025-11-25T15:32:09.120740-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Bon Jovi - Bon Jovi: -58dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.120752-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Dave Brubeck Quartet - The Best Of The Dave Brubeck Quartet (1979-2004): -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.120765-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Jimmy Buffett - Life On The Flipside: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.120777-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Chemical Brothers - Dig Your Own Hole: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.120790-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Chemical Brothers - Further: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.120803-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Chumbawamba - Tubthumper: -58dB, 2s → 91.7%
+[2m2025-11-25T15:32:09.120815-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Derek & The Dominos - Layla And Other Assorted Love Songs: -62dB, 0.2s → 100.0%
+[2m2025-11-25T15:32:09.120829-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Chick Corea - Light as a Feather: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.120841-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Christopher Cross - Christopher Cross: -58dB, 1.5s → 100.0%
+[2m2025-11-25T15:32:09.120854-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Crystal Method - Tweekend: -50dB, 0.3s → 100.0%
+[2m2025-11-25T15:32:09.120866-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Daft Punk - Homework: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.120878-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Daft Punk - TRON: Legacy Reconfigured: -50dB, 0.4s → 100.0%
+[2m2025-11-25T15:32:09.120890-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Deep Purple - Machine Head: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.120902-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Def Leppard - Pyromania: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.120915-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Devo - Freedom Of Choice: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.120926-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Thomas Dolby - A Map Of The Floating City: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.120939-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Thomas Dolby - Aliens Ate My Buick: -58dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.120951-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Doobie Brothers - Minute By Minute: -62dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.120963-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Doobie Brothers - Takin' It to the Streets: -58dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.120976-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Doobie Brothers - Toulouse Street: -58dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.120988-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Duran Duran - Rio: -50dB, 3s → 93.1%
+[2m2025-11-25T15:32:09.121000-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Eagles - Desperado: -60dB, 0.1s → 100.0%
+[2m2025-11-25T15:32:09.121012-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Eagles - Eagles (2013 Remaster): -50dB, 1.5s → 100.0%
+[2m2025-11-25T15:32:09.121025-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Eagles - On the Border: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121037-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Eagles - One of These Nights: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.121050-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Fatboy Slim - The Greatest Hits - Why Try Harder: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121063-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Samantha Fish - Black Wind Howlin': -50dB, 0.8s → 100.0%
+[2m2025-11-25T15:32:09.121075-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Fixx - Beautiful Friction: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121087-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Fluke - Oto: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121100-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Fluke - Risotto: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121113-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Fluke - Six Wheels On My Wagon: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121126-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Foreigner - 4: -60dB, 0.3s → 100.0%
+[2m2025-11-25T15:32:09.121138-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Foreigner - Double Vision: -50dB, 0.8s → 100.0%
+[2m2025-11-25T15:32:09.121151-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Foreigner - Foreigner (Expanded): -62dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121163-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Foreigner - Head Games: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.121175-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Peter Frampton - Frampton Comes Alive: -50dB, 0.1s → 100.0%
+[2m2025-11-25T15:32:09.121187-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Georgia Satellites - Essentials: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121199-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Go-Go's - Beauty And The Beat: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121211-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Grand Funk Railroad - Closer To Home: -54dB, 0.3s → 100.0%
+[2m2025-11-25T15:32:09.121223-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Groove Armada - White Light: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121235-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Guns N' Roses - Appetite For Destruction: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121247-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Hall and Oates - The Very Best of Daryl Hall / John Oates: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121260-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Humpback Whales - Songs of the Humpback Whale: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121272-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Hush Sound - Like Vines: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121283-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Hyper - We Control: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121295-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Michael Jackson - Thriller: -50dB, 0.5s → 88.9%
+[2m2025-11-25T15:32:09.121307-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Jethro Tull - Thick as a Brick: -62dB, 5s → 100.0%
+[2m2025-11-25T15:32:09.121319-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Jewel - Lullaby: -50dB, 4s → 100.0%
+[2m2025-11-25T15:32:09.121331-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Elton John - Captain Fantastic And The Brown Dirt Cowboy: -62dB, 0.2s → 96.2%
+[2m2025-11-25T15:32:09.121344-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Jack Johnson - In Between Dreams: -58dB, 1.5s → 100.0%
+[2m2025-11-25T15:32:09.121357-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Jack Johnson - To The Sea: -58dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121370-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   KISS - Greatest Kiss: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121382-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Kansas - The Prelude Implicit (Deluxe Edition): -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121395-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Katrina & The Waves - Katrina & The Waves: -50dB, 1.5s → 100.0%
+[2m2025-11-25T15:32:09.121407-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Greg Kihn Band - Greg Kihn Band "Best Of Beserkley" '75-'84: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121420-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Mark Knopfler - Privateering: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121432-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Kraftwerk - Trans Europe Express: -50dB, 1.5s → 100.0%
+[2m2025-11-25T15:32:09.121445-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Lady Gaga - Chromatica: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.121458-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Led Zeppelin - Led Zeppelin (Deluxe Edition): -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121470-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Led Zeppelin - Led Zeppelin II (Deluxe Edition): -60dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121483-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Led Zeppelin - Led Zeppelin III (Deluxe Edition): -58dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121497-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Lorde - Melodrama: -50dB, 2.5s → 100.0%
+[2m2025-11-25T15:32:09.121509-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   M83 - Junk: -58dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121521-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Bob Marley & The Wailers - Catch A Fire: -38dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121533-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Massive Attack - Mezzanine: -62dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121545-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   John Mayall - A Hard Road: -62dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121557-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Michael McDonald - If That's What It Takes: -58dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121569-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   John Mellencamp - American Fool: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.121581-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Men At Work - Business As Usual: -58dB, 1s → 100.0%
+[2m2025-11-25T15:32:09.121593-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Steve Miller Band - Fly Like An Eagle: -48dB, 0.8s → 100.0%
+[2m2025-11-25T15:32:09.121630-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Moby - Extreme Ways (Bourne's Legacy): -58dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121648-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Moby - Wait For Me: -58dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121660-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Molly Hatchet - Greatest Hits: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.121673-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Eddie Money - The Best of Eddie Money: -50dB, 1.5s → 100.0%
+[2m2025-11-25T15:32:09.121685-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Nine Inch Nails - Pretty Hate Machine: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121697-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Heather Nova - 300 Days At Sea: -50dB, 0.3s → 100.0%
+[2m2025-11-25T15:32:09.121709-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Heather Nova - Live From The Milky Way: -58dB, 0.1s → 100.0%
+[2m2025-11-25T15:32:09.121722-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Heather Nova - Pearl: -60dB, 0.2s → 100.0%
+[2m2025-11-25T15:32:09.121735-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Heather Nova - South: -60dB, 0.4s → 100.0%
+[2m2025-11-25T15:32:09.121747-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Ric Ocasek - Nexterday: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.121759-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Outlaws - Best Of...Green Grass & High Tides: -50dB, 0.8s → 100.0%
+[2m2025-11-25T15:32:09.121772-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Paramore - Paramore (Deluxe Edition): -58dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121785-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Pet Shop Boys - Essential: -50dB, 3s → 84.6%
+[2m2025-11-25T15:32:09.121797-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Delerium - Ritual: -50dB, 4s → 100.0%
+[2m2025-11-25T15:32:09.121808-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Pink - Greatest Hits...So Far!!!: -50dB, 1s → 100.0%
+[2m2025-11-25T15:32:09.121821-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Police - Outlandos D'Amour: -58dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121833-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Portugal, The Man - Woodstock: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121845-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Flora Purim - Butterfly Dreams: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121857-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   R.E.O. Speedwagon - You Can Tune a Piano But You Can't Tuna Fish: -52dB, 0.8s → 100.0%
+[2m2025-11-25T15:32:09.121870-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Radiohead - Pablo Honey: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121882-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Gerry Rafferty - City To City: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121894-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Ram Jam - The Very Best Of Ram Jam: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.121907-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Red Rider - Breaking Curfew: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121918-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Red Rider - Don't Fight It: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121931-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Robyn - Body Talk: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121944-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Rolling Stones - Exile On Main Street: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121956-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Todd Rundgren - The Very Best Of Todd Rundgren: -58dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.121969-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Rush - Exit Stage Left: -50dB, 0.5s → 100.0%
+[2m2025-11-25T15:32:09.121981-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Rush - Test For Echo: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.121993-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Scorpions - Love At First Sting: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122006-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Seals and Crofts - Summer Breeze: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.122017-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Smash Mouth - Astro Lounge: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122030-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Smash Mouth - Fush Yu Mang: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122042-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Sneaker Pimps - Becoming X: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.122055-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Southern Pacific - Southern Pacific: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122067-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Billy Squier - Don't Say No: -34dB, 1.5s → 100.0%
+[2m2025-11-25T15:32:09.122080-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Donald Fagen - Sunken Condos: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122092-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Donald Fagen - The Nightfly: -52dB, 0.8s → 100.0%
+[2m2025-11-25T15:32:09.122104-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Steely Dan - Gaucho: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122116-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Steely Dan - The Royal Scam: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122128-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Steppenwolf - The ABC/Dunhill Singles: -60dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122140-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   The Stray Cats - Built For Speed: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122153-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Tedeschi Trucks Band - Let Me Get By: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.122168-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Thin Lizzy - Live And Dangerous: -58dB, 0.3s → 100.0%
+[2m2025-11-25T15:32:09.122182-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   George Thorogood and the Destroyers - The Baddest of George Thorogood and the Destroyers: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122196-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Traffic - John Barlerycorn Must Die: -54dB, 0.3s → 100.0%
+[2m2025-11-25T15:32:09.122208-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   U2 - Rattle and Hum: -60dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.122221-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Van Halen - 1984: -50dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122233-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Van Halen - Fair Warning: -58dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.122245-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Disney - Moana Soundtrack: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.122257-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Jessita Reyes - Native American Flute Lullabies: -58dB, 3s → 100.0%
+[2m2025-11-25T15:32:09.122270-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Various - Tomb Raider: -50dB, 3s → 93.8%
+[2m2025-11-25T15:32:09.122283-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Suzanne Vega - Tales from the Realm of the Queen of Pentacles: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.122295-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Wham! - Make It Big: -50dB, 2s → 100.0%
+[2m2025-11-25T15:32:09.122308-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   "Weird Al" Yankovic - The Essential "Weird Al" Yankovic: -60dB, 0.8s → 100.0%
+[2m2025-11-25T15:32:09.122321-05:00[0m [32m INFO[0m ThreadId(01) [2m5900:[0m   Warren Zevon - Excitable Boy: -50dB, 2s → 100.0%

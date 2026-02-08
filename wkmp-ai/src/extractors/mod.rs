@@ -33,19 +33,19 @@
 //! - ⏳ TASK-011: ID3 Genre Mapper
 
 // Module declarations (implemented extractors)
-pub mod id3_extractor;           // TASK-005 ✅
-pub mod chromaprint_analyzer;    // TASK-006 ✅
-pub mod acoustid_client;         // TASK-007 ✅
-pub mod musicbrainz_client;      // TASK-008 ✅
-pub mod essentia_analyzer;       // TASK-009 ✅
+pub mod acoustid_client; // TASK-007 ✅
 pub mod audio_derived_extractor; // TASK-010 ✅
-pub mod id3_genre_mapper;        // TASK-011 ✅
+pub mod chromaprint_analyzer; // TASK-006 ✅
+pub mod essentia_analyzer; // TASK-009 ✅
+pub mod id3_extractor; // TASK-005 ✅
+pub mod id3_genre_mapper;
+pub mod musicbrainz_client; // TASK-008 ✅ // TASK-011 ✅
 
 // All 7 Tier 1 extractors complete! ✅
 
-use crate::types::{ExtractionResult, PassageContext, SourceExtractor};
 #[cfg(test)]
 use crate::types::ExtractionError;
+use crate::types::{ExtractionResult, PassageContext, SourceExtractor};
 use futures::future::join_all;
 use std::sync::Arc;
 use tracing::{debug, warn};
@@ -115,7 +115,7 @@ impl ParallelExtractor {
                         warn!(
                             extractor = name,
                             passage_id = %ctx.passage_id,
-                            error = %e,
+                            error = ?e,
                             "Extraction failed (per-passage error isolation)"
                         );
                         None
@@ -124,11 +124,7 @@ impl ParallelExtractor {
             }
         });
 
-        join_all(futures)
-            .await
-            .into_iter()
-            .flatten()
-            .collect()
+        join_all(futures).await.into_iter().flatten().collect()
     }
 
     /// Get extractor count

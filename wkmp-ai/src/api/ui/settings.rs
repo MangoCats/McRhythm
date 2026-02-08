@@ -1,7 +1,7 @@
 //! Settings page handler - Configuration interface
 
-use axum::response::{Html, IntoResponse};
 use super::static_assets::SETTINGS_HTML_CONTENT;
+use axum::response::{Html, IntoResponse};
 
 /// GET /settings
 ///

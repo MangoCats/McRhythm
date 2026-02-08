@@ -1,0 +1,1537 @@
+[     0.003s] === Full Library Import Test Started ===
+Total files: 5737
+Album matching: true
+Cache database: c:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\test_recording_cache.db (existing)
+[     0.003s] FILE_START [1/5737] 01-These_Are_Days.mp3
+[     0.005s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\01-These_Are_Days.mp3"
+[     0.005s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\01-These_Are_Days.mp3", score: 2.8, is_single_track: true }
+[    12.631s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8286289920, confidence: 0.8, timestamp: 1766347662 }
+[    12.631s] EVENT PassageStarted: passage #0
+[    12.631s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347662 }
+[    12.631s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347662 }
+[    12.631s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347662 }
+[    13.048s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347663 }
+[    13.048s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347663 }
+[    13.640s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347663 }
+[    13.640s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347663 }
+[    13.640s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347663 }
+[    13.640s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347663 }
+[    13.640s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347663 }
+[    13.645s] FILE_COMPLETE [1/5737] 01-These_Are_Days.mp3 - 1 passages in 13.64s (total_elapsed: 13.6s)
+[    13.645s] FILE_START [2/5737] 02-Eat_For_Two.mp3
+[    13.646s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347663 }
+[    13.646s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347663 }
+[    13.646s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347663 }
+[    13.646s] EVENT PassageCompleted: passage #0
+[    13.646s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\01-These_Are_Days.mp3"
+[    13.646s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\02-Eat_For_Two.mp3"
+[    13.646s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\02-Eat_For_Two.mp3", score: 2.8, is_single_track: true }
+[    24.572s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7410401280, confidence: 0.5, timestamp: 1766347674 }
+[    24.572s] EVENT PassageStarted: passage #0
+[    24.572s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347674 }
+[    24.572s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347674 }
+[    24.572s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347674 }
+[    24.910s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347674 }
+[    24.910s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347674 }
+[    25.435s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347675 }
+[    25.435s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347675 }
+[    25.435s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347675 }
+[    25.435s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347675 }
+[    25.435s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347675 }
+[    25.439s] FILE_COMPLETE [2/5737] 02-Eat_For_Two.mp3 - 1 passages in 11.79s (total_elapsed: 25.4s)
+[    25.439s] FILE_START [3/5737] 03-Candy_Everybody_Wants.mp3
+[    25.440s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347675 }
+[    25.440s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347675 }
+[    25.440s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347675 }
+[    25.440s] EVENT PassageCompleted: passage #0
+[    25.440s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\02-Eat_For_Two.mp3"
+[    25.440s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\03-Candy_Everybody_Wants.mp3"
+[    25.440s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\03-Candy_Everybody_Wants.mp3", score: 2.8, is_single_track: true }
+[    33.867s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 5635031040, confidence: 0.5, timestamp: 1766347683 }
+[    33.867s] EVENT PassageStarted: passage #0
+[    33.867s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347683 }
+[    33.867s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347683 }
+[    33.867s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347683 }
+[    34.120s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347684 }
+[    34.120s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347684 }
+[    34.520s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347684 }
+[    34.520s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347684 }
+[    34.520s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347684 }
+[    34.520s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347684 }
+[    34.520s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347684 }
+[    34.523s] FILE_COMPLETE [3/5737] 03-Candy_Everybody_Wants.mp3 - 1 passages in 9.08s (total_elapsed: 34.5s)
+[    34.523s] FILE_START [4/5737] 04-I'm_Not_The_Man.mp3
+[    34.524s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347684 }
+[    34.524s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347684 }
+[    34.524s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347684 }
+[    34.524s] EVENT PassageCompleted: passage #0
+[    34.524s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\03-Candy_Everybody_Wants.mp3"
+[    34.524s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\04-I'm_Not_The_Man.mp3"
+[    34.524s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\04-I'm_Not_The_Man.mp3", score: 2.8, is_single_track: true }
+[    43.653s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6390005760, confidence: 0.8, timestamp: 1766347693 }
+[    43.653s] EVENT PassageStarted: passage #0
+[    43.653s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347693 }
+[    43.653s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347693 }
+[    43.653s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347693 }
+[    43.960s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347693 }
+[    43.960s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347693 }
+[    44.419s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347694 }
+[    44.419s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347694 }
+[    44.419s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347694 }
+[    44.419s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347694 }
+[    44.419s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347694 }
+[    44.422s] FILE_COMPLETE [4/5737] 04-I'm_Not_The_Man.mp3 - 1 passages in 9.90s (total_elapsed: 44.4s)
+[    44.422s] FILE_START [5/5737] 05-Don't_Talk.mp3
+[    44.422s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347694 }
+[    44.422s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347694 }
+[    44.422s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347694 }
+[    44.422s] EVENT PassageCompleted: passage #0
+[    44.422s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\04-I'm_Not_The_Man.mp3"
+[    44.422s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\05-Don't_Talk.mp3"
+[    44.422s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\05-Don't_Talk.mp3", score: 2.8, is_single_track: true }
+[    59.216s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 9086976000, confidence: 0.5, timestamp: 1766347709 }
+[    59.216s] EVENT PassageStarted: passage #0
+[    59.216s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347709 }
+[    59.216s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347709 }
+[    59.216s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347709 }
+[    59.602s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347709 }
+[    59.602s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347709 }
+[    60.257s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347710 }
+[    60.258s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347710 }
+[    60.258s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347710 }
+[    60.258s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347710 }
+[    60.258s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347710 }
+[    60.266s] FILE_COMPLETE [5/5737] 05-Don't_Talk.mp3 - 1 passages in 15.84s (total_elapsed: 60.3s)
+[    60.266s] FILE_START [6/5737] 06-Hey_Jack_Kerouac.mp3
+[    60.268s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347710 }
+[    60.268s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347710 }
+[    60.268s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347710 }
+[    60.268s] EVENT PassageCompleted: passage #0
+[    60.268s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\05-Don't_Talk.mp3"
+[    60.268s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\06-Hey_Jack_Kerouac.mp3"
+[    60.269s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\06-Hey_Jack_Kerouac.mp3", score: 2.8, is_single_track: true }
+[    70.923s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6457835520, confidence: 0.5, timestamp: 1766347720 }
+[    70.923s] EVENT PassageStarted: passage #0
+[    70.923s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347720 }
+[    70.923s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347720 }
+[    70.923s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347720 }
+[    71.224s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347721 }
+[    71.224s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347721 }
+[    71.688s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347721 }
+[    71.688s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347721 }
+[    71.688s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347721 }
+[    71.688s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347721 }
+[    71.688s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347721 }
+[    71.692s] FILE_COMPLETE [6/5737] 06-Hey_Jack_Kerouac.mp3 - 1 passages in 11.43s (total_elapsed: 71.7s)
+[    71.692s] FILE_START [7/5737] 07-What's_The_Matter_Here-.mp3
+[    71.693s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347721 }
+[    71.693s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347721 }
+[    71.693s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347721 }
+[    71.693s] EVENT PassageCompleted: passage #0
+[    71.693s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\06-Hey_Jack_Kerouac.mp3"
+[    71.693s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\07-What's_The_Matter_Here-.mp3"
+[    71.693s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\07-What's_The_Matter_Here-.mp3", score: 2.8, is_single_track: true }
+[    85.450s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8204451840, confidence: 0.8, timestamp: 1766347735 }
+[    85.450s] EVENT PassageStarted: passage #0
+[    85.450s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347735 }
+[    85.450s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347735 }
+[    85.450s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347735 }
+[    85.826s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347735 }
+[    85.826s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347735 }
+[    86.388s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347736 }
+[    86.388s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347736 }
+[    86.388s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347736 }
+[    86.388s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347736 }
+[    86.388s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347736 }
+[    86.392s] FILE_COMPLETE [7/5737] 07-What's_The_Matter_Here-.mp3 - 1 passages in 14.70s (total_elapsed: 86.4s)
+[    86.392s] FILE_START [8/5737] 08-Gold_Rush_Brides.mp3
+[    86.392s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347736 }
+[    86.392s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347736 }
+[    86.393s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347736 }
+[    86.393s] EVENT PassageCompleted: passage #0
+[    86.393s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\07-What's_The_Matter_Here-.mp3"
+[    86.393s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\08-Gold_Rush_Brides.mp3"
+[    86.393s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\08-Gold_Rush_Brides.mp3", score: 2.8, is_single_track: true }
+[    96.638s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7106641920, confidence: 0.5, timestamp: 1766347746 }
+[    96.638s] EVENT PassageStarted: passage #0
+[    96.638s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347746 }
+[    96.638s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347746 }
+[    96.638s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347746 }
+[    96.967s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347746 }
+[    96.967s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347746 }
+[    97.470s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347747 }
+[    97.470s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347747 }
+[    97.470s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347747 }
+[    97.470s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347747 }
+[    97.470s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347747 }
+[    97.474s] FILE_COMPLETE [8/5737] 08-Gold_Rush_Brides.mp3 - 1 passages in 11.08s (total_elapsed: 97.5s)
+[    97.474s] FILE_START [9/5737] 09-Like_The_Weather.mp3
+[    97.475s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347747 }
+[    97.475s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347747 }
+[    97.475s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347747 }
+[    97.475s] EVENT PassageCompleted: passage #0
+[    97.475s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\08-Gold_Rush_Brides.mp3"
+[    97.475s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\09-Like_The_Weather.mp3"
+[    97.475s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\09-Like_The_Weather.mp3", score: 2.8, is_single_track: true }
+[   108.400s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7196590080, confidence: 0.5, timestamp: 1766347758 }
+[   108.400s] EVENT PassageStarted: passage #0
+[   108.400s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347758 }
+[   108.400s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347758 }
+[   108.400s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347758 }
+[   108.739s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347758 }
+[   108.739s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347758 }
+[   109.267s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347759 }
+[   109.267s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347759 }
+[   109.267s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347759 }
+[   109.267s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347759 }
+[   109.267s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347759 }
+[   109.270s] FILE_COMPLETE [9/5737] 09-Like_The_Weather.mp3 - 1 passages in 11.80s (total_elapsed: 109.3s)
+[   109.270s] FILE_START [10/5737] 10-Trouble_Me.mp3
+[   109.273s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347759 }
+[   109.273s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347759 }
+[   109.273s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347759 }
+[   109.273s] EVENT PassageCompleted: passage #0
+[   109.273s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\09-Like_The_Weather.mp3"
+[   109.273s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\10-Trouble_Me.mp3"
+[   109.273s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\10-Trouble_Me.mp3", score: 2.8, is_single_track: true }
+[   118.239s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6231490560, confidence: 0.5, timestamp: 1766347768 }
+[   118.239s] EVENT PassageStarted: passage #0
+[   118.239s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347768 }
+[   118.239s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347768 }
+[   118.239s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347768 }
+[   118.517s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347768 }
+[   118.517s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347768 }
+[   118.952s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347768 }
+[   118.952s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347768 }
+[   118.952s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347768 }
+[   118.952s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347768 }
+[   118.952s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347768 }
+[   118.955s] FILE_COMPLETE [10/5737] 10-Trouble_Me.mp3 - 1 passages in 9.68s (total_elapsed: 119.0s)
+[   118.955s] PROGRESS 10/5737 (0.2%) - 0.08 files/sec - ETA: 1135.4min
+[   118.955s] FILE_START [11/5737] 11-Jezebel.mp3
+[   118.960s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347768 }
+[   118.960s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347768 }
+[   118.960s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347768 }
+[   118.960s] EVENT PassageCompleted: passage #0
+[   118.960s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\10-Trouble_Me.mp3"
+[   118.960s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\11-Jezebel.mp3"
+[   118.960s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\11-Jezebel.mp3", score: 2.8, is_single_track: true }
+[   129.996s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7449477120, confidence: 0.5, timestamp: 1766347779 }
+[   129.996s] EVENT PassageStarted: passage #0
+[   129.996s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347779 }
+[   129.996s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347779 }
+[   129.996s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347779 }
+[   130.360s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347780 }
+[   130.360s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347780 }
+[   130.905s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347780 }
+[   130.905s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347780 }
+[   130.905s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347780 }
+[   130.905s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347780 }
+[   130.905s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347780 }
+[   130.913s] FILE_COMPLETE [11/5737] 11-Jezebel.mp3 - 1 passages in 11.96s (total_elapsed: 130.9s)
+[   130.913s] FILE_START [12/5737] 12-Because_The_Night.mp3
+[   130.915s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347780 }
+[   130.915s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347780 }
+[   130.915s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347780 }
+[   130.915s] EVENT PassageCompleted: passage #0
+[   130.915s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\11-Jezebel.mp3"
+[   130.915s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\12-Because_The_Night.mp3"
+[   130.915s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\12-Because_The_Night.mp3", score: 2.8, is_single_track: true }
+[   139.985s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6305955840, confidence: 0.5, timestamp: 1766347789 }
+[   139.985s] EVENT PassageStarted: passage #0
+[   139.985s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347789 }
+[   139.985s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347789 }
+[   139.985s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347789 }
+[   140.276s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347790 }
+[   140.276s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347790 }
+[   140.718s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347790 }
+[   140.718s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347790 }
+[   140.718s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347790 }
+[   140.718s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347790 }
+[   140.718s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347790 }
+[   140.721s] FILE_COMPLETE [12/5737] 12-Because_The_Night.mp3 - 1 passages in 9.81s (total_elapsed: 140.7s)
+[   140.721s] FILE_START [13/5737] 13-Stockton_Gala_Days.mp3
+[   140.726s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347790 }
+[   140.726s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347790 }
+[   140.726s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347790 }
+[   140.726s] EVENT PassageCompleted: passage #0
+[   140.726s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\12-Because_The_Night.mp3"
+[   140.726s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\13-Stockton_Gala_Days.mp3"
+[   140.726s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\13-Stockton_Gala_Days.mp3", score: 2.8, is_single_track: true }
+[   154.116s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 9292677120, confidence: 0.5, timestamp: 1766347804 }
+[   154.116s] EVENT PassageStarted: passage #0
+[   154.116s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347804 }
+[   154.116s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347804 }
+[   154.116s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347804 }
+[   154.530s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347804 }
+[   154.530s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347804 }
+[   155.200s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347805 }
+[   155.200s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347805 }
+[   155.200s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347805 }
+[   155.200s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347805 }
+[   155.200s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347805 }
+[   155.208s] FILE_COMPLETE [13/5737] 13-Stockton_Gala_Days.mp3 - 1 passages in 14.49s (total_elapsed: 155.2s)
+[   155.208s] FILE_START [14/5737] 14-Noah's_Dove.mp3
+[   155.210s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347805 }
+[   155.210s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347805 }
+[   155.210s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347805 }
+[   155.210s] EVENT PassageCompleted: passage #0
+[   155.210s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\13-Stockton_Gala_Days.mp3"
+[   155.210s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\14-Noah's_Dove.mp3"
+[   155.210s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\14-Noah's_Dove.mp3", score: 2.8, is_single_track: true }
+[   167.509s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8682946560, confidence: 0.5, timestamp: 1766347817 }
+[   167.509s] EVENT PassageStarted: passage #0
+[   167.509s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766347817 }
+[   167.509s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766347817 }
+[   167.509s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766347817 }
+[   167.904s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766347817 }
+[   167.904s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766347817 }
+[   168.523s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766347818 }
+[   168.523s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766347818 }
+[   168.523s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766347818 }
+[   168.523s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347818 }
+[   168.523s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766347818 }
+[   168.531s] FILE_COMPLETE [14/5737] 14-Noah's_Dove.mp3 - 1 passages in 13.32s (total_elapsed: 168.5s)
+[   168.531s] FILE_START [15/5737] Anthology.mp3
+[   168.533s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766347818 }
+[   168.533s] EVENT FusionStarted { passage_index: 0, timestamp: 1766347818 }
+[   168.533s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766347818 }
+[   168.533s] EVENT PassageCompleted: passage #0
+[   168.533s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\10,000_Maniacs\\MTV_Unplugged\\14-Noah's_Dove.mp3"
+[   168.533s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\38 Special\\Anthology.mp3"
+[   168.533s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\38 Special\\Anthology.mp3", score: -0.5, is_single_track: false }
+[   168.533s] EVENT AlbumMatchingStarted: "C:\\Users\\Mango Cat\\Music\\38 Special\\Anthology.mp3"
+[   542.699s] FILE_COMPLETE [15/5737] Anthology.mp3 - 34 passages in 374.17s (total_elapsed: 542.7s)
+[   542.699s] FILE_START [16/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-01-Train_.mp3
+[   542.700s] EVENT AlbumMatchingCompleted: "C:\\Users\\Mango Cat\\Music\\38 Special\\Anthology.mp3"
+[   542.700s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6636332160, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #0
+[   542.700s] EVENT PassageCompleted: passage #0
+[   542.700s] EVENT BoundaryDetected { passage_index: 1, start_time: 6636332160, end_time: 13688426880, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #1
+[   542.700s] EVENT PassageCompleted: passage #1
+[   542.700s] EVENT BoundaryDetected { passage_index: 2, start_time: 13688426880, end_time: 18930420480, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #2
+[   542.700s] EVENT PassageCompleted: passage #2
+[   542.700s] EVENT BoundaryDetected { passage_index: 3, start_time: 18930420480, end_time: 26688147839, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #3
+[   542.700s] EVENT PassageCompleted: passage #3
+[   542.700s] EVENT BoundaryDetected { passage_index: 4, start_time: 26688147839, end_time: 33472941440, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #4
+[   542.700s] EVENT PassageCompleted: passage #4
+[   542.700s] EVENT BoundaryDetected { passage_index: 5, start_time: 33472941440, end_time: 42341837440, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #5
+[   542.700s] EVENT PassageCompleted: passage #5
+[   542.700s] EVENT BoundaryDetected { passage_index: 6, start_time: 42341837440, end_time: 49499371520, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #6
+[   542.700s] EVENT PassageCompleted: passage #6
+[   542.700s] EVENT BoundaryDetected { passage_index: 7, start_time: 49499371520, end_time: 56295096960, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #7
+[   542.700s] EVENT PassageCompleted: passage #7
+[   542.700s] EVENT BoundaryDetected { passage_index: 8, start_time: 56295096960, end_time: 64507024640, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #8
+[   542.700s] EVENT PassageCompleted: passage #8
+[   542.700s] EVENT BoundaryDetected { passage_index: 9, start_time: 64507024640, end_time: 72256641280, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #9
+[   542.700s] EVENT PassageCompleted: passage #9
+[   542.700s] EVENT BoundaryDetected { passage_index: 10, start_time: 72256641280, end_time: 80695669120, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #10
+[   542.700s] EVENT PassageCompleted: passage #10
+[   542.700s] EVENT BoundaryDetected { passage_index: 11, start_time: 80695669120, end_time: 87624692480, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #11
+[   542.700s] EVENT PassageCompleted: passage #11
+[   542.700s] EVENT BoundaryDetected { passage_index: 12, start_time: 87624692480, end_time: 94232460800, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #12
+[   542.700s] EVENT PassageCompleted: passage #12
+[   542.700s] EVENT BoundaryDetected { passage_index: 13, start_time: 94232460800, end_time: 100746779520, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #13
+[   542.700s] EVENT PassageCompleted: passage #13
+[   542.700s] EVENT BoundaryDetected { passage_index: 14, start_time: 100746779520, end_time: 106988860160, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #14
+[   542.700s] EVENT PassageCompleted: passage #14
+[   542.700s] EVENT BoundaryDetected { passage_index: 15, start_time: 106988860160, end_time: 113574412160, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #15
+[   542.700s] EVENT PassageCompleted: passage #15
+[   542.700s] EVENT BoundaryDetected { passage_index: 16, start_time: 113574412160, end_time: 121135719039, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #16
+[   542.700s] EVENT PassageCompleted: passage #16
+[   542.700s] EVENT BoundaryDetected { passage_index: 17, start_time: 121135719039, end_time: 128287610880, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #17
+[   542.700s] EVENT PassageCompleted: passage #17
+[   542.700s] EVENT BoundaryDetected { passage_index: 18, start_time: 128287610880, end_time: 134789939840, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #18
+[   542.700s] EVENT PassageCompleted: passage #18
+[   542.700s] EVENT BoundaryDetected { passage_index: 19, start_time: 134789939840, end_time: 141562038400, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #19
+[   542.700s] EVENT PassageCompleted: passage #19
+[   542.700s] EVENT BoundaryDetected { passage_index: 20, start_time: 141562038400, end_time: 146950024960, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #20
+[   542.700s] EVENT PassageCompleted: passage #20
+[   542.700s] EVENT BoundaryDetected { passage_index: 21, start_time: 146950024960, end_time: 153858947840, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #21
+[   542.700s] EVENT PassageCompleted: passage #21
+[   542.700s] EVENT BoundaryDetected { passage_index: 22, start_time: 153858947840, end_time: 160419815040, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #22
+[   542.700s] EVENT PassageCompleted: passage #22
+[   542.700s] EVENT BoundaryDetected { passage_index: 23, start_time: 160419815040, end_time: 166539882240, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #23
+[   542.700s] EVENT PassageCompleted: passage #23
+[   542.700s] EVENT BoundaryDetected { passage_index: 24, start_time: 166539882240, end_time: 174148795519, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #24
+[   542.700s] EVENT PassageCompleted: passage #24
+[   542.700s] EVENT BoundaryDetected { passage_index: 25, start_time: 174148795519, end_time: 182587118080, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #25
+[   542.700s] EVENT PassageCompleted: passage #25
+[   542.700s] EVENT BoundaryDetected { passage_index: 26, start_time: 182587118080, end_time: 190794461440, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #26
+[   542.700s] EVENT PassageCompleted: passage #26
+[   542.700s] EVENT BoundaryDetected { passage_index: 27, start_time: 190794461440, end_time: 199715548160, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #27
+[   542.700s] EVENT PassageCompleted: passage #27
+[   542.700s] EVENT BoundaryDetected { passage_index: 28, start_time: 199715548160, end_time: 208931441920, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #28
+[   542.700s] EVENT PassageCompleted: passage #28
+[   542.700s] EVENT BoundaryDetected { passage_index: 29, start_time: 208931441920, end_time: 216547760640, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #29
+[   542.700s] EVENT PassageCompleted: passage #29
+[   542.700s] EVENT BoundaryDetected { passage_index: 30, start_time: 216547760640, end_time: 226535583360, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #30
+[   542.700s] EVENT PassageCompleted: passage #30
+[   542.700s] EVENT BoundaryDetected { passage_index: 31, start_time: 226535583360, end_time: 235297982080, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #31
+[   542.700s] EVENT PassageCompleted: passage #31
+[   542.700s] EVENT BoundaryDetected { passage_index: 32, start_time: 235297982080, end_time: 242280959360, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #32
+[   542.700s] EVENT PassageCompleted: passage #32
+[   542.700s] EVENT BoundaryDetected { passage_index: 33, start_time: 242280959360, end_time: 249993290880, confidence: 0.95, timestamp: 1766348192 }
+[   542.700s] EVENT PassageStarted: passage #33
+[   542.700s] EVENT PassageCompleted: passage #33
+[   542.700s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-01-Train_.mp3"
+[   542.700s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-01-Train_.mp3", score: 1.8, is_single_track: true }
+[   551.549s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6280151040, confidence: 0.8, timestamp: 1766348201 }
+[   551.549s] EVENT PassageStarted: passage #0
+[   551.549s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348201 }
+[   551.549s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348201 }
+[   551.549s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348201 }
+[   551.826s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348201 }
+[   551.826s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348201 }
+[   552.277s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348202 }
+[   552.277s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348202 }
+[   552.277s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348202 }
+[   552.277s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348202 }
+[   552.277s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348202 }
+[   552.280s] FILE_COMPLETE [16/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-01-Train_.mp3 - 1 passages in 9.58s (total_elapsed: 552.3s)
+[   552.280s] FILE_START [17/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-02-Superfly_.mp3
+[   552.281s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348202 }
+[   552.281s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348202 }
+[   552.281s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348202 }
+[   552.281s] EVENT PassageCompleted: passage #0
+[   552.281s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-01-Train_.mp3"
+[   552.281s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-02-Superfly_.mp3"
+[   552.281s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-02-Superfly_.mp3", score: 1.8, is_single_track: true }
+[   563.358s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7833600000, confidence: 0.5, timestamp: 1766348213 }
+[   563.358s] EVENT PassageStarted: passage #0
+[   563.358s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348213 }
+[   563.358s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348213 }
+[   563.358s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348213 }
+[   563.698s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348213 }
+[   563.698s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348213 }
+[   564.240s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348214 }
+[   564.240s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348214 }
+[   564.240s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348214 }
+[   564.240s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348214 }
+[   564.240s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348214 }
+[   564.243s] FILE_COMPLETE [17/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-02-Superfly_.mp3 - 1 passages in 11.96s (total_elapsed: 564.2s)
+[   564.243s] FILE_START [18/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3
+[   564.244s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348214 }
+[   564.244s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348214 }
+[   564.244s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348214 }
+[   564.244s] EVENT PassageCompleted: passage #0
+[   564.244s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-02-Superfly_.mp3"
+[   564.244s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3"
+[   564.244s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3", score: 1.8, is_single_track: true }
+[   579.471s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8341585920, confidence: 0.5, timestamp: 1766348229 }
+[   579.471s] EVENT PassageStarted: passage #0
+[   579.471s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348229 }
+[   579.471s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348229 }
+[   579.471s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348229 }
+[   579.850s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348229 }
+[   579.850s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348229 }
+[   580.419s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348230 }
+[   580.419s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348230 }
+[   580.419s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348230 }
+[   580.419s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348230 }
+[   580.419s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348230 }
+[   580.423s] FILE_COMPLETE [18/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3 - 1 passages in 16.18s (total_elapsed: 580.4s)
+[   580.423s] FILE_START [19/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-04-Pleasantly_Blue_.mp3
+[   580.423s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348230 }
+[   580.423s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348230 }
+[   580.423s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348230 }
+[   580.423s] EVENT PassageCompleted: passage #0
+[   580.423s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3"
+[   580.423s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-04-Pleasantly_Blue_.mp3"
+[   580.423s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-04-Pleasantly_Blue_.mp3", score: 1.8, is_single_track: true }
+[   586.188s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 4187750400, confidence: 0.5, timestamp: 1766348236 }
+[   586.188s] EVENT PassageStarted: passage #0
+[   586.188s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348236 }
+[   586.188s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348236 }
+[   586.188s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348236 }
+[   586.374s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348236 }
+[   586.374s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348236 }
+[   586.661s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348236 }
+[   586.661s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348236 }
+[   586.661s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348236 }
+[   586.661s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348236 }
+[   586.661s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348236 }
+[   586.663s] FILE_COMPLETE [19/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-04-Pleasantly_Blue_.mp3 - 1 passages in 6.24s (total_elapsed: 586.7s)
+[   586.663s] FILE_START [20/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-05-Morphine_&_Chocolate.mp3
+[   586.663s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348236 }
+[   586.663s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348236 }
+[   586.663s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348236 }
+[   586.663s] EVENT PassageCompleted: passage #0
+[   586.663s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-04-Pleasantly_Blue_.mp3"
+[   586.663s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-05-Morphine_&_Chocolate.mp3"
+[   586.663s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-05-Morphine_&_Chocolate.mp3", score: 1.8, is_single_track: true }
+[   597.727s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8017182720, confidence: 0.8, timestamp: 1766348247 }
+[   597.727s] EVENT PassageStarted: passage #0
+[   597.727s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348247 }
+[   597.727s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348247 }
+[   597.727s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348247 }
+[   598.089s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348248 }
+[   598.089s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348248 }
+[   599.224s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348249 }
+[   599.224s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348249 }
+[   599.224s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348249 }
+[   599.224s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348249 }
+[   599.224s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348249 }
+[   599.230s] FILE_COMPLETE [20/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-05-Morphine_&_Chocolate.mp3 - 1 passages in 12.57s (total_elapsed: 599.2s)
+[   599.230s] PROGRESS 20/5737 (0.3%) - 0.03 files/sec - ETA: 2854.8min
+[   599.230s] FILE_START [21/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-06-Spaceman.mp3
+[   599.232s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348249 }
+[   599.232s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348249 }
+[   599.232s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348249 }
+[   599.232s] EVENT PassageCompleted: passage #0
+[   599.232s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-05-Morphine_&_Chocolate.mp3"
+[   599.232s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-06-Spaceman.mp3"
+[   599.232s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-06-Spaceman.mp3", score: 1.8, is_single_track: true }
+[   621.750s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6212321280, confidence: 0.5, timestamp: 1766348271 }
+[   621.750s] EVENT PassageStarted: passage #0
+[   621.750s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348271 }
+[   621.750s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348271 }
+[   621.750s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348271 }
+[   622.303s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348272 }
+[   622.303s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348272 }
+[   623.224s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348273 }
+[   623.224s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348273 }
+[   623.224s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348273 }
+[   623.224s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348273 }
+[   623.224s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348273 }
+[   623.230s] FILE_COMPLETE [21/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-06-Spaceman.mp3 - 1 passages in 24.00s (total_elapsed: 623.2s)
+[   623.230s] FILE_START [22/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-07-Old_Mr._Heffer.mp3
+[   623.232s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348273 }
+[   623.232s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348273 }
+[   623.232s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348273 }
+[   623.232s] EVENT PassageCompleted: passage #0
+[   623.232s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-06-Spaceman.mp3"
+[   623.232s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-07-Old_Mr._Heffer.mp3"
+[   623.232s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-07-Old_Mr._Heffer.mp3", score: 1.8, is_single_track: true }
+[   637.075s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 3860398080, confidence: 0.5, timestamp: 1766348287 }
+[   637.075s] EVENT PassageStarted: passage #0
+[   637.075s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348287 }
+[   637.075s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348287 }
+[   637.075s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348287 }
+[   637.406s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348287 }
+[   637.408s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348287 }
+[   638.014s] FILE_COMPLETE [22/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-07-Old_Mr._Heffer.mp3 - 1 passages in 14.78s (total_elapsed: 638.0s)
+[   638.014s] FILE_START [23/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-08-Calling_All_The_People.mp3
+[   638.015s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348288 }
+[   638.015s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348288 }
+[   638.015s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348288 }
+[   638.015s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348288 }
+[   638.015s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348288 }
+[   638.015s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348288 }
+[   638.015s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348288 }
+[   638.015s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348288 }
+[   638.015s] EVENT PassageCompleted: passage #0
+[   638.015s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-07-Old_Mr._Heffer.mp3"
+[   638.015s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-08-Calling_All_The_People.mp3"
+[   638.015s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-08-Calling_All_The_People.mp3", score: 1.8, is_single_track: true }
+[   658.033s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 5578997760, confidence: 0.5, timestamp: 1766348308 }
+[   658.033s] EVENT PassageStarted: passage #0
+[   658.033s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348308 }
+[   658.033s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348308 }
+[   658.033s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348308 }
+[   658.530s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348308 }
+[   658.530s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348308 }
+[   659.346s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348309 }
+[   659.346s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348309 }
+[   659.346s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348309 }
+[   659.346s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348309 }
+[   659.347s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348309 }
+[   659.352s] FILE_COMPLETE [23/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-08-Calling_All_The_People.mp3 - 1 passages in 21.34s (total_elapsed: 659.3s)
+[   659.352s] FILE_START [24/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-09-Dear_Mr._President.mp3
+[   659.354s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348309 }
+[   659.354s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348309 }
+[   659.354s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348309 }
+[   659.354s] EVENT PassageCompleted: passage #0
+[   659.354s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-08-Calling_All_The_People.mp3"
+[   659.354s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-09-Dear_Mr._President.mp3"
+[   659.354s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-09-Dear_Mr._President.mp3", score: 1.8, is_single_track: true }
+[   688.087s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7997276160, confidence: 0.5, timestamp: 1766348338 }
+[   688.087s] EVENT PassageStarted: passage #0
+[   688.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348338 }
+[   688.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348338 }
+[   688.087s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348338 }
+[   688.789s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348338 }
+[   688.789s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348338 }
+[   689.953s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348339 }
+[   689.953s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348339 }
+[   689.953s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348339 }
+[   689.953s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348339 }
+[   689.953s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348339 }
+[   689.964s] FILE_COMPLETE [24/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-09-Dear_Mr._President.mp3 - 1 passages in 30.61s (total_elapsed: 690.0s)
+[   689.964s] FILE_START [25/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-10-Drifting.mp3
+[   689.972s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348339 }
+[   689.972s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348339 }
+[   689.972s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348339 }
+[   689.972s] EVENT PassageCompleted: passage #0
+[   689.972s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-09-Dear_Mr._President.mp3"
+[   689.972s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-10-Drifting.mp3"
+[   689.972s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-10-Drifting.mp3", score: 1.8, is_single_track: true }
+[   711.418s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 5955747840, confidence: 0.5, timestamp: 1766348361 }
+[   711.418s] EVENT PassageStarted: passage #0
+[   711.418s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348361 }
+[   711.418s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348361 }
+[   711.418s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348361 }
+[   711.939s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348361 }
+[   711.939s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348361 }
+[   712.813s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348362 }
+[   712.813s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348362 }
+[   712.813s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348362 }
+[   712.813s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348362 }
+[   712.813s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348362 }
+[   712.820s] FILE_COMPLETE [25/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-10-Drifting.mp3 - 1 passages in 22.86s (total_elapsed: 712.8s)
+[   712.820s] FILE_START [26/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-11-No_Place_Like_Home.mp3
+[   712.830s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348362 }
+[   712.830s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348362 }
+[   712.830s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348362 }
+[   712.830s] EVENT PassageCompleted: passage #0
+[   712.830s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-10-Drifting.mp3"
+[   712.830s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-11-No_Place_Like_Home.mp3"
+[   712.830s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-11-No_Place_Like_Home.mp3", score: 1.8, is_single_track: true }
+[   732.116s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 5323161600, confidence: 0.5, timestamp: 1766348382 }
+[   732.116s] EVENT PassageStarted: passage #0
+[   732.116s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348382 }
+[   732.116s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348382 }
+[   732.116s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348382 }
+[   732.573s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348382 }
+[   732.573s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348382 }
+[   733.351s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348383 }
+[   733.351s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348383 }
+[   733.351s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348383 }
+[   733.351s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348383 }
+[   733.351s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348383 }
+[   733.356s] FILE_COMPLETE [26/5737] (4_Non_Blondes)Bigger,_Better,_Faster,_More-11-No_Place_Like_Home.mp3 - 1 passages in 20.54s (total_elapsed: 733.4s)
+[   733.356s] FILE_START [27/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-01-Coldhearted_(Quiverin'_12-).mp3
+[   733.366s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348383 }
+[   733.366s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348383 }
+[   733.366s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348383 }
+[   733.366s] EVENT PassageCompleted: passage #0
+[   733.366s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\4 Non Blondes\\Bigger,_Better,_Faster,_More\\(4_Non_Blondes)Bigger,_Better,_Faster,_More-11-No_Place_Like_Home.mp3"
+[   733.366s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-01-Coldhearted_(Quiverin'_12-).mp3"
+[   733.366s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-01-Coldhearted_(Quiverin'_12-).mp3", score: 1.8, is_single_track: true }
+[   765.166s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8828190720, confidence: 0.5, timestamp: 1766348415 }
+[   765.166s] EVENT PassageStarted: passage #0
+[   765.166s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348415 }
+[   765.166s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348415 }
+[   765.166s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348415 }
+[   765.930s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348415 }
+[   765.930s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348415 }
+[   767.212s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348417 }
+[   767.212s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348417 }
+[   767.212s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348417 }
+[   767.212s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348417 }
+[   767.212s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348417 }
+[   767.219s] FILE_COMPLETE [27/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-01-Coldhearted_(Quiverin'_12-).mp3 - 1 passages in 33.86s (total_elapsed: 767.2s)
+[   767.219s] FILE_START [28/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-02-Straight_up_(Ultimix_Mix).mp3
+[   767.227s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348417 }
+[   767.227s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348417 }
+[   767.227s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348417 }
+[   767.227s] EVENT PassageCompleted: passage #0
+[   767.227s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-01-Coldhearted_(Quiverin'_12-).mp3"
+[   767.227s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-02-Straight_up_(Ultimix_Mix).mp3"
+[   767.227s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-02-Straight_up_(Ultimix_Mix).mp3", score: 1.8, is_single_track: true }
+[   809.568s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 11715379200, confidence: 0.5, timestamp: 1766348459 }
+[   809.568s] EVENT PassageStarted: passage #0
+[   809.568s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348459 }
+[   809.568s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348459 }
+[   809.568s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348459 }
+[   810.564s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348460 }
+[   810.564s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348460 }
+[   812.296s] FILE_COMPLETE [28/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-02-Straight_up_(Ultimix_Mix).mp3 - 1 passages in 45.08s (total_elapsed: 812.3s)
+[   812.296s] FILE_START [29/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-03-One_or_the_other_(1990_Mix).mp3
+[   812.306s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348462 }
+[   812.306s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348462 }
+[   812.306s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348462 }
+[   812.306s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348462 }
+[   812.306s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348462 }
+[   812.306s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348462 }
+[   812.306s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348462 }
+[   812.306s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348462 }
+[   812.306s] EVENT PassageCompleted: passage #0
+[   812.306s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-02-Straight_up_(Ultimix_Mix).mp3"
+[   812.306s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-03-One_or_the_other_(1990_Mix).mp3"
+[   812.306s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-03-One_or_the_other_(1990_Mix).mp3", score: 1.8, is_single_track: true }
+[   853.429s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 11365908480, confidence: 0.5, timestamp: 1766348503 }
+[   853.429s] EVENT PassageStarted: passage #0
+[   853.429s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348503 }
+[   853.429s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348503 }
+[   853.429s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348503 }
+[   854.392s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348504 }
+[   854.392s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348504 }
+[   856.040s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348506 }
+[   856.040s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348506 }
+[   856.040s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348506 }
+[   856.040s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348506 }
+[   856.040s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348506 }
+[   856.050s] FILE_COMPLETE [29/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-03-One_or_the_other_(1990_Mix).mp3 - 1 passages in 43.75s (total_elapsed: 856.0s)
+[   856.050s] FILE_START [30/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-04-Forever_your_Girl_(Frankie_Foncett_Mix).mp3
+[   856.055s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348506 }
+[   856.055s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348506 }
+[   856.055s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348506 }
+[   856.055s] EVENT PassageCompleted: passage #0
+[   856.055s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-03-One_or_the_other_(1990_Mix).mp3"
+[   856.055s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-04-Forever_your_Girl_(Frankie_Foncett_Mix).mp3"
+[   856.055s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-04-Forever_your_Girl_(Frankie_Foncett_Mix).mp3", score: 1.8, is_single_track: true }
+[   893.345s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 10356572160, confidence: 0.5, timestamp: 1766348543 }
+[   893.345s] EVENT PassageStarted: passage #0
+[   893.345s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348543 }
+[   893.345s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348543 }
+[   893.345s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348543 }
+[   894.250s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348544 }
+[   894.250s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348544 }
+[   895.772s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348545 }
+[   895.772s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348545 }
+[   895.772s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348545 }
+[   895.772s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348545 }
+[   895.772s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348545 }
+[   895.786s] FILE_COMPLETE [30/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-04-Forever_your_Girl_(Frankie_Foncett_Mix).mp3 - 1 passages in 39.74s (total_elapsed: 895.8s)
+[   895.786s] PROGRESS 30/5737 (0.5%) - 0.03 files/sec - ETA: 2840.1min
+[   895.786s] FILE_START [31/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-05-Knocked_out_(Pettibone_12-).mp3
+[   895.794s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348545 }
+[   895.794s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348545 }
+[   895.794s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348545 }
+[   895.794s] EVENT PassageCompleted: passage #0
+[   895.794s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-04-Forever_your_Girl_(Frankie_Foncett_Mix).mp3"
+[   895.794s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-05-Knocked_out_(Pettibone_12-).mp3"
+[   895.794s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-05-Knocked_out_(Pettibone_12-).mp3", score: 1.8, is_single_track: true }
+[   933.558s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 10467164160, confidence: 0.5, timestamp: 1766348583 }
+[   933.558s] EVENT PassageStarted: passage #0
+[   933.558s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348583 }
+[   933.558s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348583 }
+[   933.558s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348583 }
+[   934.477s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348584 }
+[   934.477s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348584 }
+[   936.014s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348586 }
+[   936.014s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348586 }
+[   936.014s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348586 }
+[   936.014s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348586 }
+[   936.014s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348586 }
+[   936.027s] FILE_COMPLETE [31/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-05-Knocked_out_(Pettibone_12-).mp3 - 1 passages in 40.24s (total_elapsed: 936.0s)
+[   936.027s] FILE_START [32/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-06-The_Way_that_you_love_me_(HouseAFire_Mix).mp3
+[   936.035s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348586 }
+[   936.035s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348586 }
+[   936.035s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348586 }
+[   936.035s] EVENT PassageCompleted: passage #0
+[   936.035s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-05-Knocked_out_(Pettibone_12-).mp3"
+[   936.035s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-06-The_Way_that_you_love_me_(HouseAFire_Mix).mp3"
+[   936.035s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-06-The_Way_that_you_love_me_(HouseAFire_Mix).mp3", score: 1.8, is_single_track: true }
+[   964.920s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7974420480, confidence: 0.5, timestamp: 1766348614 }
+[   964.920s] EVENT PassageStarted: passage #0
+[   964.920s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348614 }
+[   964.920s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348614 }
+[   964.920s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348614 }
+[   965.604s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348615 }
+[   965.604s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348615 }
+[   966.767s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348616 }
+[   966.767s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348616 }
+[   966.767s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348616 }
+[   966.767s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348616 }
+[   966.767s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348616 }
+[   966.774s] FILE_COMPLETE [32/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-06-The_Way_that_you_love_me_(HouseAFire_Mix).mp3 - 1 passages in 30.75s (total_elapsed: 966.8s)
+[   966.774s] FILE_START [33/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-07-Opposites_attract_(1990_Mix).mp3
+[   966.782s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348616 }
+[   966.782s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348616 }
+[   966.782s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348616 }
+[   966.782s] EVENT PassageCompleted: passage #0
+[   966.782s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-06-The_Way_that_you_love_me_(HouseAFire_Mix).mp3"
+[   966.782s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-07-Opposites_attract_(1990_Mix).mp3"
+[   966.782s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-07-Opposites_attract_(1990_Mix).mp3", score: 1.8, is_single_track: true }
+[  1008.670s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 11520000000, confidence: 0.5, timestamp: 1766348658 }
+[  1008.670s] EVENT PassageStarted: passage #0
+[  1008.670s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348658 }
+[  1008.670s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348658 }
+[  1008.671s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348658 }
+[  1009.618s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348659 }
+[  1009.618s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348659 }
+[  1011.340s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348661 }
+[  1011.340s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348661 }
+[  1011.340s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348661 }
+[  1011.340s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348661 }
+[  1011.340s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348661 }
+[  1011.354s] FILE_COMPLETE [33/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-07-Opposites_attract_(1990_Mix).mp3 - 1 passages in 44.58s (total_elapsed: 1011.4s)
+[  1011.354s] FILE_START [34/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-08-1990_Medley_Mix.mp3
+[  1011.362s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348661 }
+[  1011.363s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348661 }
+[  1011.363s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348661 }
+[  1011.363s] EVENT PassageCompleted: passage #0
+[  1011.363s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-07-Opposites_attract_(1990_Mix).mp3"
+[  1011.363s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-08-1990_Medley_Mix.mp3"
+[  1011.363s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-08-1990_Medley_Mix.mp3", score: 1.8, is_single_track: true }
+[  1055.544s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 12277923840, confidence: 0.5, timestamp: 1766348705 }
+[  1055.544s] EVENT PassageStarted: passage #0
+[  1055.544s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348705 }
+[  1055.544s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348705 }
+[  1055.544s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348705 }
+[  1056.615s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348706 }
+[  1056.616s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348706 }
+[  1058.439s] FILE_COMPLETE [34/5737] (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-08-1990_Medley_Mix.mp3 - 1 passages in 47.09s (total_elapsed: 1058.4s)
+[  1058.439s] FILE_START [35/5737] Disc 1 - 1 - Hells Bells.mp3
+[  1058.449s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348708 }
+[  1058.449s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348708 }
+[  1058.449s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348708 }
+[  1058.449s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348708 }
+[  1058.449s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348708 }
+[  1058.449s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348708 }
+[  1058.449s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348708 }
+[  1058.449s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348708 }
+[  1058.449s] EVENT PassageCompleted: passage #0
+[  1058.449s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Abdul, Paula\\Shut_up_and_dance_(The_Dance_Mixes)\\(Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-08-1990_Medley_Mix.mp3"
+[  1058.449s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 1 - Hells Bells.mp3"
+[  1058.449s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 1 - Hells Bells.mp3", score: 1.8, is_single_track: true }
+[  1089.356s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8818606080, confidence: 0.5, timestamp: 1766348739 }
+[  1089.356s] EVENT PassageStarted: passage #0
+[  1089.356s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348739 }
+[  1089.356s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348739 }
+[  1089.356s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348739 }
+[  1090.100s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348740 }
+[  1090.100s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348740 }
+[  1091.398s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348741 }
+[  1091.398s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348741 }
+[  1091.398s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348741 }
+[  1091.398s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348741 }
+[  1091.398s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348741 }
+[  1091.406s] FILE_COMPLETE [35/5737] Disc 1 - 1 - Hells Bells.mp3 - 1 passages in 32.97s (total_elapsed: 1091.4s)
+[  1091.406s] FILE_START [36/5737] Disc 1 - 10 - Rock and Roll Ain't Noise Pollution.mp3
+[  1091.413s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348741 }
+[  1091.413s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348741 }
+[  1091.413s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348741 }
+[  1091.413s] EVENT PassageCompleted: passage #0
+[  1091.413s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 1 - Hells Bells.mp3"
+[  1091.413s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 10 - Rock and Roll Ain't Noise Pollution.mp3"
+[  1091.413s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 10 - Rock and Roll Ain't Noise Pollution.mp3", score: 1.8, is_single_track: true }
+[  1118.444s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7509934080, confidence: 0.5, timestamp: 1766348768 }
+[  1118.444s] EVENT PassageStarted: passage #0
+[  1118.444s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348768 }
+[  1118.444s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348768 }
+[  1118.444s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348768 }
+[  1119.077s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348769 }
+[  1119.077s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348769 }
+[  1120.173s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348770 }
+[  1120.173s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348770 }
+[  1120.173s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348770 }
+[  1120.173s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348770 }
+[  1120.173s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348770 }
+[  1120.184s] FILE_COMPLETE [36/5737] Disc 1 - 10 - Rock and Roll Ain't Noise Pollution.mp3 - 1 passages in 28.78s (total_elapsed: 1120.2s)
+[  1120.184s] FILE_START [37/5737] Disc 1 - 2 - Shoot to Thrill.mp3
+[  1120.186s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348770 }
+[  1120.186s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348770 }
+[  1120.187s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348770 }
+[  1120.187s] EVENT PassageCompleted: passage #0
+[  1120.187s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 10 - Rock and Roll Ain't Noise Pollution.mp3"
+[  1120.187s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 2 - Shoot to Thrill.mp3"
+[  1120.187s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 2 - Shoot to Thrill.mp3", score: 1.8, is_single_track: true }
+[  1152.403s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8960163840, confidence: 0.5, timestamp: 1766348802 }
+[  1152.404s] EVENT PassageStarted: passage #0
+[  1152.404s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348802 }
+[  1152.404s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348802 }
+[  1152.404s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348802 }
+[  1153.158s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348803 }
+[  1153.158s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348803 }
+[  1154.491s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348804 }
+[  1154.491s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348804 }
+[  1154.491s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348804 }
+[  1154.491s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348804 }
+[  1154.491s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348804 }
+[  1154.503s] FILE_COMPLETE [37/5737] Disc 1 - 2 - Shoot to Thrill.mp3 - 1 passages in 34.32s (total_elapsed: 1154.5s)
+[  1154.503s] FILE_START [38/5737] Disc 1 - 3 - What Do You Do for Money Honey.mp3
+[  1154.517s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348804 }
+[  1154.517s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348804 }
+[  1154.517s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348804 }
+[  1154.517s] EVENT PassageCompleted: passage #0
+[  1154.517s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 2 - Shoot to Thrill.mp3"
+[  1154.517s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 3 - What Do You Do for Money Honey.mp3"
+[  1154.517s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 3 - What Do You Do for Money Honey.mp3", score: 1.8, is_single_track: true }
+[  1176.396s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6085509120, confidence: 0.5, timestamp: 1766348826 }
+[  1176.396s] EVENT PassageStarted: passage #0
+[  1176.396s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348826 }
+[  1176.396s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348826 }
+[  1176.396s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348826 }
+[  1176.910s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348826 }
+[  1176.910s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348826 }
+[  1177.805s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348827 }
+[  1177.805s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348827 }
+[  1177.805s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348827 }
+[  1177.805s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348827 }
+[  1177.805s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348827 }
+[  1177.816s] FILE_COMPLETE [38/5737] Disc 1 - 3 - What Do You Do for Money Honey.mp3 - 1 passages in 23.31s (total_elapsed: 1177.8s)
+[  1177.816s] FILE_START [39/5737] Disc 1 - 4 - Givin the Dog a Bone.mp3
+[  1177.821s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348827 }
+[  1177.821s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348827 }
+[  1177.821s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348827 }
+[  1177.821s] EVENT PassageCompleted: passage #0
+[  1177.821s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 3 - What Do You Do for Money Honey.mp3"
+[  1177.821s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 4 - Givin the Dog a Bone.mp3"
+[  1177.821s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 4 - Givin the Dog a Bone.mp3", score: 1.8, is_single_track: true }
+[  1188.109s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 5977866240, confidence: 0.5, timestamp: 1766348838 }
+[  1188.109s] EVENT PassageStarted: passage #0
+[  1188.109s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348838 }
+[  1188.109s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348838 }
+[  1188.109s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348838 }
+[  1188.392s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348838 }
+[  1188.392s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348838 }
+[  1188.849s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348838 }
+[  1188.849s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348838 }
+[  1188.849s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348838 }
+[  1188.849s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348838 }
+[  1188.849s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348838 }
+[  1188.852s] FILE_COMPLETE [39/5737] Disc 1 - 4 - Givin the Dog a Bone.mp3 - 1 passages in 11.04s (total_elapsed: 1188.8s)
+[  1188.852s] FILE_START [40/5737] Disc 1 - 5 - Let Me Put My Love Into You.mp3
+[  1188.854s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348838 }
+[  1188.854s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348838 }
+[  1188.854s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348838 }
+[  1188.854s] EVENT PassageCompleted: passage #0
+[  1188.854s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 4 - Givin the Dog a Bone.mp3"
+[  1188.854s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 5 - Let Me Put My Love Into You.mp3"
+[  1188.854s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 5 - Let Me Put My Love Into You.mp3", score: 1.8, is_single_track: true }
+[  1199.244s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7206912000, confidence: 0.5, timestamp: 1766348849 }
+[  1199.244s] EVENT PassageStarted: passage #0
+[  1199.244s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348849 }
+[  1199.244s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348849 }
+[  1199.244s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348849 }
+[  1199.584s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348849 }
+[  1199.584s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348849 }
+[  1200.114s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348850 }
+[  1200.114s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348850 }
+[  1200.114s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348850 }
+[  1200.114s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348850 }
+[  1200.115s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348850 }
+[  1200.118s] FILE_COMPLETE [40/5737] Disc 1 - 5 - Let Me Put My Love Into You.mp3 - 1 passages in 11.27s (total_elapsed: 1200.1s)
+[  1200.118s] PROGRESS 40/5737 (0.7%) - 0.03 files/sec - ETA: 2848.8min
+[  1200.118s] FILE_START [41/5737] Disc 1 - 6 - Back in Black.mp3
+[  1200.123s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348850 }
+[  1200.123s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348850 }
+[  1200.123s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348850 }
+[  1200.123s] EVENT PassageCompleted: passage #0
+[  1200.123s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 5 - Let Me Put My Love Into You.mp3"
+[  1200.123s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 6 - Back in Black.mp3"
+[  1200.123s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 6 - Back in Black.mp3", score: 1.8, is_single_track: true }
+[  1210.498s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7215759360, confidence: 0.5, timestamp: 1766348860 }
+[  1210.498s] EVENT PassageStarted: passage #0
+[  1210.498s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348860 }
+[  1210.498s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348860 }
+[  1210.498s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348860 }
+[  1210.847s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348860 }
+[  1210.847s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348860 }
+[  1211.404s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348861 }
+[  1211.404s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348861 }
+[  1211.404s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348861 }
+[  1211.404s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348861 }
+[  1211.404s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348861 }
+[  1211.412s] FILE_COMPLETE [41/5737] Disc 1 - 6 - Back in Black.mp3 - 1 passages in 11.29s (total_elapsed: 1211.4s)
+[  1211.412s] FILE_START [42/5737] Disc 1 - 7 - You Shook Me All Night Long.mp3
+[  1211.413s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348861 }
+[  1211.413s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348861 }
+[  1211.413s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348861 }
+[  1211.413s] EVENT PassageCompleted: passage #0
+[  1211.413s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 6 - Back in Black.mp3"
+[  1211.413s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 7 - You Shook Me All Night Long.mp3"
+[  1211.413s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 7 - You Shook Me All Night Long.mp3", score: 1.8, is_single_track: true }
+[  1220.174s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 5933629440, confidence: 0.5, timestamp: 1766348870 }
+[  1220.175s] EVENT PassageStarted: passage #0
+[  1220.175s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348870 }
+[  1220.175s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348870 }
+[  1220.175s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348870 }
+[  1220.468s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348870 }
+[  1220.468s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348870 }
+[  1220.909s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348870 }
+[  1220.909s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348870 }
+[  1220.909s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348870 }
+[  1220.909s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348870 }
+[  1220.909s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348870 }
+[  1220.916s] FILE_COMPLETE [42/5737] Disc 1 - 7 - You Shook Me All Night Long.mp3 - 1 passages in 9.50s (total_elapsed: 1220.9s)
+[  1220.916s] FILE_START [43/5737] Disc 1 - 8 - Have a Drink on Me.mp3
+[  1220.918s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348870 }
+[  1220.918s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348870 }
+[  1220.918s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348870 }
+[  1220.918s] EVENT PassageCompleted: passage #0
+[  1220.918s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 7 - You Shook Me All Night Long.mp3"
+[  1220.918s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 8 - Have a Drink on Me.mp3"
+[  1220.918s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 8 - Have a Drink on Me.mp3", score: 1.8, is_single_track: true }
+[  1231.071s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6731366400, confidence: 0.5, timestamp: 1766348881 }
+[  1231.071s] EVENT PassageStarted: passage #0
+[  1231.071s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348881 }
+[  1231.071s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348881 }
+[  1231.071s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348881 }
+[  1231.398s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348881 }
+[  1231.398s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348881 }
+[  1231.974s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348881 }
+[  1231.974s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348881 }
+[  1231.974s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348881 }
+[  1231.974s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348881 }
+[  1231.974s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348881 }
+[  1231.978s] FILE_COMPLETE [43/5737] Disc 1 - 8 - Have a Drink on Me.mp3 - 1 passages in 11.06s (total_elapsed: 1232.0s)
+[  1231.978s] FILE_START [44/5737] Disc 1 - 9 - Shake a Leg.mp3
+[  1231.980s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348881 }
+[  1231.980s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348881 }
+[  1231.980s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348881 }
+[  1231.980s] EVENT PassageCompleted: passage #0
+[  1231.980s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 8 - Have a Drink on Me.mp3"
+[  1231.980s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 9 - Shake a Leg.mp3"
+[  1231.980s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 9 - Shake a Leg.mp3", score: 1.8, is_single_track: true }
+[  1242.332s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6934855680, confidence: 0.5, timestamp: 1766348892 }
+[  1242.332s] EVENT PassageStarted: passage #0
+[  1242.332s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766348892 }
+[  1242.332s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766348892 }
+[  1242.332s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766348892 }
+[  1242.674s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766348892 }
+[  1242.674s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766348892 }
+[  1243.216s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766348893 }
+[  1243.216s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766348893 }
+[  1243.216s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766348893 }
+[  1243.216s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348893 }
+[  1243.216s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766348893 }
+[  1243.220s] FILE_COMPLETE [44/5737] Disc 1 - 9 - Shake a Leg.mp3 - 1 passages in 11.24s (total_elapsed: 1243.2s)
+[  1243.220s] FILE_START [45/5737] HappyNation.mp3
+[  1243.222s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766348893 }
+[  1243.222s] EVENT FusionStarted { passage_index: 0, timestamp: 1766348893 }
+[  1243.222s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766348893 }
+[  1243.222s] EVENT PassageCompleted: passage #0
+[  1243.222s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\AC-DC\\Back in Black\\Disc 1 - 9 - Shake a Leg.mp3"
+[  1243.222s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Ace of Base\\HappyNation.mp3"
+[  1243.222s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Ace of Base\\HappyNation.mp3", score: -0.5, is_single_track: false }
+[  1243.222s] EVENT AlbumMatchingStarted: "C:\\Users\\Mango Cat\\Music\\Ace of Base\\HappyNation.mp3"
+[  1408.798s] EVENT AlbumMatchingFailed: "C:\\Users\\Mango Cat\\Music\\Ace of Base\\HappyNation.mp3" - No match found (0.0% confidence)
+[  1408.798s] EVENT AlbumMatchingFallback { file_path: "C:\\Users\\Mango Cat\\Music\\Ace of Base\\HappyNation.mp3", reason: "No match found (0.0% confidence)", timestamp: 1766349057 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 5890348800, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 1, start_time: 6039936000, end_time: 12370579200, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 2, start_time: 12539923200, end_time: 19070956800, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 3, start_time: 19231833600, end_time: 24487142400, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 4, start_time: 24633907200, end_time: 30761337600, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 5, start_time: 30941971200, end_time: 36456940800, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 6, start_time: 36595238400, end_time: 43687929600, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 7, start_time: 43809292800, end_time: 50142758400, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 8, start_time: 50351616000, end_time: 56727417600, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 9, start_time: 56896761600, end_time: 63930182400, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 10, start_time: 64043078400, end_time: 70455571200, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 11, start_time: 70658784000, end_time: 76763635200, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 12, start_time: 76899110400, end_time: 83678515200, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 13, start_time: 83994624000, end_time: 91149408000, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 14, start_time: 91256659200, end_time: 97550611200, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT BoundaryDetected { passage_index: 15, start_time: 97657862400, end_time: 103496417280, confidence: 0.8, timestamp: 1766349058 }
+[  1408.798s] EVENT PassageStarted: passage #0
+[  1408.798s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766349058 }
+[  1408.798s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766349058 }
+[  1408.798s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766349058 }
+[  1409.235s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766349059 }
+[  1409.235s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766349059 }
+[  1409.899s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766349059 }
+[  1409.899s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349059 }
+[  1409.899s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349059 }
+[  1409.899s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349059 }
+[  1409.899s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349059 }
+[  1409.899s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766349059 }
+[  1409.899s] EVENT PassageCompleted: passage #0
+[  1409.899s] EVENT PassageStarted: passage #1
+[  1409.899s] EVENT ExtractionProgress { passage_index: 1, extractor: "ID3", status: "running", timestamp: 1766349059 }
+[  1409.899s] EVENT ExtractionProgress { passage_index: 1, extractor: "ID3", status: "completed", timestamp: 1766349059 }
+[  1409.899s] EVENT ExtractionProgress { passage_index: 1, extractor: "Chromaprint", status: "running", timestamp: 1766349059 }
+[  1410.370s] EVENT ExtractionProgress { passage_index: 1, extractor: "Chromaprint", status: "completed", timestamp: 1766349060 }
+[  1410.370s] EVENT ExtractionProgress { passage_index: 1, extractor: "AudioDerived", status: "running", timestamp: 1766349060 }
+[  1411.098s] EVENT ExtractionProgress { passage_index: 1, extractor: "AudioDerived", status: "completed", timestamp: 1766349061 }
+[  1411.098s] EVENT ExtractionProgress { passage_index: 1, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349061 }
+[  1411.098s] EVENT ExtractionProgress { passage_index: 1, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349061 }
+[  1411.098s] EVENT FusionStarted { passage_index: 1, timestamp: 1766349061 }
+[  1411.098s] EVENT FusionStarted { passage_index: 1, timestamp: 1766349061 }
+[  1411.098s] EVENT ValidationStarted { passage_index: 1, timestamp: 1766349061 }
+[  1411.098s] EVENT PassageCompleted: passage #1
+[  1411.098s] EVENT PassageStarted: passage #2
+[  1411.098s] EVENT ExtractionProgress { passage_index: 2, extractor: "ID3", status: "running", timestamp: 1766349061 }
+[  1411.098s] EVENT ExtractionProgress { passage_index: 2, extractor: "ID3", status: "completed", timestamp: 1766349061 }
+[  1411.098s] EVENT ExtractionProgress { passage_index: 2, extractor: "Chromaprint", status: "running", timestamp: 1766349061 }
+[  1411.622s] EVENT ExtractionProgress { passage_index: 2, extractor: "Chromaprint", status: "completed", timestamp: 1766349061 }
+[  1411.622s] EVENT ExtractionProgress { passage_index: 2, extractor: "AudioDerived", status: "running", timestamp: 1766349061 }
+[  1412.380s] EVENT ExtractionProgress { passage_index: 2, extractor: "AudioDerived", status: "completed", timestamp: 1766349062 }
+[  1412.380s] EVENT ExtractionProgress { passage_index: 2, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349062 }
+[  1412.380s] EVENT ExtractionProgress { passage_index: 2, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349062 }
+[  1412.380s] EVENT FusionStarted { passage_index: 2, timestamp: 1766349062 }
+[  1412.380s] EVENT FusionStarted { passage_index: 2, timestamp: 1766349062 }
+[  1412.380s] EVENT ValidationStarted { passage_index: 2, timestamp: 1766349062 }
+[  1412.380s] EVENT PassageCompleted: passage #2
+[  1412.380s] EVENT PassageStarted: passage #3
+[  1412.380s] EVENT ExtractionProgress { passage_index: 3, extractor: "ID3", status: "running", timestamp: 1766349062 }
+[  1412.380s] EVENT ExtractionProgress { passage_index: 3, extractor: "ID3", status: "completed", timestamp: 1766349062 }
+[  1412.380s] EVENT ExtractionProgress { passage_index: 3, extractor: "Chromaprint", status: "running", timestamp: 1766349062 }
+[  1412.785s] EVENT ExtractionProgress { passage_index: 3, extractor: "Chromaprint", status: "completed", timestamp: 1766349062 }
+[  1412.785s] EVENT ExtractionProgress { passage_index: 3, extractor: "AudioDerived", status: "running", timestamp: 1766349062 }
+[  1413.384s] EVENT ExtractionProgress { passage_index: 3, extractor: "AudioDerived", status: "completed", timestamp: 1766349063 }
+[  1413.384s] EVENT ExtractionProgress { passage_index: 3, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349063 }
+[  1413.384s] EVENT ExtractionProgress { passage_index: 3, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349063 }
+[  1413.384s] EVENT FusionStarted { passage_index: 3, timestamp: 1766349063 }
+[  1413.384s] EVENT FusionStarted { passage_index: 3, timestamp: 1766349063 }
+[  1413.384s] EVENT ValidationStarted { passage_index: 3, timestamp: 1766349063 }
+[  1413.384s] EVENT PassageCompleted: passage #3
+[  1413.384s] EVENT PassageStarted: passage #4
+[  1413.384s] EVENT ExtractionProgress { passage_index: 4, extractor: "ID3", status: "running", timestamp: 1766349063 }
+[  1413.384s] EVENT ExtractionProgress { passage_index: 4, extractor: "ID3", status: "completed", timestamp: 1766349063 }
+[  1413.384s] EVENT ExtractionProgress { passage_index: 4, extractor: "Chromaprint", status: "running", timestamp: 1766349063 }
+[  1413.850s] EVENT ExtractionProgress { passage_index: 4, extractor: "Chromaprint", status: "completed", timestamp: 1766349063 }
+[  1413.850s] EVENT ExtractionProgress { passage_index: 4, extractor: "AudioDerived", status: "running", timestamp: 1766349063 }
+[  1414.551s] EVENT ExtractionProgress { passage_index: 4, extractor: "AudioDerived", status: "completed", timestamp: 1766349064 }
+[  1414.551s] EVENT ExtractionProgress { passage_index: 4, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349064 }
+[  1414.551s] EVENT ExtractionProgress { passage_index: 4, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349064 }
+[  1414.551s] EVENT FusionStarted { passage_index: 4, timestamp: 1766349064 }
+[  1414.551s] EVENT FusionStarted { passage_index: 4, timestamp: 1766349064 }
+[  1414.551s] EVENT ValidationStarted { passage_index: 4, timestamp: 1766349064 }
+[  1414.551s] EVENT PassageCompleted: passage #4
+[  1414.551s] EVENT PassageStarted: passage #5
+[  1414.551s] EVENT ExtractionProgress { passage_index: 5, extractor: "ID3", status: "running", timestamp: 1766349064 }
+[  1414.551s] EVENT ExtractionProgress { passage_index: 5, extractor: "ID3", status: "completed", timestamp: 1766349064 }
+[  1414.551s] EVENT ExtractionProgress { passage_index: 5, extractor: "Chromaprint", status: "running", timestamp: 1766349064 }
+[  1414.980s] EVENT ExtractionProgress { passage_index: 5, extractor: "Chromaprint", status: "completed", timestamp: 1766349064 }
+[  1414.980s] EVENT ExtractionProgress { passage_index: 5, extractor: "AudioDerived", status: "running", timestamp: 1766349064 }
+[  1415.641s] EVENT ExtractionProgress { passage_index: 5, extractor: "AudioDerived", status: "completed", timestamp: 1766349065 }
+[  1415.641s] EVENT ExtractionProgress { passage_index: 5, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349065 }
+[  1415.641s] EVENT ExtractionProgress { passage_index: 5, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349065 }
+[  1415.641s] EVENT FusionStarted { passage_index: 5, timestamp: 1766349065 }
+[  1415.641s] EVENT FusionStarted { passage_index: 5, timestamp: 1766349065 }
+[  1415.641s] EVENT ValidationStarted { passage_index: 5, timestamp: 1766349065 }
+[  1415.641s] EVENT PassageCompleted: passage #5
+[  1415.641s] EVENT PassageStarted: passage #6
+[  1415.641s] EVENT ExtractionProgress { passage_index: 6, extractor: "ID3", status: "running", timestamp: 1766349065 }
+[  1415.641s] EVENT ExtractionProgress { passage_index: 6, extractor: "ID3", status: "completed", timestamp: 1766349065 }
+[  1415.641s] EVENT ExtractionProgress { passage_index: 6, extractor: "Chromaprint", status: "running", timestamp: 1766349065 }
+[  1416.262s] EVENT ExtractionProgress { passage_index: 6, extractor: "Chromaprint", status: "completed", timestamp: 1766349066 }
+[  1416.262s] EVENT ExtractionProgress { passage_index: 6, extractor: "AudioDerived", status: "running", timestamp: 1766349066 }
+[  1417.074s] EVENT ExtractionProgress { passage_index: 6, extractor: "AudioDerived", status: "completed", timestamp: 1766349067 }
+[  1417.074s] EVENT ExtractionProgress { passage_index: 6, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349067 }
+[  1417.074s] EVENT ExtractionProgress { passage_index: 6, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349067 }
+[  1417.074s] EVENT FusionStarted { passage_index: 6, timestamp: 1766349067 }
+[  1417.074s] EVENT FusionStarted { passage_index: 6, timestamp: 1766349067 }
+[  1417.074s] EVENT ValidationStarted { passage_index: 6, timestamp: 1766349067 }
+[  1417.074s] EVENT PassageCompleted: passage #6
+[  1417.074s] EVENT PassageStarted: passage #7
+[  1417.074s] EVENT ExtractionProgress { passage_index: 7, extractor: "ID3", status: "running", timestamp: 1766349067 }
+[  1417.074s] EVENT ExtractionProgress { passage_index: 7, extractor: "ID3", status: "completed", timestamp: 1766349067 }
+[  1417.074s] EVENT ExtractionProgress { passage_index: 7, extractor: "Chromaprint", status: "running", timestamp: 1766349067 }
+[  1417.574s] EVENT ExtractionProgress { passage_index: 7, extractor: "Chromaprint", status: "completed", timestamp: 1766349067 }
+[  1417.574s] EVENT ExtractionProgress { passage_index: 7, extractor: "AudioDerived", status: "running", timestamp: 1766349067 }
+[  1418.306s] EVENT ExtractionProgress { passage_index: 7, extractor: "AudioDerived", status: "completed", timestamp: 1766349068 }
+[  1418.306s] EVENT ExtractionProgress { passage_index: 7, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349068 }
+[  1418.306s] EVENT ExtractionProgress { passage_index: 7, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349068 }
+[  1418.306s] EVENT FusionStarted { passage_index: 7, timestamp: 1766349068 }
+[  1418.306s] EVENT FusionStarted { passage_index: 7, timestamp: 1766349068 }
+[  1418.306s] EVENT ValidationStarted { passage_index: 7, timestamp: 1766349068 }
+[  1418.306s] EVENT PassageCompleted: passage #7
+[  1418.306s] EVENT PassageStarted: passage #8
+[  1418.306s] EVENT ExtractionProgress { passage_index: 8, extractor: "ID3", status: "running", timestamp: 1766349068 }
+[  1418.306s] EVENT ExtractionProgress { passage_index: 8, extractor: "ID3", status: "completed", timestamp: 1766349068 }
+[  1418.306s] EVENT ExtractionProgress { passage_index: 8, extractor: "Chromaprint", status: "running", timestamp: 1766349068 }
+[  1418.816s] EVENT ExtractionProgress { passage_index: 8, extractor: "Chromaprint", status: "completed", timestamp: 1766349068 }
+[  1418.816s] EVENT ExtractionProgress { passage_index: 8, extractor: "AudioDerived", status: "running", timestamp: 1766349068 }
+[  1419.539s] EVENT ExtractionProgress { passage_index: 8, extractor: "AudioDerived", status: "completed", timestamp: 1766349069 }
+[  1419.539s] EVENT ExtractionProgress { passage_index: 8, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349069 }
+[  1419.539s] EVENT ExtractionProgress { passage_index: 8, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349069 }
+[  1419.539s] EVENT FusionStarted { passage_index: 8, timestamp: 1766349069 }
+[  1419.539s] EVENT FusionStarted { passage_index: 8, timestamp: 1766349069 }
+[  1419.539s] EVENT ValidationStarted { passage_index: 8, timestamp: 1766349069 }
+[  1419.539s] EVENT PassageCompleted: passage #8
+[  1419.539s] EVENT PassageStarted: passage #9
+[  1419.539s] EVENT ExtractionProgress { passage_index: 9, extractor: "ID3", status: "running", timestamp: 1766349069 }
+[  1419.539s] EVENT ExtractionProgress { passage_index: 9, extractor: "ID3", status: "completed", timestamp: 1766349069 }
+[  1419.539s] EVENT ExtractionProgress { passage_index: 9, extractor: "Chromaprint", status: "running", timestamp: 1766349069 }
+[  1420.079s] EVENT ExtractionProgress { passage_index: 9, extractor: "Chromaprint", status: "completed", timestamp: 1766349070 }
+[  1420.079s] EVENT ExtractionProgress { passage_index: 9, extractor: "AudioDerived", status: "running", timestamp: 1766349070 }
+[  1420.903s] EVENT ExtractionProgress { passage_index: 9, extractor: "AudioDerived", status: "completed", timestamp: 1766349070 }
+[  1420.903s] EVENT ExtractionProgress { passage_index: 9, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349070 }
+[  1420.903s] EVENT ExtractionProgress { passage_index: 9, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349070 }
+[  1420.903s] EVENT FusionStarted { passage_index: 9, timestamp: 1766349070 }
+[  1420.903s] EVENT FusionStarted { passage_index: 9, timestamp: 1766349070 }
+[  1420.903s] EVENT ValidationStarted { passage_index: 9, timestamp: 1766349070 }
+[  1420.903s] EVENT PassageCompleted: passage #9
+[  1420.903s] EVENT PassageStarted: passage #10
+[  1420.903s] EVENT ExtractionProgress { passage_index: 10, extractor: "ID3", status: "running", timestamp: 1766349070 }
+[  1420.903s] EVENT ExtractionProgress { passage_index: 10, extractor: "ID3", status: "completed", timestamp: 1766349070 }
+[  1420.903s] EVENT ExtractionProgress { passage_index: 10, extractor: "Chromaprint", status: "running", timestamp: 1766349070 }
+[  1421.409s] EVENT ExtractionProgress { passage_index: 10, extractor: "Chromaprint", status: "completed", timestamp: 1766349071 }
+[  1421.409s] EVENT ExtractionProgress { passage_index: 10, extractor: "AudioDerived", status: "running", timestamp: 1766349071 }
+[  1422.148s] EVENT ExtractionProgress { passage_index: 10, extractor: "AudioDerived", status: "completed", timestamp: 1766349072 }
+[  1422.148s] EVENT ExtractionProgress { passage_index: 10, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349072 }
+[  1422.148s] EVENT ExtractionProgress { passage_index: 10, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349072 }
+[  1422.148s] EVENT FusionStarted { passage_index: 10, timestamp: 1766349072 }
+[  1422.148s] EVENT FusionStarted { passage_index: 10, timestamp: 1766349072 }
+[  1422.148s] EVENT ValidationStarted { passage_index: 10, timestamp: 1766349072 }
+[  1422.148s] EVENT PassageCompleted: passage #10
+[  1422.148s] EVENT PassageStarted: passage #11
+[  1422.148s] EVENT ExtractionProgress { passage_index: 11, extractor: "ID3", status: "running", timestamp: 1766349072 }
+[  1422.148s] EVENT ExtractionProgress { passage_index: 11, extractor: "ID3", status: "completed", timestamp: 1766349072 }
+[  1422.148s] EVENT ExtractionProgress { passage_index: 11, extractor: "Chromaprint", status: "running", timestamp: 1766349072 }
+[  1422.630s] EVENT ExtractionProgress { passage_index: 11, extractor: "Chromaprint", status: "completed", timestamp: 1766349072 }
+[  1422.630s] EVENT ExtractionProgress { passage_index: 11, extractor: "AudioDerived", status: "running", timestamp: 1766349072 }
+[  1423.329s] EVENT ExtractionProgress { passage_index: 11, extractor: "AudioDerived", status: "completed", timestamp: 1766349073 }
+[  1423.329s] EVENT ExtractionProgress { passage_index: 11, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349073 }
+[  1423.329s] EVENT ExtractionProgress { passage_index: 11, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349073 }
+[  1423.329s] EVENT FusionStarted { passage_index: 11, timestamp: 1766349073 }
+[  1423.329s] EVENT FusionStarted { passage_index: 11, timestamp: 1766349073 }
+[  1423.329s] EVENT ValidationStarted { passage_index: 11, timestamp: 1766349073 }
+[  1423.329s] EVENT PassageCompleted: passage #11
+[  1423.329s] EVENT PassageStarted: passage #12
+[  1423.329s] EVENT ExtractionProgress { passage_index: 12, extractor: "ID3", status: "running", timestamp: 1766349073 }
+[  1423.329s] EVENT ExtractionProgress { passage_index: 12, extractor: "ID3", status: "completed", timestamp: 1766349073 }
+[  1423.329s] EVENT ExtractionProgress { passage_index: 12, extractor: "Chromaprint", status: "running", timestamp: 1766349073 }
+[  1423.886s] EVENT ExtractionProgress { passage_index: 12, extractor: "Chromaprint", status: "completed", timestamp: 1766349073 }
+[  1423.886s] EVENT ExtractionProgress { passage_index: 12, extractor: "AudioDerived", status: "running", timestamp: 1766349073 }
+[  1424.687s] EVENT ExtractionProgress { passage_index: 12, extractor: "AudioDerived", status: "completed", timestamp: 1766349074 }
+[  1424.687s] EVENT ExtractionProgress { passage_index: 12, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349074 }
+[  1424.687s] EVENT ExtractionProgress { passage_index: 12, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349074 }
+[  1424.687s] EVENT FusionStarted { passage_index: 12, timestamp: 1766349074 }
+[  1424.687s] EVENT FusionStarted { passage_index: 12, timestamp: 1766349074 }
+[  1424.687s] EVENT ValidationStarted { passage_index: 12, timestamp: 1766349074 }
+[  1424.687s] EVENT PassageCompleted: passage #12
+[  1424.687s] EVENT PassageStarted: passage #13
+[  1424.687s] EVENT ExtractionProgress { passage_index: 13, extractor: "ID3", status: "running", timestamp: 1766349074 }
+[  1424.687s] EVENT ExtractionProgress { passage_index: 13, extractor: "ID3", status: "completed", timestamp: 1766349074 }
+[  1424.687s] EVENT ExtractionProgress { passage_index: 13, extractor: "Chromaprint", status: "running", timestamp: 1766349074 }
+[  1425.245s] EVENT ExtractionProgress { passage_index: 13, extractor: "Chromaprint", status: "completed", timestamp: 1766349075 }
+[  1425.245s] EVENT ExtractionProgress { passage_index: 13, extractor: "AudioDerived", status: "running", timestamp: 1766349075 }
+[  1426.062s] EVENT ExtractionProgress { passage_index: 13, extractor: "AudioDerived", status: "completed", timestamp: 1766349076 }
+[  1426.062s] EVENT ExtractionProgress { passage_index: 13, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349076 }
+[  1426.062s] EVENT ExtractionProgress { passage_index: 13, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349076 }
+[  1426.062s] EVENT FusionStarted { passage_index: 13, timestamp: 1766349076 }
+[  1426.062s] EVENT FusionStarted { passage_index: 13, timestamp: 1766349076 }
+[  1426.062s] EVENT ValidationStarted { passage_index: 13, timestamp: 1766349076 }
+[  1426.062s] EVENT PassageCompleted: passage #13
+[  1426.062s] EVENT PassageStarted: passage #14
+[  1426.062s] EVENT ExtractionProgress { passage_index: 14, extractor: "ID3", status: "running", timestamp: 1766349076 }
+[  1426.062s] EVENT ExtractionProgress { passage_index: 14, extractor: "ID3", status: "completed", timestamp: 1766349076 }
+[  1426.062s] EVENT ExtractionProgress { passage_index: 14, extractor: "Chromaprint", status: "running", timestamp: 1766349076 }
+[  1426.533s] EVENT ExtractionProgress { passage_index: 14, extractor: "Chromaprint", status: "completed", timestamp: 1766349076 }
+[  1426.533s] EVENT ExtractionProgress { passage_index: 14, extractor: "AudioDerived", status: "running", timestamp: 1766349076 }
+[  1427.218s] EVENT ExtractionProgress { passage_index: 14, extractor: "AudioDerived", status: "completed", timestamp: 1766349077 }
+[  1427.218s] EVENT ExtractionProgress { passage_index: 14, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349077 }
+[  1427.218s] EVENT ExtractionProgress { passage_index: 14, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349077 }
+[  1427.218s] EVENT FusionStarted { passage_index: 14, timestamp: 1766349077 }
+[  1427.218s] EVENT FusionStarted { passage_index: 14, timestamp: 1766349077 }
+[  1427.218s] EVENT ValidationStarted { passage_index: 14, timestamp: 1766349077 }
+[  1427.218s] EVENT PassageCompleted: passage #14
+[  1427.218s] EVENT PassageStarted: passage #15
+[  1427.218s] EVENT ExtractionProgress { passage_index: 15, extractor: "ID3", status: "running", timestamp: 1766349077 }
+[  1427.218s] EVENT ExtractionProgress { passage_index: 15, extractor: "ID3", status: "completed", timestamp: 1766349077 }
+[  1427.218s] EVENT ExtractionProgress { passage_index: 15, extractor: "Chromaprint", status: "running", timestamp: 1766349077 }
+[  1427.668s] EVENT ExtractionProgress { passage_index: 15, extractor: "Chromaprint", status: "completed", timestamp: 1766349077 }
+[  1427.668s] EVENT ExtractionProgress { passage_index: 15, extractor: "AudioDerived", status: "running", timestamp: 1766349077 }
+[  1428.327s] FILE_COMPLETE [45/5737] HappyNation.mp3 - 16 passages in 185.11s (total_elapsed: 1428.3s)
+[  1428.327s] FILE_START [46/5737] (Aerosmith)Single-03-Angel.mp3
+[  1428.329s] EVENT ExtractionProgress { passage_index: 15, extractor: "AudioDerived", status: "completed", timestamp: 1766349078 }
+[  1428.329s] EVENT ExtractionProgress { passage_index: 15, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349078 }
+[  1428.329s] EVENT ExtractionProgress { passage_index: 15, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766349078 }
+[  1428.329s] EVENT FusionStarted { passage_index: 15, timestamp: 1766349078 }
+[  1428.329s] EVENT FusionStarted { passage_index: 15, timestamp: 1766349078 }
+[  1428.329s] EVENT ValidationStarted { passage_index: 15, timestamp: 1766349078 }
+[  1428.329s] EVENT PassageCompleted: passage #15
+[  1428.329s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\(Aerosmith)Single-03-Angel.mp3"
+[  1428.329s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\(Aerosmith)Single-03-Angel.mp3", score: 1.3, is_single_track: true }
+[  1440.655s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8788377600, confidence: 0.5, timestamp: 1766349090 }
+[  1440.655s] EVENT PassageStarted: passage #0
+[  1440.655s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766349090 }
+[  1440.655s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766349090 }
+[  1440.655s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766349090 }
+[  1441.071s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766349091 }
+[  1441.071s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766349091 }
+[  1441.696s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766349091 }
+[  1441.696s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349091 }
+[  1441.696s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766349091 }
+[  1441.696s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349091 }
+[  1441.696s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766349091 }
+[  1441.700s] FILE_COMPLETE [46/5737] (Aerosmith)Single-03-Angel.mp3 - 1 passages in 13.37s (total_elapsed: 1441.7s)
+[  1441.700s] FILE_START [47/5737] Pump.mp3
+[  1441.706s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766349091 }
+[  1441.706s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349091 }
+[  1441.706s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766349091 }
+[  1441.706s] EVENT PassageCompleted: passage #0
+[  1441.706s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\(Aerosmith)Single-03-Angel.mp3"
+[  1441.706s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Pump.mp3"
+[  1441.706s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Pump.mp3", score: 0.3, is_single_track: false }
+[  1441.706s] EVENT AlbumMatchingStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Pump.mp3"
+[  1559.478s] FILE_COMPLETE [47/5737] Pump.mp3 - 10 passages in 117.78s (total_elapsed: 1559.5s)
+[  1559.478s] FILE_START [48/5737] (Aerosmith)Toys_In_The_Attic-01-Toys_In_The_Attic.mp3
+[  1559.484s] EVENT AlbumMatchingCompleted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Pump.mp3"
+[  1559.484s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7277558400, confidence: 0.95, timestamp: 1766349209 }
+[  1559.484s] EVENT PassageStarted: passage #0
+[  1559.484s] EVENT PassageCompleted: passage #0
+[  1559.484s] EVENT BoundaryDetected { passage_index: 1, start_time: 7277558400, end_time: 14334969600, confidence: 0.95, timestamp: 1766349209 }
+[  1559.484s] EVENT PassageStarted: passage #1
+[  1559.484s] EVENT PassageCompleted: passage #1
+[  1559.484s] EVENT BoundaryDetected { passage_index: 2, start_time: 14334969600, end_time: 23905728000, confidence: 0.95, timestamp: 1766349209 }
+[  1559.484s] EVENT PassageStarted: passage #2
+[  1559.484s] EVENT PassageCompleted: passage #2
+[  1559.484s] EVENT BoundaryDetected { passage_index: 3, start_time: 23905728000, end_time: 30639974399, confidence: 0.95, timestamp: 1766349209 }
+[  1559.484s] EVENT PassageStarted: passage #3
+[  1559.484s] EVENT PassageCompleted: passage #3
+[  1559.484s] EVENT BoundaryDetected { passage_index: 4, start_time: 30639974399, end_time: 40241779200, confidence: 0.95, timestamp: 1766349209 }
+[  1559.484s] EVENT PassageStarted: passage #4
+[  1559.484s] EVENT PassageCompleted: passage #4
+[  1559.484s] EVENT BoundaryDetected { passage_index: 5, start_time: 40241779200, end_time: 48597494400, confidence: 0.95, timestamp: 1766349209 }
+[  1559.484s] EVENT PassageStarted: passage #5
+[  1559.484s] EVENT PassageCompleted: passage #5
+[  1559.484s] EVENT BoundaryDetected { passage_index: 6, start_time: 48597494400, end_time: 53934652799, confidence: 0.95, timestamp: 1766349209 }
+[  1559.484s] EVENT PassageStarted: passage #6
+[  1559.484s] EVENT PassageCompleted: passage #6
+[  1559.484s] EVENT BoundaryDetected { passage_index: 7, start_time: 53934652799, end_time: 62091388799, confidence: 0.95, timestamp: 1766349209 }
+[  1559.484s] EVENT PassageStarted: passage #7
+[  1559.484s] EVENT PassageCompleted: passage #7
+[  1559.484s] EVENT BoundaryDetected { passage_index: 8, start_time: 62091388799, end_time: 69639897599, confidence: 0.95, timestamp: 1766349209 }
+[  1559.484s] EVENT PassageStarted: passage #8
+[  1559.484s] EVENT PassageCompleted: passage #8
+[  1559.484s] EVENT BoundaryDetected { passage_index: 9, start_time: 69639897599, end_time: 80663592960, confidence: 0.95, timestamp: 1766349209 }
+[  1559.484s] EVENT PassageStarted: passage #9
+[  1559.484s] EVENT PassageCompleted: passage #9
+[  1559.484s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-01-Toys_In_The_Attic.mp3"
+[  1559.484s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-01-Toys_In_The_Attic.mp3", score: 1.8, is_single_track: true }
+[  1567.673s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 5270814720, confidence: 0.5, timestamp: 1766349217 }
+[  1567.673s] EVENT PassageStarted: passage #0
+[  1567.673s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766349217 }
+[  1567.673s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766349217 }
+[  1567.673s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766349217 }
+[  1567.960s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766349217 }
+[  1567.960s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766349217 }
+[  1568.467s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766349218 }
+[  1568.467s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349218 }
+[  1568.467s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766349218 }
+[  1568.467s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349218 }
+[  1568.467s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766349218 }
+[  1568.471s] FILE_COMPLETE [48/5737] (Aerosmith)Toys_In_The_Attic-01-Toys_In_The_Attic.mp3 - 1 passages in 8.99s (total_elapsed: 1568.5s)
+[  1568.471s] FILE_START [49/5737] (Aerosmith)Toys_In_The_Attic-02-Uncle_Salty.mp3
+[  1568.473s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766349218 }
+[  1568.473s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349218 }
+[  1568.473s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766349218 }
+[  1568.473s] EVENT PassageCompleted: passage #0
+[  1568.473s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-01-Toys_In_The_Attic.mp3"
+[  1568.473s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-02-Uncle_Salty.mp3"
+[  1568.473s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-02-Uncle_Salty.mp3", score: 1.8, is_single_track: true }
+[  1579.322s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7073464320, confidence: 0.5, timestamp: 1766349229 }
+[  1579.322s] EVENT PassageStarted: passage #0
+[  1579.322s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766349229 }
+[  1579.322s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766349229 }
+[  1579.322s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766349229 }
+[  1579.647s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766349229 }
+[  1579.647s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766349229 }
+[  1580.177s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766349230 }
+[  1580.177s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349230 }
+[  1580.177s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766349230 }
+[  1580.177s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349230 }
+[  1580.177s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766349230 }
+[  1580.184s] FILE_COMPLETE [49/5737] (Aerosmith)Toys_In_The_Attic-02-Uncle_Salty.mp3 - 1 passages in 11.71s (total_elapsed: 1580.2s)
+[  1580.184s] FILE_START [50/5737] (Aerosmith)Toys_In_The_Attic-03-Adam's_Apple.mp3
+[  1580.187s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766349230 }
+[  1580.187s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349230 }
+[  1580.187s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766349230 }
+[  1580.187s] EVENT PassageCompleted: passage #0
+[  1580.187s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-02-Uncle_Salty.mp3"
+[  1580.187s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-03-Adam's_Apple.mp3"
+[  1580.187s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-03-Adam's_Apple.mp3", score: 1.8, is_single_track: true }
+[  1591.848s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7753973760, confidence: 0.5, timestamp: 1766349241 }
+[  1591.848s] EVENT PassageStarted: passage #0
+[  1591.848s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766349241 }
+[  1591.848s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766349241 }
+[  1591.848s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766349241 }
+[  1592.209s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766349242 }
+[  1592.209s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766349242 }
+[  1592.765s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766349242 }
+[  1592.765s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349242 }
+[  1592.765s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766349242 }
+[  1592.765s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349242 }
+[  1592.765s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766349242 }
+[  1592.768s] FILE_COMPLETE [50/5737] (Aerosmith)Toys_In_The_Attic-03-Adam's_Apple.mp3 - 1 passages in 12.58s (total_elapsed: 1592.8s)
+[  1592.768s] PROGRESS 50/5737 (0.9%) - 0.03 files/sec - ETA: 3019.4min
+[  1592.768s] FILE_START [51/5737] (Aerosmith)Toys_In_The_Attic-04-Walk_This_Way.mp3
+[  1592.770s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766349242 }
+[  1592.770s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349242 }
+[  1592.770s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766349242 }
+[  1592.770s] EVENT PassageCompleted: passage #0
+[  1592.770s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-03-Adam's_Apple.mp3"
+[  1592.770s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-04-Walk_This_Way.mp3"
+[  1592.770s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-04-Walk_This_Way.mp3", score: 1.8, is_single_track: true }
+[  1601.382s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 6241812480, confidence: 0.5, timestamp: 1766349251 }
+[  1601.382s] EVENT PassageStarted: passage #0
+[  1601.382s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766349251 }
+[  1601.382s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766349251 }
+[  1601.382s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766349251 }
+[  1601.651s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766349251 }
+[  1601.651s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766349251 }
+[  1602.078s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766349252 }
+[  1602.078s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349252 }
+[  1602.078s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766349252 }
+[  1602.078s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349252 }
+[  1602.078s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766349252 }
+[  1602.081s] FILE_COMPLETE [51/5737] (Aerosmith)Toys_In_The_Attic-04-Walk_This_Way.mp3 - 1 passages in 9.31s (total_elapsed: 1602.1s)
+[  1602.081s] FILE_START [52/5737] (Aerosmith)Toys_In_The_Attic-05-Big_Ten_Inch_Record.mp3
+[  1602.086s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766349252 }
+[  1602.086s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349252 }
+[  1602.086s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766349252 }
+[  1602.086s] EVENT PassageCompleted: passage #0
+[  1602.086s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-04-Walk_This_Way.mp3"
+[  1602.086s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-05-Big_Ten_Inch_Record.mp3"
+[  1602.086s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-05-Big_Ten_Inch_Record.mp3", score: 1.8, is_single_track: true }
+[  1607.202s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 3784458240, confidence: 0.5, timestamp: 1766349257 }
+[  1607.202s] EVENT PassageStarted: passage #0
+[  1607.202s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766349257 }
+[  1607.202s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766349257 }
+[  1607.202s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766349257 }
+[  1607.386s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766349257 }
+[  1607.386s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766349257 }
+[  1607.654s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766349257 }
+[  1607.654s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349257 }
+[  1607.654s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766349257 }
+[  1607.654s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349257 }
+[  1607.654s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766349257 }
+[  1607.656s] FILE_COMPLETE [52/5737] (Aerosmith)Toys_In_The_Attic-05-Big_Ten_Inch_Record.mp3 - 1 passages in 5.57s (total_elapsed: 1607.7s)
+[  1607.656s] FILE_START [53/5737] (Aerosmith)Toys_In_The_Attic-06-Sweet_Emotion.mp3
+[  1607.661s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766349257 }
+[  1607.661s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349257 }
+[  1607.661s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766349257 }
+[  1607.661s] EVENT PassageCompleted: passage #0
+[  1607.661s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-05-Big_Ten_Inch_Record.mp3"
+[  1607.661s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-06-Sweet_Emotion.mp3"
+[  1607.661s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-06-Sweet_Emotion.mp3", score: 1.8, is_single_track: true }
+[  1618.184s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7753236480, confidence: 0.5, timestamp: 1766349268 }
+[  1618.184s] EVENT PassageStarted: passage #0
+[  1618.184s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766349268 }
+[  1618.184s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766349268 }
+[  1618.184s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766349268 }
+[  1618.509s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766349268 }
+[  1618.509s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766349268 }
+[  1619.037s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766349269 }
+[  1619.037s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349269 }
+[  1619.037s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766349269 }
+[  1619.037s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349269 }
+[  1619.037s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766349269 }
+[  1619.041s] FILE_COMPLETE [53/5737] (Aerosmith)Toys_In_The_Attic-06-Sweet_Emotion.mp3 - 1 passages in 11.38s (total_elapsed: 1619.0s)
+[  1619.041s] FILE_START [54/5737] (Aerosmith)Toys_In_The_Attic-07-No_More_No_More.mp3
+[  1619.043s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766349269 }
+[  1619.043s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349269 }
+[  1619.043s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766349269 }
+[  1619.043s] EVENT PassageCompleted: passage #0
+[  1619.043s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-06-Sweet_Emotion.mp3"
+[  1619.043s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-07-No_More_No_More.mp3"
+[  1619.043s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-07-No_More_No_More.mp3", score: 1.8, is_single_track: true }
+[  1629.431s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 7755448320, confidence: 0.5, timestamp: 1766349279 }
+[  1629.431s] EVENT PassageStarted: passage #0
+[  1629.431s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766349279 }
+[  1629.431s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766349279 }
+[  1629.431s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766349279 }
+[  1629.770s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766349279 }
+[  1629.770s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766349279 }
+[  1630.313s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766349280 }
+[  1630.313s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349280 }
+[  1630.313s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766349280 }
+[  1630.313s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349280 }
+[  1630.313s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766349280 }
+[  1630.316s] FILE_COMPLETE [54/5737] (Aerosmith)Toys_In_The_Attic-07-No_More_No_More.mp3 - 1 passages in 11.28s (total_elapsed: 1630.3s)
+[  1630.316s] FILE_START [55/5737] (Aerosmith)Toys_In_The_Attic-08-Round_And_Round.mp3
+[  1630.322s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766349280 }
+[  1630.322s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349280 }
+[  1630.322s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766349280 }
+[  1630.322s] EVENT PassageCompleted: passage #0
+[  1630.322s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-07-No_More_No_More.mp3"
+[  1630.322s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-08-Round_And_Round.mp3"
+[  1630.322s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-08-Round_And_Round.mp3", score: 1.8, is_single_track: true }
+[  1641.658s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8567930880, confidence: 0.8, timestamp: 1766349291 }
+[  1641.658s] EVENT PassageStarted: passage #0
+[  1641.658s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766349291 }
+[  1641.658s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766349291 }
+[  1641.658s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766349291 }
+[  1642.018s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766349292 }
+[  1642.018s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766349292 }
+[  1642.595s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766349292 }
+[  1642.595s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349292 }
+[  1642.595s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766349292 }
+[  1642.595s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349292 }
+[  1642.595s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766349292 }
+[  1642.606s] FILE_COMPLETE [55/5737] (Aerosmith)Toys_In_The_Attic-08-Round_And_Round.mp3 - 1 passages in 12.29s (total_elapsed: 1642.6s)
+[  1642.606s] FILE_START [56/5737] (Aerosmith)Toys_In_The_Attic-09-You_See_Me_Crying.mp3
+[  1642.608s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766349292 }
+[  1642.608s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349292 }
+[  1642.608s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766349292 }
+[  1642.608s] EVENT PassageCompleted: passage #0
+[  1642.608s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-08-Round_And_Round.mp3"
+[  1642.608s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-09-You_See_Me_Crying.mp3"
+[  1642.608s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-09-You_See_Me_Crying.mp3", score: 1.8, is_single_track: true }
+[  1654.008s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8797962240, confidence: 0.5, timestamp: 1766349303 }
+[  1654.008s] EVENT PassageStarted: passage #0
+[  1654.008s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766349304 }
+[  1654.008s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766349304 }
+[  1654.008s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766349304 }
+[  1654.380s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766349304 }
+[  1654.380s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766349304 }
+[  1654.964s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766349304 }
+[  1654.964s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766349304 }
+[  1654.964s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "completed", timestamp: 1766349304 }
+[  1654.964s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349304 }
+[  1654.964s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "running", timestamp: 1766349304 }
+[  1654.968s] FILE_COMPLETE [56/5737] (Aerosmith)Toys_In_The_Attic-09-You_See_Me_Crying.mp3 - 1 passages in 12.36s (total_elapsed: 1655.0s)
+[  1654.968s] FILE_START [57/5737] AliceInChainsGreatestHits.mp3
+[  1654.970s] EVENT ExtractionProgress { passage_index: 0, extractor: "MusicBrainz-Pass2", status: "completed", timestamp: 1766349304 }
+[  1654.970s] EVENT FusionStarted { passage_index: 0, timestamp: 1766349304 }
+[  1654.970s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766349304 }
+[  1654.970s] EVENT PassageCompleted: passage #0
+[  1654.970s] EVENT FileCompleted: "C:\\Users\\Mango Cat\\Music\\Aerosmith\\Toys_In_The_Attic\\(Aerosmith)Toys_In_The_Attic-09-You_See_Me_Crying.mp3"
+[  1654.970s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Alice In Chains\\AliceInChainsGreatestHits.mp3"
+[  1654.970s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Alice In Chains\\AliceInChainsGreatestHits.mp3", score: -0.5, is_single_track: false }
+[  1654.970s] EVENT AlbumMatchingStarted: "C:\\Users\\Mango Cat\\Music\\Alice In Chains\\AliceInChainsGreatestHits.mp3"
+[  1763.618s] FILE_COMPLETE [57/5737] AliceInChainsGreatestHits.mp3 - 10 passages in 108.65s (total_elapsed: 1763.6s)
+[  1763.618s] FILE_START [58/5737] AtFillmoreEast.mp3
+[  1763.621s] EVENT AlbumMatchingCompleted: "C:\\Users\\Mango Cat\\Music\\Alice In Chains\\AliceInChainsGreatestHits.mp3"
+[  1763.621s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 8082861440, confidence: 0.95, timestamp: 1766349413 }
+[  1763.621s] EVENT PassageStarted: passage #0
+[  1763.621s] EVENT PassageCompleted: passage #0
+[  1763.621s] EVENT BoundaryDetected { passage_index: 1, start_time: 8082861440, end_time: 12276808960, confidence: 0.95, timestamp: 1766349413 }
+[  1763.621s] EVENT PassageStarted: passage #1
+[  1763.621s] EVENT PassageCompleted: passage #1
+[  1763.621s] EVENT BoundaryDetected { passage_index: 2, start_time: 12276808960, end_time: 22787949439, confidence: 0.95, timestamp: 1766349413 }
+[  1763.621s] EVENT PassageStarted: passage #2
+[  1763.621s] EVENT PassageCompleted: passage #2
+[  1763.621s] EVENT BoundaryDetected { passage_index: 3, start_time: 22787949439, end_time: 30896906240, confidence: 0.95, timestamp: 1766349413 }
+[  1763.621s] EVENT PassageStarted: passage #3
+[  1763.621s] EVENT PassageCompleted: passage #3
+[  1763.621s] EVENT BoundaryDetected { passage_index: 4, start_time: 30896906240, end_time: 36710881920, confidence: 0.95, timestamp: 1766349413 }
+[  1763.621s] EVENT PassageStarted: passage #4
+[  1763.621s] EVENT PassageCompleted: passage #4
+[  1763.621s] EVENT BoundaryDetected { passage_index: 5, start_time: 36710881920, end_time: 43868768640, confidence: 0.95, timestamp: 1766349413 }
+[  1763.621s] EVENT PassageStarted: passage #5
+[  1763.621s] EVENT PassageCompleted: passage #5
+[  1763.621s] EVENT BoundaryDetected { passage_index: 6, start_time: 43868768640, end_time: 50991744000, confidence: 0.95, timestamp: 1766349413 }
+[  1763.621s] EVENT PassageStarted: passage #6
+[  1763.621s] EVENT PassageCompleted: passage #6
+[  1763.621s] EVENT BoundaryDetected { passage_index: 7, start_time: 50991744000, end_time: 58998787840, confidence: 0.95, timestamp: 1766349413 }
+[  1763.621s] EVENT PassageStarted: passage #7
+[  1763.621s] EVENT PassageCompleted: passage #7
+[  1763.621s] EVENT BoundaryDetected { passage_index: 8, start_time: 58998787840, end_time: 68182944000, confidence: 0.95, timestamp: 1766349413 }
+[  1763.621s] EVENT PassageStarted: passage #8
+[  1763.621s] EVENT PassageCompleted: passage #8
+[  1763.621s] EVENT BoundaryDetected { passage_index: 9, start_time: 68182944000, end_time: 75080757120, confidence: 0.95, timestamp: 1766349413 }
+[  1763.621s] EVENT PassageStarted: passage #9
+[  1763.621s] EVENT PassageCompleted: passage #9
+[  1763.621s] EVENT FileStarted: "C:\\Users\\Mango Cat\\Music\\Allman Brothers\\AtFillmoreEast.mp3"
+[  1763.621s] EVENT SingleTrackCheckCompleted { file_path: "C:\\Users\\Mango Cat\\Music\\Allman Brothers\\AtFillmoreEast.mp3", score: 0.3, is_single_track: false }
+[  1763.621s] EVENT AlbumMatchingStarted: "C:\\Users\\Mango Cat\\Music\\Allman Brothers\\AtFillmoreEast.mp3"

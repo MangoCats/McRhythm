@@ -133,7 +133,7 @@ WKMP consists of 6 independent microservices + 1 shared library:
 
 **Key Capabilities:**
 - Euclidean distance calculation in musical flavor space
-- Multi-level cooldowns (song: 14d, artist: 30min, work: 2d)
+- Multi-level cooldowns (song: 14d, artist: 30min, work: 2d) - See [SPEC005:282-336 § Cooldown System](SPEC005-program_director.md#cooldown-system)
 - Weighted random selection with flavor distance scoring
 
 **Port:** 5722

@@ -494,6 +494,9 @@ pub fn set_unix_permissions_0600(path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Set Unix file permissions to 0600 (Windows no-op)
+///
+/// **Windows:** Returns Ok(()) - NTFS default permissions are acceptable
 #[cfg(not(unix))]
 pub fn set_unix_permissions_0600(_path: &Path) -> Result<()> {
     // Windows: No-op (best-effort approach)
@@ -523,6 +526,9 @@ pub fn check_toml_permissions_loose(path: &Path) -> Result<bool> {
     Ok((mode & 0o077) != 0)
 }
 
+/// Check if TOML file has loose permissions (Windows no-op)
+///
+/// **Windows:** Always returns Ok(false) - cannot reliably check NTFS ACLs
 #[cfg(not(unix))]
 pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
     // Windows: Cannot reliably check NTFS ACLs, return false

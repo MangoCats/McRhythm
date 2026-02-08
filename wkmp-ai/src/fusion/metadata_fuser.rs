@@ -19,7 +19,7 @@
 //! - Compute overall metadata completeness score
 
 use crate::types::{
-    ConfidenceValue, Fusion, FusionError, FusionResult, FusedMetadata, MetadataExtraction,
+    ConfidenceValue, FusedMetadata, Fusion, FusionError, FusionResult, MetadataExtraction,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -130,7 +130,9 @@ impl MetadataFuser {
         );
 
         let recording_mbid = self.fuse_field(
-            metadata_list.iter().filter_map(|m| m.recording_mbid.as_ref()),
+            metadata_list
+                .iter()
+                .filter_map(|m| m.recording_mbid.as_ref()),
             "recording_mbid",
         );
 
@@ -154,9 +156,14 @@ impl MetadataFuser {
 
             if !values.is_empty() {
                 // Select value with highest confidence
-                let best = values.iter().max_by(|a, b| {
-                    a.confidence.partial_cmp(&b.confidence).unwrap_or(std::cmp::Ordering::Equal)
-                }).unwrap();
+                let best = values
+                    .iter()
+                    .max_by(|a, b| {
+                        a.confidence
+                            .partial_cmp(&b.confidence)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .unwrap();
 
                 additional.insert(key.clone(), (*best).clone());
             }
@@ -195,11 +202,7 @@ impl MetadataFuser {
     /// Fuse a single metadata field
     ///
     /// Returns: ConfidenceValue with best (highest confidence) value
-    fn fuse_field<'a, I>(
-        &self,
-        values: I,
-        field_name: &str,
-    ) -> Option<ConfidenceValue<String>>
+    fn fuse_field<'a, I>(&self, values: I, field_name: &str) -> Option<ConfidenceValue<String>>
     where
         I: Iterator<Item = &'a ConfidenceValue<String>>,
     {
@@ -212,7 +215,11 @@ impl MetadataFuser {
         // Select value with highest confidence
         let best = values_vec
             .iter()
-            .max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.confidence
+                    .partial_cmp(&b.confidence)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .unwrap();
 
         debug!(
@@ -426,10 +433,23 @@ mod tests {
     async fn test_fuse_single_metadata() {
         let fuser = MetadataFuser::new();
         let metadata = vec![MetadataExtraction {
-            title: Some(ConfidenceValue::new("Song Title".to_string(), 0.9, "MusicBrainz")),
-            artist: Some(ConfidenceValue::new("Artist Name".to_string(), 0.9, "MusicBrainz")),
-            album: Some(ConfidenceValue::new("Album Name".to_string(), 0.9, "MusicBrainz")),
+            title: Some(ConfidenceValue::new(
+                "Song Title".to_string(),
+                0.9,
+                "MusicBrainz",
+            )),
+            artist: Some(ConfidenceValue::new(
+                "Artist Name".to_string(),
+                0.9,
+                "MusicBrainz",
+            )),
+            album: Some(ConfidenceValue::new(
+                "Album Name".to_string(),
+                0.9,
+                "MusicBrainz",
+            )),
             recording_mbid: None,
+            isrc: None,
             additional: HashMap::new(),
         }];
 
@@ -437,9 +457,18 @@ mod tests {
         assert!(result.is_ok());
 
         let fusion = result.unwrap();
-        assert_eq!(fusion.output.title.as_ref().map(|cv| &cv.value), Some(&"Song Title".to_string()));
-        assert_eq!(fusion.output.artist.as_ref().map(|cv| &cv.value), Some(&"Artist Name".to_string()));
-        assert_eq!(fusion.output.album.as_ref().map(|cv| &cv.value), Some(&"Album Name".to_string()));
+        assert_eq!(
+            fusion.output.title.as_ref().map(|cv| &cv.value),
+            Some(&"Song Title".to_string())
+        );
+        assert_eq!(
+            fusion.output.artist.as_ref().map(|cv| &cv.value),
+            Some(&"Artist Name".to_string())
+        );
+        assert_eq!(
+            fusion.output.album.as_ref().map(|cv| &cv.value),
+            Some(&"Album Name".to_string())
+        );
         assert_eq!(fusion.output.metadata_completeness, 0.75); // 3/4 fields
     }
 
@@ -448,17 +477,31 @@ mod tests {
         let fuser = MetadataFuser::new();
         let metadata = vec![
             MetadataExtraction {
-                title: Some(ConfidenceValue::new("Song Title".to_string(), 0.9, "MusicBrainz")),
-                artist: Some(ConfidenceValue::new("Artist Name".to_string(), 0.9, "MusicBrainz")),
+                title: Some(ConfidenceValue::new(
+                    "Song Title".to_string(),
+                    0.9,
+                    "MusicBrainz",
+                )),
+                artist: Some(ConfidenceValue::new(
+                    "Artist Name".to_string(),
+                    0.9,
+                    "MusicBrainz",
+                )),
                 album: None,
                 recording_mbid: None,
+                isrc: None,
                 additional: HashMap::new(),
             },
             MetadataExtraction {
                 title: Some(ConfidenceValue::new("Song Title".to_string(), 0.6, "ID3")),
-                artist: Some(ConfidenceValue::new("Different Artist".to_string(), 0.6, "ID3")),
+                artist: Some(ConfidenceValue::new(
+                    "Different Artist".to_string(),
+                    0.6,
+                    "ID3",
+                )),
                 album: Some(ConfidenceValue::new("Album Name".to_string(), 0.6, "ID3")),
                 recording_mbid: None,
+                isrc: None,
                 additional: HashMap::new(),
             },
         ];
@@ -468,10 +511,19 @@ mod tests {
 
         let fusion = result.unwrap();
         // Should select MusicBrainz for title and artist (higher confidence)
-        assert_eq!(fusion.output.title.as_ref().map(|cv| &cv.source), Some(&"MusicBrainz".to_string()));
-        assert_eq!(fusion.output.artist.as_ref().map(|cv| &cv.source), Some(&"MusicBrainz".to_string()));
+        assert_eq!(
+            fusion.output.title.as_ref().map(|cv| &cv.source),
+            Some(&"MusicBrainz".to_string())
+        );
+        assert_eq!(
+            fusion.output.artist.as_ref().map(|cv| &cv.source),
+            Some(&"MusicBrainz".to_string())
+        );
         // Should select ID3 for album (only source)
-        assert_eq!(fusion.output.album.as_ref().map(|cv| &cv.source), Some(&"ID3".to_string()));
+        assert_eq!(
+            fusion.output.album.as_ref().map(|cv| &cv.source),
+            Some(&"ID3".to_string())
+        );
     }
 
     #[tokio::test]
@@ -484,6 +536,7 @@ mod tests {
             artist: Some(ConfidenceValue::new("Artist".to_string(), 0.9, "MB")),
             album: Some(ConfidenceValue::new("Album".to_string(), 0.9, "MB")),
             recording_mbid: Some(ConfidenceValue::new("mbid-123".to_string(), 0.9, "MB")),
+            isrc: None,
             additional: HashMap::new(),
         }];
 
@@ -496,6 +549,7 @@ mod tests {
             artist: Some(ConfidenceValue::new("Artist".to_string(), 0.9, "MB")),
             album: None,
             recording_mbid: None,
+            isrc: None,
             additional: HashMap::new(),
         }];
 

@@ -52,7 +52,8 @@ pub async fn bridge_workflow_events(
                     current: processed_passages,
                     total: total_passages.max(1), // Avoid division by zero
                     percentage: 0.0,
-                    current_operation: format!("Starting file: {}",
+                    current_operation: format!(
+                        "Starting file: {}",
                         std::path::Path::new(&file_path)
                             .file_name()
                             .and_then(|n| n.to_str())
@@ -62,6 +63,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: Some(file_path),
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -71,6 +73,7 @@ pub async fn bridge_workflow_events(
                 start_time: start_ticks,
                 end_time: end_ticks,
                 confidence,
+                ..
             } => {
                 // Convert SPEC017 ticks to seconds for user-facing display
                 let start_seconds = start_ticks as f64 / TICK_RATE as f64;
@@ -97,6 +100,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -104,24 +108,26 @@ pub async fn bridge_workflow_events(
             WorkflowEvent::PassageStarted {
                 passage_index,
                 total_passages: total,
+                ..
             } => {
                 total_passages = total;
-                info!(
-                    "Bridge: Passage {} of {} started",
-                    passage_index + 1,
-                    total
-                );
+                info!("Bridge: Passage {} of {} started", passage_index + 1, total);
                 Some(WkmpEvent::ImportProgressUpdate {
                     session_id,
                     state: "EXTRACTING".to_string(),
                     current: passage_index,
                     total,
                     percentage: (passage_index as f32 / total as f32) * 100.0,
-                    current_operation: format!("Processing passage {} of {}", passage_index + 1, total),
+                    current_operation: format!(
+                        "Processing passage {} of {}",
+                        passage_index + 1,
+                        total
+                    ),
                     elapsed_seconds: start_time.elapsed().as_secs(),
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -130,6 +136,7 @@ pub async fn bridge_workflow_events(
                 passage_index,
                 extractor,
                 status,
+                ..
             } => {
                 debug!(
                     "Bridge: Extraction progress - passage {}, extractor: {}, status: {}",
@@ -154,11 +161,12 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
 
-            WorkflowEvent::FusionStarted { passage_index } => {
+            WorkflowEvent::FusionStarted { passage_index, .. } => {
                 debug!("Bridge: Fusion started for passage {}", passage_index + 1);
                 Some(WkmpEvent::ImportProgressUpdate {
                     session_id,
@@ -175,12 +183,16 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
 
-            WorkflowEvent::ValidationStarted { passage_index } => {
-                debug!("Bridge: Validation started for passage {}", passage_index + 1);
+            WorkflowEvent::ValidationStarted { passage_index, .. } => {
+                debug!(
+                    "Bridge: Validation started for passage {}",
+                    passage_index + 1
+                );
                 Some(WkmpEvent::ImportProgressUpdate {
                     session_id,
                     state: "VALIDATING".to_string(),
@@ -196,6 +208,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -204,6 +217,7 @@ pub async fn bridge_workflow_events(
                 passage_index,
                 quality_score,
                 validation_status,
+                ..
             } => {
                 processed_passages = passage_index + 1;
                 info!(
@@ -220,14 +234,13 @@ pub async fn bridge_workflow_events(
                     percentage: (processed_passages as f32 / total_passages as f32) * 100.0,
                     current_operation: format!(
                         "Completed passage {} of {} (quality: {:.0}%)",
-                        processed_passages,
-                        total_passages,
-                        quality_score
+                        processed_passages, total_passages, quality_score
                     ),
                     elapsed_seconds: start_time.elapsed().as_secs(),
                     estimated_remaining_seconds: {
                         if processed_passages > 0 {
-                            let avg_time_per_passage = start_time.elapsed().as_secs() / processed_passages as u64;
+                            let avg_time_per_passage =
+                                start_time.elapsed().as_secs() / processed_passages as u64;
                             let remaining = total_passages.saturating_sub(processed_passages);
                             Some(avg_time_per_passage * remaining as u64)
                         } else {
@@ -236,6 +249,7 @@ pub async fn bridge_workflow_events(
                     },
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -267,6 +281,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: Some(0),
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -275,22 +290,29 @@ pub async fn bridge_workflow_events(
                 passage_index,
                 message,
             } => {
-                error!("Bridge: Workflow error - passage {:?}: {}", passage_index, message);
+                error!(
+                    "Bridge: Workflow error - passage {:?}: {}",
+                    passage_index, message
+                );
                 Some(WkmpEvent::ImportProgressUpdate {
                     session_id,
                     state: "ERROR".to_string(),
                     current: passage_index.unwrap_or(0),
                     total: total_passages.max(1),
-                    percentage: (passage_index.unwrap_or(0) as f32 / total_passages.max(1) as f32) * 100.0,
+                    percentage: (passage_index.unwrap_or(0) as f32 / total_passages.max(1) as f32)
+                        * 100.0,
                     current_operation: format!(
                         "Error{}: {}",
-                        passage_index.map(|i| format!(" in passage {}", i + 1)).unwrap_or_default(),
+                        passage_index
+                            .map(|i| format!(" in passage {}", i + 1))
+                            .unwrap_or_default(),
                         message
                     ),
                     elapsed_seconds: start_time.elapsed().as_secs(),
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -314,8 +336,153 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
+            }
+
+            // **[PLAN_am30_integration]** Album matching events
+            WorkflowEvent::SingleTrackCheckCompleted {
+                file_path,
+                score,
+                is_single_track,
+            } => {
+                let classification = if is_single_track {
+                    "single track"
+                } else {
+                    "album"
+                };
+                info!(
+                    "Bridge: Single-track check completed: {} -> {} (score: {:.2})",
+                    std::path::Path::new(&file_path)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(&file_path),
+                    classification,
+                    score
+                );
+                Some(WkmpEvent::ImportProgressUpdate {
+                    session_id,
+                    state: "ANALYZING".to_string(),
+                    current: processed_passages,
+                    total: total_passages.max(1),
+                    percentage: 0.0,
+                    current_operation: format!(
+                        "Detected {} (score: {:.2})",
+                        classification, score
+                    ),
+                    elapsed_seconds: start_time.elapsed().as_secs(),
+                    estimated_remaining_seconds: None,
+                    phases: Vec::new(),
+                    current_file: Some(file_path),
+                    phase_statistics: vec![],
+                    timestamp: Utc::now(),
+                })
+            }
+
+            WorkflowEvent::AlbumMatchingStarted { file_path, .. } => {
+                info!("Bridge: Album matching started: {}", file_path);
+                Some(WkmpEvent::ImportProgressUpdate {
+                    session_id,
+                    state: "ALBUM_MATCHING".to_string(),
+                    current: processed_passages,
+                    total: total_passages.max(1),
+                    percentage: 0.0,
+                    current_operation: format!(
+                        "Matching album: {}",
+                        std::path::Path::new(&file_path)
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or(&file_path)
+                    ),
+                    elapsed_seconds: start_time.elapsed().as_secs(),
+                    estimated_remaining_seconds: None,
+                    phases: Vec::new(),
+                    current_file: Some(file_path),
+                    phase_statistics: vec![],
+                    timestamp: Utc::now(),
+                })
+            }
+
+            WorkflowEvent::AlbumMatchingCompleted {
+                file_path,
+                matched,
+                track_count,
+                match_percentage,
+                ..
+            } => {
+                let status = if matched { "matched" } else { "not matched" };
+                info!(
+                    "Bridge: Album matching completed: {} -> {} ({} tracks, {:.1}% match)",
+                    file_path, status, track_count, match_percentage
+                );
+                total_passages = track_count; // Update total for progress tracking
+                Some(WkmpEvent::ImportProgressUpdate {
+                    session_id,
+                    state: if matched {
+                        "ALBUM_MATCHED".to_string()
+                    } else {
+                        "ALBUM_NOT_MATCHED".to_string()
+                    },
+                    current: processed_passages,
+                    total: track_count,
+                    percentage: 0.0,
+                    current_operation: format!(
+                        "Album {}: {} tracks ({:.1}% match)",
+                        status, track_count, match_percentage
+                    ),
+                    elapsed_seconds: start_time.elapsed().as_secs(),
+                    estimated_remaining_seconds: None,
+                    phases: Vec::new(),
+                    current_file: Some(file_path),
+                    phase_statistics: vec![],
+                    timestamp: Utc::now(),
+                })
+            }
+
+            WorkflowEvent::AlbumMatchingFailed { file_path, reason, .. } => {
+                error!("Bridge: Album matching failed: {} - {}", file_path, reason);
+                Some(WkmpEvent::ImportProgressUpdate {
+                    session_id,
+                    state: "ALBUM_MATCH_FAILED".to_string(),
+                    current: processed_passages,
+                    total: total_passages.max(1),
+                    percentage: 0.0,
+                    current_operation: format!("Album matching failed: {}", reason),
+                    elapsed_seconds: start_time.elapsed().as_secs(),
+                    estimated_remaining_seconds: None,
+                    phases: Vec::new(),
+                    current_file: Some(file_path),
+                    phase_statistics: vec![],
+                    timestamp: Utc::now(),
+                })
+            }
+
+            WorkflowEvent::AlbumMatchingFallback { file_path, reason, .. } => {
+                warn!("Bridge: Album matching fallback: {} - {}", file_path, reason);
+                Some(WkmpEvent::ImportProgressUpdate {
+                    session_id,
+                    state: "FALLBACK".to_string(),
+                    current: processed_passages,
+                    total: total_passages.max(1),
+                    percentage: 0.0,
+                    current_operation: format!(
+                        "Falling back to single-song processing: {}",
+                        reason
+                    ),
+                    elapsed_seconds: start_time.elapsed().as_secs(),
+                    estimated_remaining_seconds: None,
+                    phases: Vec::new(),
+                    current_file: Some(file_path),
+                    phase_statistics: vec![],
+                    timestamp: Utc::now(),
+                })
+            }
+
+            // **[PLAN032]** Forward analysis log entries directly
+            WorkflowEvent::AnalysisLogEvent(entry) => {
+                debug!("Bridge: Analysis log event: {:?}", entry.message_type);
+                Some(WkmpEvent::AnalysisLog(entry))
             }
         };
 

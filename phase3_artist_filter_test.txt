@@ -1,0 +1,30 @@
+error: no test target named `full_library_test` in `wkmp-ai` package
+help: available test targets:
+    album_matcher_accuracy_test
+    album_matcher_integration
+    api_integration_tests
+    architecture_compliance_tests
+    bootstrap_config_tests
+    boundary_detection_long_file_test
+    component_tests
+    concurrent_tests
+    config_tests
+    database_schema_validation
+    db_settings_tests
+    full_library_import_test
+    http_server_tests
+    orchestrator_integration
+    performance_integration_test
+    plan027_validation_test
+    recovery_tests
+    run29f_comparison_test
+    run29f_full_comparison_test
+    settings_api_tests
+    single_song_integration_tests
+    stage0_integration
+    system_tests
+    test_file_scanner_parallel
+    test_parallel_fingerprinting
+    unit_tests
+    workflow_integration
+    workflow_tests

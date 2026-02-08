@@ -1,0 +1,29 @@
+[
+    {
+        "Name":  "No Negative Floor (0.0)",
+        "ExactMatches":  null,
+        "ResultsFile":  null,
+        "ExperimentId":  "exp1a",
+        "Duration":  null,
+        "MbidChanges":  null,
+        "Status":  "FAILED"
+    },
+    {
+        "Name":  "Reduced Negative Floor (-0.3)",
+        "ExactMatches":  null,
+        "ResultsFile":  null,
+        "ExperimentId":  "exp1b",
+        "Duration":  null,
+        "MbidChanges":  null,
+        "Status":  "FAILED"
+    },
+    {
+        "Name":  "Middle Ground Floor (-0.5)",
+        "ExactMatches":  null,
+        "ResultsFile":  null,
+        "ExperimentId":  "exp1c",
+        "Duration":  null,
+        "MbidChanges":  null,
+        "Status":  "FAILED"
+    }
+]

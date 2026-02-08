@@ -62,7 +62,8 @@ pub async fn import_event_stream(
                         | WkmpEvent::ImportProgressUpdate { .. }
                         | WkmpEvent::ImportSessionCompleted { .. }
                         | WkmpEvent::ImportSessionFailed { .. }
-                        | WkmpEvent::ImportSessionCancelled { .. } => {
+                        | WkmpEvent::ImportSessionCancelled { .. }
+                        | WkmpEvent::AnalysisLog(_) => {
                             let event_type = event.event_type();
 
                             match serde_json::to_string(&event) {
@@ -89,6 +90,6 @@ pub async fn import_event_stream(
     Sse::new(stream).keep_alive(
         axum::response::sse::KeepAlive::new()
             .interval(Duration::from_secs(15))
-            .text("heartbeat")
+            .text("heartbeat"),
     )
 }

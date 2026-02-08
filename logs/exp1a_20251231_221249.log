@@ -1,0 +1,10 @@
+[2025-12-31 22:12:49] [INFO] === Starting Experiment: exp1a ===
+[2025-12-31 22:12:49] [INFO] Branch: exp1a-floor-0.0
+[2025-12-31 22:12:49] [INFO] Current branch: main
+[2025-12-31 22:12:49] [INFO] Creating branch: exp1a-floor-0.0
+[2025-12-31 22:12:49] [INFO] Applying code changes...
+[2025-12-31 22:12:49] [INFO]   Modifying: wkmp-ai\src\matching\editions\scoring.rs
+[2025-12-31 22:12:49] [ERROR] FATAL ERROR: Cannot find path 'C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\src\matching\editions\scoring.rs' because it does not exist.
+[2025-12-31 22:12:49] [ERROR] Stack trace: at <ScriptBlock>, C:\Users\Mango Cat\Dev\McRhythm\scripts\run_experiment.ps1: line 83
+at <ScriptBlock>, <No file>: line 5
+[2025-12-31 22:12:56] [ERROR] Failed to return to original branch

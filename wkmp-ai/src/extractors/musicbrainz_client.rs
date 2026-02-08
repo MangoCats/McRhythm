@@ -136,10 +136,7 @@ impl MusicBrainzClient {
     /// - Network request fails
     /// - API returns error (404 = MBID not found)
     /// - Response parse fails
-    async fn query_recording(
-        &self,
-        mbid: &str,
-    ) -> Result<MetadataExtraction, ExtractionError> {
+    async fn query_recording(&self, mbid: &str) -> Result<MetadataExtraction, ExtractionError> {
         debug!(mbid = %mbid, "Querying MusicBrainz Recording");
 
         // Enforce rate limit
@@ -152,12 +149,9 @@ impl MusicBrainzClient {
         );
 
         // Execute request
-        let response = self
-            .http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| ExtractionError::Network(format!("MusicBrainz API request failed: {}", e)))?;
+        let response = self.http_client.get(&url).send().await.map_err(|e| {
+            ExtractionError::Network(format!("MusicBrainz API request failed: {}", e))
+        })?;
 
         // Check status
         if !response.status().is_success() {
@@ -194,7 +188,10 @@ impl MusicBrainzClient {
     }
 
     /// Extract metadata from MusicBrainz Recording response
-    fn extract_metadata_from_recording(&self, recording: &MusicBrainzRecording) -> MetadataExtraction {
+    fn extract_metadata_from_recording(
+        &self,
+        recording: &MusicBrainzRecording,
+    ) -> MetadataExtraction {
         let mut metadata = MetadataExtraction::default();
 
         // Title
@@ -210,10 +207,8 @@ impl MusicBrainzClient {
         if let Some(ref artist_credit) = recording.artist_credit {
             if !artist_credit.is_empty() {
                 // Combine multiple artists if present
-                let artist_names: Vec<&str> = artist_credit
-                    .iter()
-                    .map(|ac| ac.name.as_str())
-                    .collect();
+                let artist_names: Vec<&str> =
+                    artist_credit.iter().map(|ac| ac.name.as_str()).collect();
                 let artist_str = artist_names.join(", ");
 
                 metadata.artist = Some(ConfidenceValue::new(
@@ -244,11 +239,7 @@ impl MusicBrainzClient {
 
                     metadata.additional.insert(
                         "artist_mbids".to_string(),
-                        ConfidenceValue::new(
-                            artist_mbids_str,
-                            self.base_confidence,
-                            "MusicBrainz",
-                        ),
+                        ConfidenceValue::new(artist_mbids_str, self.base_confidence, "MusicBrainz"),
                     );
                 }
             }
@@ -355,9 +346,64 @@ impl MusicBrainzClient {
         // Wrap in ExtractionResult
         Ok(ExtractionResult {
             metadata: Some(metadata),
-            identity: None,  // MBID already known from Pass 1
+            identity: None, // MBID already known from Pass 1
             musical_flavor: None,
         })
+    }
+
+    /// Extract metadata using a known Recording MBID with database caching
+    ///
+    /// Same as `extract_with_mbid()` but checks cache first to avoid redundant API calls.
+    /// This is the primary bottleneck elimination for MusicBrainz-Pass2 extractor.
+    ///
+    /// **Cache Strategy:**
+    /// - Check cache first (instant return if hit)
+    /// - On miss: query API + cache result
+    /// - 2-year TTL (MusicBrainz metadata is stable)
+    ///
+    /// # Arguments
+    /// * `mbid` - MusicBrainz Recording ID (from Pass 1 fusion)
+    /// * `ctx` - Passage context (for logging only)
+    /// * `pool` - Database connection pool for cache access
+    ///
+    /// # Returns
+    /// * `ExtractionResult` with rich metadata (from cache or API)
+    pub async fn extract_with_mbid_cached(
+        &self,
+        mbid: &str,
+        ctx: &PassageContext,
+        pool: &sqlx::SqlitePool,
+    ) -> Result<ExtractionResult, ExtractionError> {
+        // Check cache first
+        if let Ok(Some(cached)) = crate::db::mbid_cache::get_cached(pool, mbid).await {
+            debug!(
+                passage_id = %ctx.passage_id,
+                mbid = %mbid,
+                cached_at = %cached.cached_at,
+                "MusicBrainz Pass 2: Cache hit"
+            );
+            return Ok(cached.extraction_result);
+        }
+
+        debug!(
+            passage_id = %ctx.passage_id,
+            mbid = %mbid,
+            "MusicBrainz Pass 2: Cache miss, querying API"
+        );
+
+        // Cache miss - query API
+        let result = self.extract_with_mbid(mbid, ctx).await?;
+
+        // Cache the result (non-fatal if caching fails)
+        if let Err(e) = crate::db::mbid_cache::cache_result(pool, mbid, &result).await {
+            tracing::warn!(
+                mbid = %mbid,
+                error = %e,
+                "Failed to cache MusicBrainz Pass 2 result"
+            );
+        }
+
+        Ok(result)
     }
 }
 
@@ -473,7 +519,10 @@ mod tests {
 
         let result = client.extract(&ctx).await;
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ExtractionError::NotAvailable(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            ExtractionError::NotAvailable(_)
+        ));
     }
 
     #[tokio::test]
@@ -484,7 +533,10 @@ mod tests {
         let start = Instant::now();
         client.enforce_rate_limit().await;
         let first_elapsed = start.elapsed();
-        assert!(first_elapsed.as_millis() < 100, "First request should be immediate");
+        assert!(
+            first_elapsed.as_millis() < 100,
+            "First request should be immediate"
+        );
 
         // Second request within 1 second should sleep
         let start = Instant::now();

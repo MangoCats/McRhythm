@@ -351,7 +351,7 @@ wkmp-common = { path = "../wkmp-common", version = "0.1" }
 ✅ **Reduced Testing Burden**
 - Test once in wkmp-common, trust in all modules
 - wkmp-common has 28 passing tests
-- No need to duplicate 28 tests × 5 modules = 140 tests
+- No need to duplicate 28 tests × 6 modules = 168 tests
 
 ✅ **Consistent Behavior**
 - All modules use same timestamp validation (≤1000ms past, ≤1ms future)

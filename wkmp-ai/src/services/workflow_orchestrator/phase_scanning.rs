@@ -1,340 +1,296 @@
 //! Phase 1: SCANNING
 //!
-//! File system scanning and database persistence
+//! File system scanning for audio file discovery
+//!
+//! **[AIA-WF-010]** SCANNING phase discovers audio files and creates basic file records
+//!
+//! **PLAN024 Architecture:**
+//! - SCANNING: File discovery only (path, modification time, session linkage)
+//! - PROCESSING: Per-file pipeline handles hashing, metadata, segmentation, etc.
+//!
+//! **Legacy Architecture (Deprecated):**
+//! - SCANNING: File discovery + batch hashing + batch metadata extraction
+//! - EXTRACTING/FINGERPRINTING/etc.: Separate batch phases
+//!
+//! This module implements the PLAN024 approach: minimal file discovery only.
 
 use super::WorkflowOrchestrator;
 use crate::models::{ImportSession, ImportState};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::Utc;
-use rayon::prelude::*;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
+use wkmp_common::path_normalization::normalize_path_for_db;
 
 impl WorkflowOrchestrator {
-    /// Phase 1: SCANNING - Discover and persist audio files
+    /// Phase 1: SCANNING - Discover audio files and create basic file records
     ///
     /// **[AIA-WF-010]** Filesystem traversal
     /// **[AIA-ASYNC-010]** Respects cancellation token
-    /// **[OPTIMIZATION]** Skips unchanged files (95% speedup on re-scans)
+    ///
+    /// **PLAN024 Approach:**
+    /// - Scans filesystem for audio files
+    /// - Creates file records with: path, modification_time, session_id
+    /// - Does NOT extract metadata, hash files, or do any processing
+    /// - Processing happens per-file in Phase 2 (PROCESSING)
+    ///
+    /// # Returns
+    /// Updated session with file count in progress.total
     pub(super) async fn phase_scanning(
         &self,
         mut session: ImportSession,
         start_time: std::time::Instant,
         cancel_token: &tokio_util::sync::CancellationToken,
     ) -> Result<ImportSession> {
+        tracing::debug!(session_id = %session.session_id, "phase_scanning() entry");
         session.transition_to(ImportState::Scanning);
+        tracing::debug!(session_id = %session.session_id, "transitioned to Scanning state");
         session.update_progress(0, 0, "Scanning for audio files...".to_string());
+        tracing::debug!(session_id = %session.session_id, "updated progress, about to save session to database");
         crate::db::sessions::save_session(&self.db, &session).await?;
-        self.broadcast_progress(&session, start_time);
+        tracing::debug!(session_id = %session.session_id, "session saved to database");
 
-        tracing::info!(session_id = %session.session_id, "Phase 1: SCANNING");
+        // **[PLAN024]** Set scanning to active
+        {
+            let mut scan_stats = self.statistics.scanning.lock().unwrap();
+            scan_stats.is_scanning = true;
+            scan_stats.potential_files_found = 0;
+        }
 
-        // Scan with progress updates during file discovery
-        // We need to collect file counts and update session after scan completes
-        // because the callback runs synchronously during directory traversal
-        let scan_result = self
-            .file_scanner
-            .scan_with_stats_and_progress(
-                Path::new(&session.root_folder),
-                |file_count| {
-                    // Just log progress during scan - we'll update session state after
+        // Broadcast initial scanning state
+        let phase_statistics = self.convert_statistics_to_sse().await;
+        self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
+
+        tracing::info!(session_id = %session.session_id, "Phase 1: SCANNING (file discovery + classification)");
+
+        // **[PLAN031 Task 2.4]** Use spawn_blocking for CPU-intensive filesystem scanning
+        // FileScanner uses rayon (blocking thread pool) internally, so wrap the entire
+        // scan in spawn_blocking to prevent blocking the async executor
+
+        let root_folder = session.root_folder.clone();
+        let scan_stats = Arc::clone(&self.statistics.scanning);
+        let _event_bus = self.event_bus.clone(); // Scaffolded for future SSE events
+        let session_clone = session.clone();
+
+        let classification = tokio::task::spawn_blocking(move || {
+            use crate::services::FileScanner;
+            let scanner = FileScanner::new();
+
+            scanner.scan_and_classify_with_progress(
+                Path::new(&root_folder),
+                &mut |total_files, audio_files, image_files, other_files| {
+                    // **[PLAN024]** Update scanning statistics during scan (magic byte analysis)
+                    {
+                        let mut stats = scan_stats.lock().unwrap();
+                        stats.potential_files_found = total_files;
+                        stats.audio_files = audio_files;
+                        stats.image_files = image_files;
+                        stats.other_files = other_files;
+                        // Magic byte analysis happens inline, so files analyzed = files counted
+                        stats.total_files = audio_files + image_files + other_files;
+                        stats.magic_byte_analyzed = stats.total_files;
+                    }
+
                     tracing::debug!(
-                        session_id = %session.session_id,
-                        files_found = file_count,
-                        "File discovery progress"
+                        session_id = %session_clone.session_id,
+                        total_files,
+                        audio_files,
+                        image_files,
+                        other_files,
+                        "File discovery and magic byte analysis progress"
                     );
                 },
-            )?;
+            )
+        })
+        .await
+        .context("File scanner task panicked")??;
 
         tracing::info!(
             session_id = %session.session_id,
-            files_found = scan_result.files.len(),
-            total_size_mb = scan_result.total_size / 1_000_000,
-            "File scan completed"
+            audio_files = classification.audio_files.len(),
+            image_files = classification.image_files.len(),
+            other_files = classification.other_files.len(),
+            total_files = classification.total_count(),
+            audio_confirmed = classification.audio_confirmed,
+            audio_denied = classification.audio_denied,
+            image_confirmed = classification.image_confirmed,
+            image_denied = classification.image_denied,
+            "File classification completed with magic byte verification"
         );
 
-        // Update progress with final scan count
-        let files_found = scan_result.files.len();
-        session.update_progress(
-            files_found,
-            files_found,
-            format!("{} audio files found", files_found),
-        );
-        crate::db::sessions::save_session(&self.db, &session).await?;
-        self.broadcast_progress(&session, start_time);
+        // Store classification results in session state
+        session.file_classification = classification.clone();
 
-        // Transition to EXTRACTING phase
-        session.transition_to(ImportState::Extracting);
+        // **[AIA-CLASSIFY-040]** Extract ONLY confirmed audio files for processing
+        // Only files with both valid audio extension AND confirmed magic bytes are processed
+        let audio_files: Vec<std::path::PathBuf> = classification
+            .audio_files
+            .iter()
+            .filter(|f| f.verification_status == crate::models::VerificationStatus::Confirmed)
+            .map(|f| f.path.clone())
+            .collect();
+
+        let confirmed_count = audio_files.len();
+        let denied_count = classification.audio_denied;
+
+        tracing::info!(
+            session_id = %session.session_id,
+            confirmed_audio_files = confirmed_count,
+            denied_audio_files = denied_count,
+            "Filtered to confirmed audio files only (magic byte verified)"
+        );
+
+        // **[AIA-CLASSIFY-040]** Transition to BULK_INSERTING phase
+        session.transition_to(ImportState::BulkInserting);
         session.update_progress(
             0,
-            scan_result.files.len(),
-            format!("Extracting metadata from {} audio files...", scan_result.files.len()),
+            confirmed_count,
+            format!(
+                "Creating minimal records for {} audio files",
+                confirmed_count
+            ),
         );
         crate::db::sessions::save_session(&self.db, &session).await?;
-        self.broadcast_progress(&session, start_time);
 
         tracing::info!(
             session_id = %session.session_id,
-            "Phase 1B: EXTRACTING - Hash calculation and metadata extraction"
+            files_to_insert = confirmed_count,
+            "Phase 1.5: BULK_INSERTING - Creating database records for confirmed files"
         );
 
-        // **[AIA-PERF-040]** Parallel file processing with batch database writes
-        let total_files = scan_result.files.len();
-        let scan_start_time = std::time::Instant::now();
+        // Broadcast BULK_INSERTING state
+        let phase_statistics = self.convert_statistics_to_sse().await;
+        self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
-        // Atomic counters for thread-safe progress tracking
-        let processed_count = Arc::new(AtomicUsize::new(0));
-        let skipped_count = Arc::new(AtomicUsize::new(0));
-        let cancelled = Arc::new(AtomicBool::new(false));
+        // Create basic file records in database
+        // NOTE: We only store path and modification time here
+        // Hashing, metadata extraction, etc. happens in per-file pipeline
+        let root_path = Path::new(&session.root_folder);
+        let mut file_records = Vec::new();
 
-        // Clone for parallel processing (avoid borrow checker issues)
-        let root_folder_path = session.root_folder.clone();
-        let root_path = std::path::PathBuf::from(&root_folder_path);
-        let session_id = session.session_id.clone();
-
-        // Process files in parallel batches
-        // **[AIA-PERF-041]** Increased batch size for better CPU utilization
-        // Larger batches keep more CPU cores busy during hash calculation and metadata extraction
-        let cpu_count = num_cpus::get();
-        const BATCH_SIZE: usize = 100;  // Increased from 25 to keep more cores busy
-        const PROGRESS_UPDATE_INTERVAL: usize = 1;
-
-        tracing::info!(
-            session_id = %session.session_id,
-            cpu_count,
-            batch_size = BATCH_SIZE,
-            "Starting parallel extraction with optimized batch size"
-        );
-
-        let mut all_new_files = Vec::new();
-
-        for (batch_idx, batch) in scan_result.files.chunks(BATCH_SIZE).enumerate() {
-            // **[AIA-ASYNC-010]** Check for cancellation between batches
+        for file_path in &audio_files {
+            // Check cancellation
             if cancel_token.is_cancelled() {
-                cancelled.store(true, Ordering::SeqCst);
-                break;
-            }
-
-            // Parallel processing within batch
-            let root_path_ref = &root_path;  // Create reference for closure
-            let batch_results: Vec<Option<crate::db::files::AudioFile>> = batch
-                .par_iter()
-                .map(|file_path| {
-                    // Check cancellation flag (set by main thread)
-                    if cancelled.load(Ordering::SeqCst) {
-                        return None;
-                    }
-
-                    // Get file metadata
-                    let metadata = match std::fs::metadata(file_path) {
-                        Ok(m) => m,
-                        Err(e) => {
-                            tracing::warn!(
-                                session_id = %session_id,
-                                file = %file_path.display(),
-                                error = %e,
-                                "Failed to read file metadata, skipping"
-                            );
-                            return None;
-                        }
-                    };
-
-                    let mod_time = match metadata.modified() {
-                        Ok(t) => t,
-                        Err(e) => {
-                            tracing::warn!(
-                                session_id = %session_id,
-                                file = %file_path.display(),
-                                error = %e,
-                                "Failed to get modification time, skipping"
-                            );
-                            return None;
-                        }
-                    };
-                    let mod_time_utc = chrono::DateTime::<Utc>::from(mod_time);
-
-                    // Create relative path
-                    let relative_path = file_path.strip_prefix(root_path_ref)
-                        .unwrap_or(file_path)
-                        .to_string_lossy()
-                        .to_string();
-
-                    // Calculate file hash (CPU-intensive, benefits from parallelization)
-                    let hash = match crate::db::files::calculate_file_hash(file_path) {
-                        Ok(h) => h,
-                        Err(e) => {
-                            tracing::warn!(
-                                session_id = %session_id,
-                                file = %file_path.display(),
-                                error = %e,
-                                "Failed to hash file, skipping"
-                            );
-                            return None;
-                        }
-                    };
-
-                    // Extract audio metadata (I/O bound, benefits from parallelization)
-                    let audio_metadata = self.metadata_extractor.extract(file_path).ok();
-
-                    // Create audio file record
-                    let mut audio_file = crate::db::files::AudioFile::new(
-                        relative_path.clone(),
-                        hash,
-                        mod_time_utc,
-                    );
-
-                    // Populate metadata fields if extraction succeeded
-                    if let Some(meta) = audio_metadata {
-                        audio_file.format = Some(meta.format);
-                        audio_file.sample_rate = meta.sample_rate.map(|sr| sr as i32);
-                        audio_file.channels = meta.channels.map(|ch| ch as i32);
-                        audio_file.file_size_bytes = Some(meta.file_size_bytes as i64);
-                    }
-
-                    processed_count.fetch_add(1, Ordering::SeqCst);
-
-                    Some(audio_file)
-                })
-                .collect();
-
-            // Filter out None results and collect valid files
-            let batch_files: Vec<_> = batch_results.into_iter().flatten().collect();
-
-            // **[AIA-PERF-042]** Parallel database duplicate checking
-            // Process duplicate checks concurrently (I/O-bound database queries)
-            use futures::stream::{self, StreamExt};
-
-            let db_pool = self.db.clone();
-            let duplicate_checks = stream::iter(batch_files)
-                .map(|audio_file| {
-                    let db = db_pool.clone();
-                    let session_id_clone = session.session_id.clone();
-                    async move {
-                        // Check if file exists and is unchanged
-                        if let Ok(Some(existing)) = crate::db::files::load_file_by_path(&db, &audio_file.path).await {
-                            if existing.modification_time == audio_file.modification_time {
-                                // File unchanged - skip
-                                return (audio_file, false, true); // (file, is_new, is_unchanged)
-                            }
-                        }
-
-                        // Check for duplicate by hash
-                        if let Ok(Some(existing)) = crate::db::files::load_file_by_hash(&db, &audio_file.hash).await {
-                            tracing::debug!(
-                                session_id = %session_id_clone,
-                                new_path = %audio_file.path,
-                                existing_path = %existing.path,
-                                "Duplicate file detected (different path, same hash)"
-                            );
-                            return (audio_file, false, false); // (file, is_new, is_unchanged)
-                        }
-
-                        (audio_file, true, false) // (file, is_new, is_unchanged)
-                    }
-                })
-                .buffer_unordered(cpu_count * 2) // 2x CPU count for I/O-bound operations
-                .collect::<Vec<_>>()
-                .await;
-
-            // Separate new files from skipped
-            let mut new_files = Vec::new();
-            for (file, is_new, is_unchanged) in duplicate_checks {
-                if is_unchanged || !is_new {
-                    skipped_count.fetch_add(1, Ordering::SeqCst);
-                } else {
-                    new_files.push(file);
-                }
-            }
-
-            // Batch save to database
-            if !new_files.is_empty() {
-                match crate::db::files::save_files_batch(&self.db, &new_files).await {
-                    Ok(count) => {
-                        all_new_files.extend(new_files);
-                        tracing::debug!(
-                            session_id = %session.session_id,
-                            batch = batch_idx,
-                            saved = count,
-                            "Batch saved to database"
-                        );
-                    }
-                    Err(e) => {
-                        tracing::warn!(
-                            session_id = %session.session_id,
-                            batch = batch_idx,
-                            error = %e,
-                            "Failed to save batch to database"
-                        );
-                    }
-                }
-            }
-
-            // Update progress periodically
-            if batch_idx % PROGRESS_UPDATE_INTERVAL == 0 || batch_idx == (total_files / BATCH_SIZE) {
-                let current_processed = processed_count.load(Ordering::SeqCst);
-                let elapsed = scan_start_time.elapsed().as_secs_f64();
-
-                let eta_message = if current_processed > 5 && elapsed > 1.0 {
-                    let avg_time_per_file = elapsed / current_processed as f64;
-                    let files_remaining = total_files.saturating_sub(current_processed);
-                    let eta_seconds = (files_remaining as f64 * avg_time_per_file) as u64;
-                    let eta_minutes = eta_seconds / 60;
-                    let eta_secs = eta_seconds % 60;
-                    format!(" (ETA: {}m {}s)", eta_minutes, eta_secs)
-                } else {
-                    String::new()
-                };
-
+                tracing::info!(
+                    session_id = %session.session_id,
+                    files_created = file_records.len(),
+                    "Import cancelled during file record creation"
+                );
+                session.transition_to(ImportState::Cancelled);
                 session.update_progress(
-                    current_processed,
-                    total_files,
-                    format!("Processing files: {} of {}{}", current_processed, total_files, eta_message),
+                    file_records.len(),
+                    audio_files.len(),
+                    "Import cancelled by user".to_string(),
                 );
                 crate::db::sessions::save_session(&self.db, &session).await?;
-                self.broadcast_progress(&session, start_time);
+                return Ok(session);
             }
+
+            // Get file metadata (modification time)
+            let metadata = match std::fs::metadata(file_path) {
+                Ok(m) => m,
+                Err(e) => {
+                    tracing::warn!(
+                        session_id = %session.session_id,
+                        file = %file_path.display(),
+                        error = ?e,
+                        "Failed to read file metadata, skipping"
+                    );
+                    continue;
+                }
+            };
+
+            let mod_time = match metadata.modified() {
+                Ok(t) => t,
+                Err(e) => {
+                    tracing::warn!(
+                        session_id = %session.session_id,
+                        file = %file_path.display(),
+                        error = ?e,
+                        "Failed to get modification time, skipping"
+                    );
+                    continue;
+                }
+            };
+            let mod_time_utc = chrono::DateTime::<Utc>::from(mod_time);
+
+            // Create relative path
+            // **[Path Normalization]** Normalize to forward slashes for database storage
+            let relative_path =
+                normalize_path_for_db(file_path.strip_prefix(root_path).unwrap_or(file_path));
+
+            // Create minimal file record (no hash, no metadata yet)
+            // Hash and metadata will be computed in per-file pipeline
+            // NOTE: No session_id - files table doesn't track sessions per SPEC031 zero-conf
+            let mut audio_file = crate::db::files::AudioFile::new(
+                relative_path,
+                String::new(), // Hash will be computed in Phase 2
+                mod_time_utc,
+            );
+
+            // Set file size (other fields will be populated in per-file pipeline)
+            audio_file.file_size_bytes = Some(metadata.len() as i64);
+
+            file_records.push(audio_file);
         }
 
-        // Handle cancellation
-        if cancelled.load(Ordering::SeqCst) {
-            let files_processed = processed_count.load(Ordering::SeqCst);
-            tracing::info!(
-                session_id = %session.session_id,
-                files_processed = files_processed,
-                "Import cancelled during scanning phase"
-            );
-            session.transition_to(ImportState::Cancelled);
-            session.progress.current_file = None;
-            session.update_progress(
-                files_processed,
-                total_files,
-                "Import cancelled by user".to_string(),
-            );
-            crate::db::sessions::save_session(&self.db, &session).await?;
-            return Ok(session);
+        // Batch save file records to database
+        if !file_records.is_empty() {
+            crate::db::files::save_files_batch(&self.db, &file_records).await?;
         }
 
-        let saved_count = all_new_files.len();
-        let total_skipped = skipped_count.load(Ordering::SeqCst);
-        let total_processed = processed_count.load(Ordering::SeqCst);
+        let files_inserted = file_records.len();
 
+        // Update progress after bulk insert
         session.update_progress(
-            saved_count,
-            saved_count,
-            format!("Saved {} new files, skipped {} unchanged files", saved_count, total_skipped),
+            files_inserted,
+            files_inserted,
+            format!("{} minimal records created", files_inserted),
         );
-        session.progress.total = saved_count;
-
         crate::db::sessions::save_session(&self.db, &session).await?;
-        self.broadcast_progress(&session, start_time);
+
+        // Broadcast final bulk insert state
+        let phase_statistics = self.convert_statistics_to_sse().await;
+        self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
         tracing::info!(
             session_id = %session.session_id,
-            files_saved = saved_count,
-            files_skipped = total_skipped,
-            files_processed = total_processed,
-            "File scanning and database persistence completed (parallel mode)"
+            files_inserted,
+            "BULK_INSERTING phase complete - minimal records created in database"
+        );
+
+        // **[PLAN024]** Mark scanning complete
+        {
+            let mut scan_stats = self.statistics.scanning.lock().unwrap();
+            scan_stats.is_scanning = false;
+            scan_stats.potential_files_found = files_inserted;
+            scan_stats.audio_files = classification.audio_files.len();
+            scan_stats.image_files = classification.image_files.len();
+            scan_stats.other_files = classification.other_files.len();
+            scan_stats.total_files = classification.audio_files.len()
+                + classification.image_files.len()
+                + classification.other_files.len();
+            scan_stats.magic_byte_analyzed = scan_stats.total_files; // All files analyzed by this point
+            scan_stats.audio_confirmed = classification.audio_confirmed;
+            scan_stats.image_confirmed = classification.image_confirmed;
+            scan_stats.other_confirmed = classification.other_files.len(); // All other files are "confirmed"
+            scan_stats.audio_unrecognized_ext = 0; // TODO: Track unrecognized audio extensions
+            scan_stats.image_unrecognized_ext = 0; // TODO: Track unrecognized image extensions
+            scan_stats.misleading_extension =
+                classification.audio_denied + classification.image_denied;
+        }
+
+        // Set total for PROCESSING phase (only confirmed files)
+        session.progress.total = files_inserted; // Set total for PROCESSING phase
+
+        tracing::info!(
+            session_id = %session.session_id,
+            files_inserted,
+            total_files_scanned = classification.total_count(),
+            audio_confirmed = classification.audio_confirmed,
+            audio_denied = classification.audio_denied,
+            "SCANNING + BULK_INSERTING phases complete - {} confirmed files ready for processing",
+            files_inserted
         );
 
         Ok(session)

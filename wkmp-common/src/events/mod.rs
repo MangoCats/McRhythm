@@ -11,7 +11,11 @@ mod shared_types;
 // Re-export all types for backward compatibility
 pub use playback_types::{BufferStatus, DecoderState, FadeStage, PlaybackState};
 pub use queue_types::{EnqueueSource, QueueChangeTrigger, UserActionType};
-pub use import_types::{PhaseProgressData, PhaseStatusData, SubTaskData};
+pub use import_types::{
+    AnalysisLogDetails, AnalysisLogEntry, AnalysisLogType, AnalyzedPassageInfo,
+    FileProcessingStatus, FileState, PhaseProgressData, PhaseStatistics, PhaseStatusData,
+    RecordedPassageInfo, SubTaskData, TrackTimingError, WorkerActivity,
+};
 pub use shared_types::{BufferChainInfo, PlaybackPositionInfo, QueueEntryInfo};
 
 use serde::{Deserialize, Serialize};
@@ -838,6 +842,9 @@ pub enum WkmpEvent {
         /// Current file being processed
         #[serde(default)]
         current_file: Option<String>,
+        /// **PLAN024 Phase-Specific Statistics** (per wkmp-ai_refinement.md)
+        #[serde(default)]
+        phase_statistics: Vec<PhaseStatistics>,
         /// When progress updated
         timestamp: chrono::DateTime<chrono::Utc>,
     },
@@ -890,6 +897,17 @@ pub enum WkmpEvent {
         /// When session cancelled
         timestamp: chrono::DateTime<chrono::Utc>,
     },
+
+    /// **[PLAN032]** Analysis log entry for real-time UI feedback
+    ///
+    /// Provides detailed, timestamped log entries during import analysis:
+    /// - Album matching results with track-by-track timing errors
+    /// - AcousticBrainz/Essentia flavor lookups per passage
+    /// - General info/warning/error messages
+    ///
+    /// Triggers:
+    /// - SSE: Append to scrolling log panel in import-progress UI
+    AnalysisLog(AnalysisLogEntry),
 
     /// **[PLAN020 Phase 5]** Watchdog intervention occurred
     ///
@@ -975,6 +993,8 @@ impl WkmpEvent {
             WkmpEvent::ImportSessionCompleted { .. } => "ImportSessionCompleted",
             WkmpEvent::ImportSessionFailed { .. } => "ImportSessionFailed",
             WkmpEvent::ImportSessionCancelled { .. } => "ImportSessionCancelled",
+            // **[PLAN032]** Analysis log for real-time UI feedback
+            WkmpEvent::AnalysisLog(_) => "AnalysisLog",
             // **[PLAN020 Phase 5]** Watchdog monitoring event
             WkmpEvent::WatchdogIntervention { .. } => "WatchdogIntervention",
         }

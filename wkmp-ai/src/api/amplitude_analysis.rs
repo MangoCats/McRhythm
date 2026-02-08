@@ -2,11 +2,7 @@
 //!
 //! **[IMPL008]** POST /analyze/amplitude
 
-use axum::{
-    extract::State,
-    routing::post,
-    Json, Router,
-};
+use axum::{extract::State, routing::post, Json, Router};
 
 use crate::{
     error::ApiResult,
@@ -43,7 +39,6 @@ pub async fn analyze_amplitude(
 
     let result = analyzer
         .analyze_file(file_path, request.start_time, end_time)
-        .await
         .map_err(|e| crate::error::ApiError::Internal(e.to_string()))?;
 
     // Convert to response (convert f32 RMS profile to f64)

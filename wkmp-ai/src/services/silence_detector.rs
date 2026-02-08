@@ -47,23 +47,50 @@ impl SilenceRegion {
 
 /// Silence detector
 pub struct SilenceDetector {
-    /// Silence threshold in dB (default: -60dB for Vinyl preset)
+    /// Silence threshold in dB (default: -60dB for optimal track segmentation)
+    ///
+    /// **Empirical Basis:** Analysis of 38 Special "Anthology" (2.5hr, 34 tracks)
+    /// showed -60dB threshold produced best accuracy (3.02s mean error vs MusicBrainz).
+    /// See wkmp-ai/examples/silence_analyzer.rs for full parameter sweep results.
     threshold_db: f32,
 
-    /// Minimum silence duration in seconds (default: 0.5s)
+    /// Minimum silence duration in seconds (default: 2.0s for reliable inter-track gaps)
+    ///
+    /// **Empirical Basis:** 2.0s minimum duration achieved exact 34-track segmentation
+    /// with optimal accuracy on test anthology. Shorter durations (0.5s-1.5s) produced
+    /// false positives from brief intra-track pauses.
     min_duration_sec: f32,
 
     /// RMS window size in samples (default: 4410 = 100ms at 44.1kHz)
+    ///
+    /// **Empirical Basis:** 100ms window provides good time resolution for detecting
+    /// silence boundaries without excessive CPU overhead.
     window_size_samples: usize,
+
+    /// Window step in samples (default: 2205 = 50ms at 44.1kHz for 50% overlap)
+    ///
+    /// **Empirical Basis:** 50% window overlap (50ms step) provides smoother silence
+    /// detection than non-overlapping windows, reducing boundary jitter.
+    window_step_samples: usize,
 }
 
 impl SilenceDetector {
     /// Create new silence detector with defaults
+    ///
+    /// **Default Parameters (Empirically Optimized):**
+    /// - Threshold: -60 dB
+    /// - Min Duration: 2.0 seconds
+    /// - Window Size: 100ms (4410 samples @ 44.1kHz)
+    /// - Window Step: 50ms (2205 samples @ 44.1kHz, 50% overlap)
+    ///
+    /// Based on analysis of 38 Special "Anthology" 2-CD set (34 tracks, 2.5 hours).
+    /// See wkmp-ai/examples/silence_analyzer.rs for empirical validation.
     pub fn new() -> Self {
         Self {
-            threshold_db: -60.0,
-            min_duration_sec: 0.5,
+            threshold_db: -60.0,       // Empirically optimal for track segmentation
+            min_duration_sec: 2.0,     // Avoids false positives from brief pauses
             window_size_samples: 4410, // 100ms at 44.1kHz
+            window_step_samples: 2205, // 50ms at 44.1kHz (50% overlap)
         }
     }
 
@@ -111,25 +138,28 @@ impl SilenceDetector {
 
         let mut silence_regions = Vec::new();
         let mut in_silence = false;
-        let mut silence_start_sample = 0;  // samples, PCM frame position
+        let mut silence_start_sample = 0; // samples, PCM frame position
 
-        // Process audio in windows
-        for (window_idx, chunk) in samples.chunks(self.window_size_samples).enumerate() {
-            let rms = Self::calculate_rms(chunk);
-            // REQ-F-004: Unit clarity - samples (PCM frame position in file)
-            let sample_position = window_idx * self.window_size_samples;
+        // Process audio in overlapping windows (step by window_step_samples)
+        // **Empirical Basis:** 50% overlap (window_step < window_size) provides smoother
+        // silence detection than non-overlapping windows, reducing boundary jitter.
+        let mut sample_position = 0;
+        while sample_position + self.window_size_samples <= samples.len() {
+            let window_end = sample_position + self.window_size_samples;
+            let window = &samples[sample_position..window_end];
+            let rms = Self::calculate_rms(window);
 
             if rms < threshold_linear {
                 // Below threshold - silence
                 if !in_silence {
                     in_silence = true;
-                    silence_start_sample = sample_position;  // samples
+                    silence_start_sample = sample_position; // samples
                 }
             } else {
                 // Above threshold - sound
                 if in_silence {
-                    let silence_end_sample = sample_position;  // samples
-                    // REQ-F-004: Unit clarity - samples (duration in PCM frames)
+                    let silence_end_sample = sample_position; // samples
+                                                              // REQ-F-004: Unit clarity - samples (duration in PCM frames)
                     let duration_samples = silence_end_sample - silence_start_sample;
 
                     // Only include if longer than minimum duration
@@ -142,12 +172,14 @@ impl SilenceDetector {
                     in_silence = false;
                 }
             }
+
+            sample_position += self.window_step_samples;
         }
 
         // Handle silence at end of file
         if in_silence {
-            let silence_end_sample = samples.len();  // samples
-            // REQ-F-004: Unit clarity - samples (duration in PCM frames)
+            let silence_end_sample = samples.len(); // samples
+                                                    // REQ-F-004: Unit clarity - samples (duration in PCM frames)
             let duration_samples = silence_end_sample - silence_start_sample;
 
             if duration_samples >= min_duration_samples {
@@ -175,8 +207,8 @@ impl SilenceDetector {
         10.0_f32.powf(db / 20.0)
     }
 
-    /// Convert linear amplitude to dB
-    #[allow(dead_code)]
+    /// Convert linear amplitude to dB (test helper)
+    #[cfg(test)]
     fn linear_to_db(linear: f32) -> f32 {
         20.0 * linear.log10()
     }
@@ -196,7 +228,9 @@ mod tests {
     fn test_silence_detector_creation() {
         let detector = SilenceDetector::new();
         assert_eq!(detector.threshold_db, -60.0);
-        assert_eq!(detector.min_duration_sec, 0.5);
+        assert_eq!(detector.min_duration_sec, 2.0); // Updated from 0.5s based on empirical analysis
+        assert_eq!(detector.window_size_samples, 4410); // 100ms at 44.1kHz
+        assert_eq!(detector.window_step_samples, 2205); // 50ms at 44.1kHz (50% overlap)
     }
 
     #[test]
@@ -241,7 +275,9 @@ mod tests {
     #[test]
     fn test_detect_silence_simple() {
         let sample_rate = 44100;
-        let detector = SilenceDetector::new();
+        // Use detector with min_duration of 1.5s to ensure 2s silence is detected
+        // (windowing effects can reduce detected duration slightly)
+        let detector = SilenceDetector::new().with_min_duration(1.5).unwrap();
 
         // Create audio: 10s sound, 2s silence, 10s sound
         let mut samples = Vec::new();
@@ -251,7 +287,7 @@ mod tests {
             samples.push(0.5);
         }
 
-        // Silence (10-12s)
+        // Silence (10-12s) - use 0.0001 which is below -60dB threshold
         for _ in 0..(2 * sample_rate) {
             samples.push(0.0001);
         }
@@ -273,9 +309,7 @@ mod tests {
     #[test]
     fn test_minimum_duration_filter() {
         let sample_rate = 44100;
-        let detector = SilenceDetector::new()
-            .with_min_duration(0.5)
-            .unwrap();
+        let detector = SilenceDetector::new().with_min_duration(0.5).unwrap();
 
         let mut samples = Vec::new();
 

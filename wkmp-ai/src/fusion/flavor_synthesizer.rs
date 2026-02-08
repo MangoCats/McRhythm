@@ -41,7 +41,7 @@
 //! // danceability = (0.8*0.9 + 0.7*0.6) / (0.9 + 0.6) = 0.76
 //! ```
 
-use crate::types::{FlavorExtraction, Fusion, FusionError, FusionResult, FusedFlavor};
+use crate::types::{FlavorExtraction, FusedFlavor, Fusion, FusionError, FusionResult};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use tracing::debug;
@@ -95,10 +95,7 @@ impl FlavorSynthesizer {
     }
 
     /// Fuse flavor characteristics from multiple sources
-    fn fuse_flavors(
-        &self,
-        flavor_list: Vec<FlavorExtraction>,
-    ) -> Result<FusedFlavor, FusionError> {
+    fn fuse_flavors(&self, flavor_list: Vec<FlavorExtraction>) -> Result<FusedFlavor, FusionError> {
         if flavor_list.is_empty() {
             return Ok(FusedFlavor {
                 characteristics: HashMap::new(),
@@ -131,8 +128,7 @@ impl FlavorSynthesizer {
         let mut confidence_map = HashMap::new();
 
         for char_name in &all_characteristics {
-            let (fused_value, char_confidence) =
-                self.fuse_characteristic(char_name, &flavor_list);
+            let (fused_value, char_confidence) = self.fuse_characteristic(char_name, &flavor_list);
 
             if let Some(value) = fused_value {
                 fused_characteristics.insert(char_name.clone(), value);
@@ -239,9 +235,7 @@ impl FlavorSynthesizer {
                 .map(|(source, weight)| (source, weight / total_weight))
                 .collect()
         } else {
-            source_weights
-                .into_iter()
-                .collect()
+            source_weights.into_iter().collect()
         };
 
         // Sort by weight descending

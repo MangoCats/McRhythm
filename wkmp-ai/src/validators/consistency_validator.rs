@@ -129,12 +129,7 @@ impl ConsistencyValidator {
         );
 
         // Check 4: Completeness consistency (if fields present, they should be valid)
-        self.check_completeness_consistency(
-            passage,
-            &mut score,
-            &mut issues,
-            &mut minor_issues,
-        );
+        self.check_completeness_consistency(passage, &mut score, &mut issues, &mut minor_issues);
 
         // Clamp score to valid range
         score = score.clamp(0.0, 1.0);
@@ -259,9 +254,8 @@ impl ConsistencyValidator {
         {
             *score -= 0.05;
             *minor_issues += 1;
-            issues.push(
-                "Have recording MBID but missing basic metadata (title/artist)".to_string(),
-            );
+            issues
+                .push("Have recording MBID but missing basic metadata (title/artist)".to_string());
         }
 
         // If metadata MBID differs from identity MBID, that's a major inconsistency
@@ -327,10 +321,7 @@ impl ConsistencyValidator {
                 // Few conflicts = minor issue
                 *score -= 0.05;
                 *minor_issues += 1;
-                issues.push(format!(
-                    "Identity conflicts detected ({})",
-                    conflict_count
-                ));
+                issues.push(format!("Identity conflicts detected ({})", conflict_count));
             }
         }
     }
@@ -375,8 +366,8 @@ impl ConsistencyValidator {
         let actual_flavor_count = passage.flavor.characteristics.len();
         // Flavor completeness is present_count / expected_count, so reverse calculate expected
         if passage.flavor.completeness > 0.0 {
-            let expected_flavor_total = (actual_flavor_count as f32 / passage.flavor.completeness)
-                .round() as usize;
+            let expected_flavor_total =
+                (actual_flavor_count as f32 / passage.flavor.completeness).round() as usize;
 
             // Sanity check: expected total should be reasonable (e.g., 10-20 for AcousticBrainz)
             if !(5..=50).contains(&expected_flavor_total) {
@@ -418,6 +409,7 @@ impl Validation for ConsistencyValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::matching::ConfidenceTier;
     use crate::types::{ConfidenceValue, FusedFlavor, FusedIdentity, FusedMetadata};
     use std::collections::HashMap;
 
@@ -427,6 +419,7 @@ mod tests {
                 recording_mbid: Some("test-mbid-123".to_string()),
                 confidence: 0.9,
                 posterior_probability: 0.95,
+                confidence_tier: ConfidenceTier::Tier2A,
                 conflicts: vec![],
             },
             metadata: FusedMetadata {
@@ -528,9 +521,15 @@ mod tests {
         assert!(result.is_ok());
 
         let validation = result.unwrap();
-        assert!(validation.status == ValidationStatus::Warning || validation.status == ValidationStatus::Fail);
+        assert!(
+            validation.status == ValidationStatus::Warning
+                || validation.status == ValidationStatus::Fail
+        );
         assert!(!validation.issues.is_empty());
-        assert!(validation.issues.iter().any(|issue| issue.contains("MBID mismatch")));
+        assert!(validation
+            .issues
+            .iter()
+            .any(|issue| issue.contains("MBID mismatch")));
     }
 
     #[tokio::test]
@@ -548,7 +547,10 @@ mod tests {
         assert!(result.is_ok());
 
         let validation = result.unwrap();
-        assert!(validation.status == ValidationStatus::Warning || validation.status == ValidationStatus::Pass);
+        assert!(
+            validation.status == ValidationStatus::Warning
+                || validation.status == ValidationStatus::Pass
+        );
         assert!(!validation.issues.is_empty());
         assert!(validation
             .issues
@@ -573,7 +575,10 @@ mod tests {
         assert!(result.is_ok());
 
         let validation = result.unwrap();
-        assert!(validation.status == ValidationStatus::Warning || validation.status == ValidationStatus::Fail);
+        assert!(
+            validation.status == ValidationStatus::Warning
+                || validation.status == ValidationStatus::Fail
+        );
         assert!(!validation.issues.is_empty());
         assert!(validation
             .issues
@@ -595,7 +600,10 @@ mod tests {
 
         let validation = result.unwrap();
         // This is a minor issue, should still pass or warn
-        assert!(validation.status == ValidationStatus::Pass || validation.status == ValidationStatus::Warning);
+        assert!(
+            validation.status == ValidationStatus::Pass
+                || validation.status == ValidationStatus::Warning
+        );
     }
 
     #[tokio::test]

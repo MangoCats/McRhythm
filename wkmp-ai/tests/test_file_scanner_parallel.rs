@@ -32,8 +32,14 @@ fn test_parallel_file_scanning() {
     println!("By format: {:?}", result.by_format);
 
     // Verify results
-    assert!(result.files.len() <= 100, "Should find at most 100 .mp3 files");
-    assert!(result.by_format.get("mp3").unwrap_or(&0) <= &100, "Should have at most 100 mp3 files");
+    assert!(
+        result.files.len() <= 100,
+        "Should find at most 100 .mp3 files"
+    );
+    assert!(
+        result.by_format.get("mp3").unwrap_or(&0) <= &100,
+        "Should have at most 100 mp3 files"
+    );
 }
 
 #[test]

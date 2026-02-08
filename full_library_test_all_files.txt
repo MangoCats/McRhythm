@@ -1,0 +1,1583 @@
+   Compiling wkmp-ai v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai)
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:498:1
+    |
+498 | pub fn set_unix_permissions_0600(_path: &Path) -> Result<()> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-common\src\lib.rs:13:9
+    |
+ 13 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:527:1
+    |
+527 | pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:14:5
+   |
+14 |     Scanning {
+   |     ^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:15:9
+   |
+15 |         potential_files_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:16:9
+   |
+16 |         is_scanning: bool,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:17:9
+   |
+17 |         audio_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:18:9
+   |
+18 |         image_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:19:9
+   |
+19 |         other_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:38:5
+   |
+38 |     Processing {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:39:9
+   |
+39 |         completed: usize,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:40:9
+   |
+40 |         started: usize,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:41:9
+   |
+41 |         total: usize,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:50:5
+   |
+50 |     FilenameMatching {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:51:9
+   |
+51 |         completed_filenames_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:54:5
+   |
+54 |     Hashing {
+   |     ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:55:9
+   |
+55 |         hashes_computed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:56:9
+   |
+56 |         matches_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:59:5
+   |
+59 |     Extracting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:60:9
+   |
+60 |         successful_extractions: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:61:9
+   |
+61 |         failures: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:64:5
+   |
+64 |     Segmenting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:65:9
+   |
+65 |         files_processed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:66:9
+   |
+66 |         potential_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:67:9
+   |
+67 |         finalized_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:68:9
+   |
+68 |         songs_identified: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:71:5
+   |
+71 |     Fingerprinting {
+   |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:72:9
+   |
+72 |         passages_fingerprinted: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:73:9
+   |
+73 |         successful_matches: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:76:5
+   |
+76 |     SongMatching {
+   |     ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:77:9
+   |
+77 |         high_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:78:9
+   |
+78 |         medium_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:79:9
+   |
+79 |         low_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:80:9
+   |
+80 |         no_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:83:5
+   |
+83 |     Recording {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:84:9
+   |
+84 |         recorded_passages: Vec<RecordedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:87:5
+   |
+87 |     Amplitude {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:88:9
+   |
+88 |         analyzed_passages: Vec<AnalyzedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:91:5
+   |
+91 |     Flavoring {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:92:9
+   |
+92 |         pre_existing: usize,
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:93:9
+   |
+93 |         acousticbrainz: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:94:9
+   |
+94 |         essentia: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:95:9
+   |
+95 |         failed: usize,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:98:5
+   |
+98 |     PassagesComplete {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:99:9
+   |
+99 |         passages_completed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+   --> wkmp-common\src\events\import_types.rs:102:5
+    |
+102 |     FilesComplete {
+    |     ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:103:9
+    |
+103 |         files_completed: usize,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:110:5
+    |
+110 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:111:5
+    |
+111 |     pub file_path: String,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:117:5
+    |
+117 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:118:5
+    |
+118 |     pub passage_length_seconds: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:119:5
+    |
+119 |     pub lead_in_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:120:5
+    |
+120 |     pub lead_out_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-common` (lib) generated 52 warnings
+warning: unused import: `assign_tier`
+  --> wkmp-ai\src\fusion\identity_resolver.rs:20:23
+   |
+20 | use crate::matching::{assign_tier, ConfidenceTier};
+   |                       ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `MatchingStage`
+  --> wkmp-ai\src\matching\album_matcher.rs:34:52
+   |
+34 | use super::types::{AlbumMatchResult, MatchedTrack, MatchingStage, SilenceCache};
+   |                                                    ^^^^^^^^^^^^^
+
+warning: unused import: `CachedDuration`
+  --> wkmp-ai\src\services\accurate_duration.rs:18:39
+   |
+18 | use crate::db::duration_cache::{self, CachedDuration, DurationMethod};
+   |                                       ^^^^^^^^^^^^^^
+
+warning: unused import: `super::passage_segmenter::PassageBoundary`
+  --> wkmp-ai\src\services\passage_recorder.rs:15:5
+   |
+15 | use super::passage_segmenter::PassageBoundary;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ConfidenceLevel`
+  --> wkmp-ai\src\services\passage_recorder.rs:16:35
+   |
+16 | use super::passage_song_matcher::{ConfidenceLevel, PassageSongMatch};
+   |                                   ^^^^^^^^^^^^^^^
+
+warning: unused import: `Instant`
+  --> wkmp-ai\src\services\pool_manager.rs:16:27
+   |
+16 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused import: `crate::models::ImportSession`
+  --> wkmp-ai\src\services\progress_manager.rs:22:5
+   |
+22 | use crate::models::ImportSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `FuturesUnordered`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:23
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                       ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::VecDeque`
+  --> wkmp-ai\src\services\write_queue.rs:24:5
+   |
+24 | use std::collections::VecDeque;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Duration` and `Instant`
+  --> wkmp-ai\src\testing\import_harness.rs:33:17
+   |
+33 | use std::time::{Duration, Instant};
+   |                 ^^^^^^^^  ^^^^^^^
+
+warning: unused import: `tokio::sync::Semaphore`
+  --> wkmp-ai\src\testing\import_harness.rs:39:5
+   |
+39 | use tokio::sync::Semaphore;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `debug`, `error`, and `warn`
+  --> wkmp-ai\src\testing\import_harness.rs:40:15
+   |
+40 | use tracing::{debug, error, info, warn};
+   |               ^^^^^  ^^^^^        ^^^^
+
+warning: unused variable: `event_bus`
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_scanning.rs:72:13
+   |
+72 |         let event_bus = self.event_bus.clone();
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_event_bus`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: use of deprecated method `services::workflow_orchestrator::WorkflowOrchestrator::phase_processing_plan025`: Use phase_processing_per_file() with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:447:14
+    |
+447 |             .phase_processing_plan025(session, start_time, &cancel_token)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated method `workflow::pipeline::Pipeline::extract`: Use extract_with_audio() to avoid re-decoding audio
+   --> wkmp-ai\src\workflow\pipeline.rs:429:43
+    |
+429 |         let mut extraction_results = self.extract(file_path, boundary, passage_index).await?;
+    |                                           ^^^^^^^
+
+warning: unused import: `StreamExt`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:41
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                                         ^^^^^^^^^
+
+warning: value assigned to `silence_start` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:420:13
+    |
+420 |             silence_start = Some(window_count);
+    |             ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: value assigned to `window_count` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:431:9
+    |
+431 |         window_count += 1;
+    |         ^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: type `ClassifiedResult` is more private than the item `EvaluationEngine::results`
+   --> wkmp-ai\src\testing\evaluation.rs:332:5
+    |
+332 |     pub fn results(&self) -> &[ClassifiedResult] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `EvaluationEngine::results` is reachable at visibility `pub`
+    |
+note: but type `ClassifiedResult` is only usable at visibility `pub(self)`
+   --> wkmp-ai\src\testing\evaluation.rs:148:1
+    |
+148 | struct ClassifiedResult {
+    | ^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: enum `StateCommand` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:44:6
+   |
+44 | enum StateCommand {
+   |      ^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: multiple fields are never read
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:71:5
+   |
+68 | pub struct WorkflowOrchestrator {
+   |            -------------------- fields in this struct
+...
+71 |     file_scanner: FileScanner,
+   |     ^^^^^^^^^^^^
+72 |     metadata_extractor: MetadataExtractor,
+   |     ^^^^^^^^^^^^^^^^^^
+73 |     fingerprinter: Fingerprinter,
+   |     ^^^^^^^^^^^^^
+74 |     amplitude_analyzer: AmplitudeAnalyzer,
+   |     ^^^^^^^^^^^^^^^^^^
+75 |     mb_client: Option<MusicBrainzClient>,
+   |     ^^^^^^^^^
+...
+78 |     essentia_client: Option<EssentiaClient>,
+   |     ^^^^^^^^^^^^^^^
+...
+97 |     processing_thread_count: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `set_worker_phase_with_passage` is never used
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1659:14
+     |
+ 100 | impl WorkflowOrchestrator {
+     | ------------------------- method in this implementation
+...
+1659 |     async fn set_worker_phase_with_passage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:44:12
+   |
+43 | impl ScanningStats {
+   | ------------------ method in this implementation
+44 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:70:12
+   |
+69 | impl ProcessingStats {
+   | -------------------- method in this implementation
+70 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:88:12
+   |
+87 | impl FilenameMatchingStats {
+   | -------------------------- method in this implementation
+88 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:108:12
+    |
+107 | impl HashingStats {
+    | ----------------- method in this implementation
+108 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:128:12
+    |
+127 | impl ExtractingStats {
+    | -------------------- method in this implementation
+128 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:152:12
+    |
+151 | impl SegmentingStats {
+    | -------------------- method in this implementation
+152 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:175:12
+    |
+174 | impl FingerprintingStats {
+    | ------------------------ method in this implementation
+175 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:199:12
+    |
+198 | impl SongMatchingStats {
+    | ---------------------- method in this implementation
+199 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:218:12
+    |
+217 | impl RecordingStats {
+    | ------------------- method in this implementation
+218 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:243:12
+    |
+242 | impl AmplitudeStats {
+    | ------------------- method in this implementation
+243 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:274:12
+    |
+273 | impl FlavoringStats {
+    | ------------------- method in this implementation
+274 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:292:12
+    |
+291 | impl PassagesCompleteStats {
+    | -------------------------- method in this implementation
+292 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:307:12
+    |
+306 | impl FilesCompleteStats {
+    | ----------------------- method in this implementation
+307 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: methods `update_processing` and `update_scanning` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:452:12
+    |
+332 | impl ImportStatistics {
+    | --------------------- methods in this implementation
+...
+452 |     pub fn update_processing(&self, completed: usize, started: usize, total: usize) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+460 |     pub fn update_scanning(&self, is_scanning: bool, files_found: usize) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: methods `process_passage` and `extract` are never used
+   --> wkmp-ai\src\workflow\pipeline.rs:409:14
+    |
+105 | impl Pipeline {
+    | ------------- methods in this implementation
+...
+409 |     async fn process_passage(
+    |              ^^^^^^^^^^^^^^^
+...
+560 |     async fn extract(
+    |              ^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:142:1
+    |
+142 | pub const SCORE_FILENAME_PATTERN: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-ai\src\lib.rs:5:9
+    |
+  5 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:143:1
+    |
+143 | pub const SCORE_DIR_FILES_HIGH: f64 = 0.8;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:144:1
+    |
+144 | pub const SCORE_DIR_FILES_MEDIUM: f64 = 0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:145:1
+    |
+145 | pub const SCORE_DIR_FILES_SINGLE: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:146:1
+    |
+146 | pub const SCORE_ID3_TRACK_TOTAL: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:147:1
+    |
+147 | pub const SCORE_ID3_TRACK_NUMBER_ONLY: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:148:1
+    |
+148 | pub const SCORE_DURATION_SHORT: f64 = 0.7;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:149:1
+    |
+149 | pub const SCORE_DURATION_SUSPICIOUS: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:150:1
+    |
+150 | pub const SCORE_DURATION_ALBUM_LENGTH: f64 = -0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:151:1
+    |
+151 | pub const SCORE_SILENCE_GAPS_FEW: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:152:1
+    |
+152 | pub const SCORE_SILENCE_GAPS_MANY: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:86:5
+   |
+86 |     pub audio_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:87:5
+   |
+87 |     pub image_confirmed: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:88:5
+   |
+88 |     pub image_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:47:20
+   |
+47 |     NoCandidates { query: String },
+   |                    ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:49:16
+   |
+49 |     ApiError { error: String },
+   |                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:52:9
+   |
+52 |         expected: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:53:9
+   |
+53 |         found: String,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:54:9
+   |
+54 |         similarity: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:57:26
+   |
+57 |     AllStagesExhausted { stages_tried: usize },
+   |                          ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:59:20
+   |
+59 |     FileTooShort { duration_secs: f64 },
+   |                    ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:61:32
+   |
+61 |     MetadataExtractionFailed { error: String },
+   |                                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:65:22
+   |
+65 |     DecodingFailed { error: String },
+   |                      ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:22:9
+   |
+22 |         hash: String,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:23:9
+   |
+23 |         original_file_id: Uuid,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+  --> wkmp-ai\src\services\passage_flavor_fetcher.rs:44:5
+   |
+44 |     pub fn as_str(&self) -> &'static str {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:40:9
+   |
+40 |         session: ImportSession,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:41:9
+   |
+41 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:45:9
+   |
+45 |         passages: Vec<PassageData>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:46:9
+   |
+46 |         response_tx: oneshot::Sender<Result<Vec<Uuid>>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:50:9
+   |
+50 |         file_id: Uuid,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:51:9
+   |
+51 |         status: String,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:52:9
+   |
+52 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:63:5
+   |
+63 |     pub file_id: Uuid,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:64:5
+   |
+64 |     pub start_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:65:5
+   |
+65 |     pub end_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:66:5
+   |
+66 |     pub song_id: Option<Uuid>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:42:9
+   |
+42 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:43:9
+   |
+43 |         assigned_mbid: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:44:9
+   |
+44 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:45:9
+   |
+45 |         sources_consulted: Vec<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:46:9
+   |
+46 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:50:9
+   |
+50 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:51:9
+   |
+51 |         content_type: String,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:52:9
+   |
+52 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:53:9
+   |
+53 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:57:9
+   |
+57 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:58:9
+   |
+58 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:59:9
+   |
+59 |         error_message: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:60:9
+   |
+60 |         duration_ms: u64,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:61:9
+   |
+61 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:65:9
+   |
+65 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:66:9
+   |
+66 |         api_name: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:67:9
+   |
+67 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:68:9
+   |
+68 |         latency_ms: u64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:69:9
+   |
+69 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (lib) generated 93 warnings (run `cargo fix --lib -p wkmp-ai` to apply 12 suggestions)
+warning: unused import: `std::path::Path`
+ --> wkmp-ai\tests\helpers\db_utils.rs:7:5
+  |
+7 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `debug`, `error`, `info`, and `warn`
+   --> wkmp-ai\tests\helpers\log_capture.rs:161:19
+    |
+161 |     use tracing::{debug, error, info, warn};
+    |                   ^^^^^  ^^^^^  ^^^^  ^^^^
+
+warning: unused imports: `AudioConfig`, `generate_test_library`, and `generate_test_wav`
+  --> wkmp-ai\tests\helpers\mod.rs:10:27
+   |
+10 | pub use audio_generator::{generate_test_library, generate_test_wav, AudioConfig};
+   |                           ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused imports: `assert_has_column`, `assert_no_column`, `create_test_db`, `create_test_orchestrator`, `get_table_columns`, `has_column`, and `seed_test_files`
+  --> wkmp-ai\tests\helpers\mod.rs:12:5
+   |
+12 |     assert_has_column, assert_no_column, create_test_db, create_test_orchestrator,
+   |     ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+13 |     get_table_columns, has_column, seed_test_files,
+   |     ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused imports: `LogCapture` and `init_test_logging`
+  --> wkmp-ai\tests\helpers\mod.rs:15:23
+   |
+15 | pub use log_capture::{init_test_logging, LogCapture};
+   |                       ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^
+
+warning: fields `cid`, `type`, `notnull`, `dflt_value`, and `pk` are never read
+  --> wkmp-ai\tests\helpers\db_utils.rs:13:9
+   |
+12 | pub struct ColumnInfo {
+   |            ---------- fields in this struct
+13 |     pub cid: i32,
+   |         ^^^
+14 |     pub name: String,
+15 |     pub r#type: String,
+   |         ^^^^^^
+16 |     pub notnull: i32,
+   |         ^^^^^^^
+17 |     pub dflt_value: Option<String>,
+   |         ^^^^^^^^^^
+18 |     pub pk: i32,
+   |         ^^
+   |
+   = note: `ColumnInfo` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `assert_no_column` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:54:14
+   |
+54 | pub async fn assert_no_column(pool: &SqlitePool, table_name: &str, column_name: &str) {
+   |              ^^^^^^^^^^^^^^^^
+
+warning: function `assert_has_column` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:64:14
+   |
+64 | pub async fn assert_has_column(pool: &SqlitePool, table_name: &str, column_name: &str) {
+   |              ^^^^^^^^^^^^^^^^^
+
+warning: function `create_test_orchestrator` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:84:8
+   |
+84 | pub fn create_test_orchestrator(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `seed_test_files` is never used
+   --> wkmp-ai\tests\helpers\db_utils.rs:105:14
+    |
+105 | pub async fn seed_test_files(
+    |              ^^^^^^^^^^^^^^^
+
+warning: fields `level` and `target` are never read
+  --> wkmp-ai\tests\helpers\log_capture.rs:13:9
+   |
+12 | pub struct LogRecord {
+   |            --------- fields in this struct
+13 |     pub level: Level,
+   |         ^^^^^
+14 |     pub target: String,
+   |         ^^^^^^
+   |
+   = note: `LogRecord` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `clear` is never used
+  --> wkmp-ai\tests\helpers\log_capture.rs:38:12
+   |
+24 | impl LogCapture {
+   | --------------- method in this implementation
+...
+38 |     pub fn clear(&self) {
+   |            ^^^^^
+
+warning: function `init_test_logging` is never used
+   --> wkmp-ai\tests\helpers\log_capture.rs:143:8
+    |
+143 | pub fn init_test_logging() -> LogCapture {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (test "full_library_import_test") generated 13 warnings (run `cargo fix --test "full_library_import_test"` to apply 5 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.58s
+     Running tests\full_library_import_test.rs (target\debug\deps\full_library_import_test-1efbe2f52ca02a7b.exe)
+
+running 2 tests
+
+========================================
+  Real Library Import (limited to 20 files)
+========================================
+
+
+========================================
+  Real Music Library Import Test
+========================================
+Library path: "C:\\Users\\Mango Cat\\Music"
+
+Processing 20 files...
+
+Using existing recording cache: C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\test_recording_cache.db
+Logging to: full_library_import_20251221_100304.log
+[2m2025-12-21T15:03:04.396870Z[0m [32m INFO[0m File [1/20] STARTING: 01-These_Are_Days.mp3
+Found 5737 audio files
+
+Using existing recording cache: C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\test_recording_cache.db
+Logging to: full_library_import_20251221_100304.log
+[2m2025-12-21T15:03:04.626120Z[0m [32m INFO[0m File [1/5737] STARTING: 01-These_Are_Days.mp3
+[2m2025-12-21T15:03:16.378665Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100273/USEE10900524
+[2m2025-12-21T15:03:16.827461Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100273/USEE10900524
+[2m2025-12-21T15:03:17.572022Z[0m [32m INFO[0m File [1/20] COMPLETED: 01-These_Are_Days.mp3 - 1 passages in 13.18s (elapsed: 13.2s)
+[2m2025-12-21T15:03:17.572092Z[0m [32m INFO[0m File [2/20] STARTING: 02-Eat_For_Two.mp3
+[2m2025-12-21T15:03:17.898790Z[0m [32m INFO[0m File [1/5737] COMPLETED: 01-These_Are_Days.mp3 - 1 passages in 13.27s (elapsed: 13.3s)
+[2m2025-12-21T15:03:17.898856Z[0m [32m INFO[0m File [2/5737] STARTING: 02-Eat_For_Two.mp3
+[2m2025-12-21T15:03:28.708814Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100274/USEE10900525
+[2m2025-12-21T15:03:29.041706Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100274/USEE10900525
+[2m2025-12-21T15:03:29.564619Z[0m [32m INFO[0m File [2/20] COMPLETED: 02-Eat_For_Two.mp3 - 1 passages in 11.99s (elapsed: 25.2s)
+[2m2025-12-21T15:03:29.564677Z[0m [32m INFO[0m File [3/20] STARTING: 03-Candy_Everybody_Wants.mp3
+[2m2025-12-21T15:03:29.897511Z[0m [32m INFO[0m File [2/5737] COMPLETED: 02-Eat_For_Two.mp3 - 1 passages in 12.00s (elapsed: 25.3s)
+[2m2025-12-21T15:03:29.897563Z[0m [32m INFO[0m File [3/5737] STARTING: 03-Candy_Everybody_Wants.mp3
+[2m2025-12-21T15:03:37.632665Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100275/USEE10900526
+[2m2025-12-21T15:03:38.037179Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100275/USEE10900526
+[2m2025-12-21T15:03:38.316918Z[0m [32m INFO[0m File [3/20] COMPLETED: 03-Candy_Everybody_Wants.mp3 - 1 passages in 8.75s (elapsed: 33.9s)
+[2m2025-12-21T15:03:38.316978Z[0m [32m INFO[0m File [4/20] STARTING: 04-I'm_Not_The_Man.mp3
+[2m2025-12-21T15:03:38.737547Z[0m [32m INFO[0m File [3/5737] COMPLETED: 03-Candy_Everybody_Wants.mp3 - 1 passages in 8.84s (elapsed: 34.1s)
+[2m2025-12-21T15:03:38.737616Z[0m [32m INFO[0m File [4/5737] STARTING: 04-I'm_Not_The_Man.mp3
+[2m2025-12-21T15:03:47.639012Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100276/USEE10900527
+[2m2025-12-21T15:03:48.076336Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100276/USEE10900527
+[2m2025-12-21T15:03:48.419884Z[0m [32m INFO[0m File [4/20] COMPLETED: 04-I'm_Not_The_Man.mp3 - 1 passages in 10.10s (elapsed: 44.0s)
+[2m2025-12-21T15:03:48.419955Z[0m [32m INFO[0m File [5/20] STARTING: 05-Don't_Talk.mp3
+[2m2025-12-21T15:03:48.849827Z[0m [32m INFO[0m File [4/5737] COMPLETED: 04-I'm_Not_The_Man.mp3 - 1 passages in 10.11s (elapsed: 44.2s)
+[2m2025-12-21T15:03:48.849892Z[0m [32m INFO[0m File [5/5737] STARTING: 05-Don't_Talk.mp3
+[2m2025-12-21T15:04:01.755881Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100277/USEE10900528
+[2m2025-12-21T15:04:02.223073Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100277/USEE10900528
+[2m2025-12-21T15:04:02.786758Z[0m [32m INFO[0m File [5/20] COMPLETED: 05-Don't_Talk.mp3 - 1 passages in 14.37s (elapsed: 58.4s)
+[2m2025-12-21T15:04:02.786820Z[0m [32m INFO[0m File [6/20] STARTING: 06-Hey_Jack_Kerouac.mp3
+[2m2025-12-21T15:04:03.279722Z[0m [32m INFO[0m File [5/5737] COMPLETED: 05-Don't_Talk.mp3 - 1 passages in 14.43s (elapsed: 58.7s)
+[2m2025-12-21T15:04:03.279778Z[0m [32m INFO[0m File [6/5737] STARTING: 06-Hey_Jack_Kerouac.mp3
+test benchmark_tests::benchmark_real_library has been running for over 60 seconds
+test benchmark_tests::benchmark_real_library_limited has been running for over 60 seconds
+[2m2025-12-21T15:04:12.509561Z[0m [32m INFO[0m File [6/20] COMPLETED: 06-Hey_Jack_Kerouac.mp3 - 1 passages in 9.72s (elapsed: 68.1s)
+[2m2025-12-21T15:04:12.509615Z[0m [32m INFO[0m File [7/20] STARTING: 07-What's_The_Matter_Here-.mp3
+[2m2025-12-21T15:04:13.019058Z[0m [32m INFO[0m File [6/5737] COMPLETED: 06-Hey_Jack_Kerouac.mp3 - 1 passages in 9.74s (elapsed: 68.4s)
+[2m2025-12-21T15:04:13.019115Z[0m [32m INFO[0m File [7/5737] STARTING: 07-What's_The_Matter_Here-.mp3
+[2m2025-12-21T15:04:23.968120Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100279/USEE10900530
+[2m2025-12-21T15:04:24.596594Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100279/USEE10900530
+[2m2025-12-21T15:04:24.957037Z[0m [32m INFO[0m File [7/20] COMPLETED: 07-What's_The_Matter_Here-.mp3 - 1 passages in 12.45s (elapsed: 80.6s)
+[2m2025-12-21T15:04:24.957101Z[0m [32m INFO[0m File [8/20] STARTING: 08-Gold_Rush_Brides.mp3
+[2m2025-12-21T15:04:25.583611Z[0m [32m INFO[0m File [7/5737] COMPLETED: 07-What's_The_Matter_Here-.mp3 - 1 passages in 12.56s (elapsed: 81.0s)
+[2m2025-12-21T15:04:25.583673Z[0m [32m INFO[0m File [8/5737] STARTING: 08-Gold_Rush_Brides.mp3
+[2m2025-12-21T15:04:35.320287Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100280/USEE10900531
+[2m2025-12-21T15:04:35.910506Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100280/USEE10900531
+[2m2025-12-21T15:04:36.198666Z[0m [32m INFO[0m File [8/20] COMPLETED: 08-Gold_Rush_Brides.mp3 - 1 passages in 11.24s (elapsed: 91.8s)
+[2m2025-12-21T15:04:36.198786Z[0m [32m INFO[0m File [9/20] STARTING: 09-Like_The_Weather.mp3
+[2m2025-12-21T15:04:37.027672Z[0m [32m INFO[0m File [8/5737] COMPLETED: 08-Gold_Rush_Brides.mp3 - 1 passages in 11.44s (elapsed: 92.4s)
+[2m2025-12-21T15:04:37.027734Z[0m [32m INFO[0m File [9/5737] STARTING: 09-Like_The_Weather.mp3
+[2m2025-12-21T15:04:46.740384Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100281/USEE10900532
+[2m2025-12-21T15:04:47.296149Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100281/USEE10900532
+[2m2025-12-21T15:04:47.583055Z[0m [32m INFO[0m File [9/20] COMPLETED: 09-Like_The_Weather.mp3 - 1 passages in 11.38s (elapsed: 103.2s)
+[2m2025-12-21T15:04:47.583115Z[0m [32m INFO[0m File [10/20] STARTING: 10-Trouble_Me.mp3
+[2m2025-12-21T15:04:48.102046Z[0m [32m INFO[0m File [9/5737] COMPLETED: 09-Like_The_Weather.mp3 - 1 passages in 11.07s (elapsed: 103.5s)
+[2m2025-12-21T15:04:48.102098Z[0m [32m INFO[0m File [10/5737] STARTING: 10-Trouble_Me.mp3
+[2m2025-12-21T15:04:56.460059Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100282/USEE10900533
+[2m2025-12-21T15:04:57.019008Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100282/USEE10900533
+[2m2025-12-21T15:04:57.166961Z[0m [32m INFO[0m File [10/20] COMPLETED: 10-Trouble_Me.mp3 - 1 passages in 9.58s (elapsed: 112.8s)
+[2m2025-12-21T15:04:57.167032Z[0m [32m INFO[0m PROGRESS: 10/20 files (50.0%) - 0.09 files/sec - ETA: 1.9min
+[2m2025-12-21T15:04:57.167049Z[0m [32m INFO[0m File [11/20] STARTING: 11-Jezebel.mp3
+[2m2025-12-21T15:04:57.775774Z[0m [32m INFO[0m File [10/5737] COMPLETED: 10-Trouble_Me.mp3 - 1 passages in 9.67s (elapsed: 113.1s)
+[2m2025-12-21T15:04:57.775936Z[0m [32m INFO[0m PROGRESS: 10/5737 files (0.2%) - 0.09 files/sec - ETA: 1080.0min
+[2m2025-12-21T15:04:57.775972Z[0m [32m INFO[0m File [11/5737] STARTING: 11-Jezebel.mp3
+[2m2025-12-21T15:05:07.417788Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100283/USEE10900534
+[2m2025-12-21T15:05:08.034410Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100283/USEE10900534
+[2m2025-12-21T15:05:08.240810Z[0m [32m INFO[0m File [11/20] COMPLETED: 11-Jezebel.mp3 - 1 passages in 11.07s (elapsed: 123.8s)
+[2m2025-12-21T15:05:08.240869Z[0m [32m INFO[0m File [12/20] STARTING: 12-Because_The_Night.mp3
+[2m2025-12-21T15:05:08.943333Z[0m [32m INFO[0m File [11/5737] COMPLETED: 11-Jezebel.mp3 - 1 passages in 11.17s (elapsed: 124.3s)
+[2m2025-12-21T15:05:08.943497Z[0m [32m INFO[0m File [12/5737] STARTING: 12-Because_The_Night.mp3
+[2m2025-12-21T15:05:18.357392Z[0m [32m INFO[0m File [12/20] COMPLETED: 12-Because_The_Night.mp3 - 1 passages in 10.12s (elapsed: 134.0s)
+[2m2025-12-21T15:05:18.357453Z[0m [32m INFO[0m File [13/20] STARTING: 13-Stockton_Gala_Days.mp3
+[2m2025-12-21T15:05:18.975158Z[0m [32m INFO[0m File [12/5737] COMPLETED: 12-Because_The_Night.mp3 - 1 passages in 10.03s (elapsed: 134.3s)
+[2m2025-12-21T15:05:18.975238Z[0m [32m INFO[0m File [13/5737] STARTING: 13-Stockton_Gala_Days.mp3
+[2m2025-12-21T15:05:31.766992Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100285/USEE10900536
+[2m2025-12-21T15:05:32.321926Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100285/USEE10900536
+[2m2025-12-21T15:05:32.906305Z[0m [32m INFO[0m File [13/20] COMPLETED: 13-Stockton_Gala_Days.mp3 - 1 passages in 14.55s (elapsed: 148.5s)
+[2m2025-12-21T15:05:32.906367Z[0m [32m INFO[0m File [14/20] STARTING: 14-Noah's_Dove.mp3
+[2m2025-12-21T15:05:33.464826Z[0m [32m INFO[0m File [13/5737] COMPLETED: 13-Stockton_Gala_Days.mp3 - 1 passages in 14.49s (elapsed: 148.8s)
+[2m2025-12-21T15:05:33.464885Z[0m [32m INFO[0m File [14/5737] STARTING: 14-Noah's_Dove.mp3
+[2m2025-12-21T15:05:46.202108Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100286/USEE10900537
+[2m2025-12-21T15:05:46.764227Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSEE10100286/USEE10900537
+[2m2025-12-21T15:05:47.253701Z[0m [32m INFO[0m File [14/20] COMPLETED: 14-Noah's_Dove.mp3 - 1 passages in 14.35s (elapsed: 162.9s)
+[2m2025-12-21T15:05:47.253764Z[0m [32m INFO[0m File [15/20] STARTING: Anthology.mp3
+[2m2025-12-21T15:05:47.825033Z[0m [32m INFO[0m File [14/5737] COMPLETED: 14-Noah's_Dove.mp3 - 1 passages in 14.36s (elapsed: 163.2s)
+[2m2025-12-21T15:05:47.825099Z[0m [32m INFO[0m File [15/5737] STARTING: Anthology.mp3
+[2m2025-12-21T15:12:16.620335Z[0m [32m INFO[0m File [15/20] COMPLETED: Anthology.mp3 - 34 passages in 389.37s (elapsed: 552.2s)
+[2m2025-12-21T15:12:16.620455Z[0m [32m INFO[0m File [16/20] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-01-Train_.mp3
+[2m2025-12-21T15:12:17.868107Z[0m [32m INFO[0m File [15/5737] COMPLETED: Anthology.mp3 - 34 passages in 390.04s (elapsed: 553.2s)
+[2m2025-12-21T15:12:17.868230Z[0m [32m INFO[0m File [16/5737] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-01-Train_.mp3
+[2m2025-12-21T15:12:25.835774Z[0m [32m INFO[0m File [16/20] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-01-Train_.mp3 - 1 passages in 9.22s (elapsed: 561.4s)
+[2m2025-12-21T15:12:25.835845Z[0m [32m INFO[0m File [17/20] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-02-Superfly_.mp3
+[2m2025-12-21T15:12:27.112499Z[0m [32m INFO[0m File [16/5737] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-01-Train_.mp3 - 1 passages in 9.24s (elapsed: 562.5s)
+[2m2025-12-21T15:12:27.112567Z[0m [32m INFO[0m File [17/5737] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-02-Superfly_.mp3
+[2m2025-12-21T15:12:37.768165Z[0m [32m INFO[0m File [17/20] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-02-Superfly_.mp3 - 1 passages in 11.93s (elapsed: 573.4s)
+[2m2025-12-21T15:12:37.768224Z[0m [32m INFO[0m File [18/20] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3
+[2m2025-12-21T15:12:39.148402Z[0m [32m INFO[0m File [17/5737] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-02-Superfly_.mp3 - 1 passages in 12.04s (elapsed: 574.5s)
+[2m2025-12-21T15:12:39.148463Z[0m [32m INFO[0m File [18/5737] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3
+[2m2025-12-21T15:12:50.827034Z[0m [32m INFO[0m File [18/20] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3 - 1 passages in 13.06s (elapsed: 586.4s)
+[2m2025-12-21T15:12:50.827107Z[0m [32m INFO[0m File [19/20] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-04-Pleasantly_Blue_.mp3
+[2m2025-12-21T15:12:52.234714Z[0m [32m INFO[0m File [18/5737] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3 - 1 passages in 13.09s (elapsed: 587.6s)
+[2m2025-12-21T15:12:52.234774Z[0m [32m INFO[0m File [19/5737] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-04-Pleasantly_Blue_.mp3
+[2m2025-12-21T15:12:57.120251Z[0m [32m INFO[0m File [19/20] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-04-Pleasantly_Blue_.mp3 - 1 passages in 6.29s (elapsed: 592.7s)
+[2m2025-12-21T15:12:57.120316Z[0m [32m INFO[0m File [20/20] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-05-Morphine_&_Chocolate.mp3
+[2m2025-12-21T15:12:58.636329Z[0m [32m INFO[0m File [19/5737] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-04-Pleasantly_Blue_.mp3 - 1 passages in 6.40s (elapsed: 594.0s)
+[2m2025-12-21T15:12:58.636386Z[0m [32m INFO[0m File [20/5737] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-05-Morphine_&_Chocolate.mp3
+[2m2025-12-21T15:13:08.506816Z[0m [32m INFO[0m File [20/20] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-05-Morphine_&_Chocolate.mp3 - 1 passages in 11.39s (elapsed: 604.1s)
+[2m2025-12-21T15:13:08.506874Z[0m [32m INFO[0m PROGRESS: 20/20 files (100.0%) - 0.03 files/sec - ETA: 0.0min
+
+=== Cache Statistics ===
+Recording cache: 0 entries
+MBID cache:      3148 entries
+Cache database:  C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\test_recording_cache.db
+
+=== Full Library Import Performance Summary ===
+Files processed:     20
+Passages created:    53
+Total duration:      604.110091s
+Avg per file:        30.20550455s
+Min file time:       6.2931177s
+Max file time:       389.366537s
+Throughput:          0.03 files/sec
+
+--- Routing ---
+Single-track files:  19
+Album files:         1
+
+--- Events ---
+FileStarted:         20
+FileCompleted:       19
+BoundaryDetected:    53
+PassageStarted:      53
+PassageCompleted:    53
+SingleTrackCheck:    20
+AlbumMatchStarted:   1
+AlbumMatchCompleted: 1
+AlbumMatchFailed:    0
+AlbumMatchFallback:  0
+Errors:              0
+================================================
+
+test benchmark_tests::benchmark_real_library_limited ... ok
+[2m2025-12-21T15:13:09.854053Z[0m [32m INFO[0m File [20/5737] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-05-Morphine_&_Chocolate.mp3 - 1 passages in 11.22s (elapsed: 605.2s)
+[2m2025-12-21T15:13:09.854108Z[0m [32m INFO[0m PROGRESS: 20/5737 files (0.3%) - 0.03 files/sec - ETA: 2883.4min
+[2m2025-12-21T15:13:09.854122Z[0m [32m INFO[0m File [21/5737] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-06-Spaceman.mp3
+[2m2025-12-21T15:13:18.140827Z[0m [32m INFO[0m File [21/5737] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-06-Spaceman.mp3 - 1 passages in 8.29s (elapsed: 613.5s)
+[2m2025-12-21T15:13:18.140895Z[0m [32m INFO[0m File [22/5737] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-07-Old_Mr._Heffer.mp3
+[2m2025-12-21T15:13:23.261158Z[0m [32m INFO[0m File [22/5737] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-07-Old_Mr._Heffer.mp3 - 1 passages in 5.12s (elapsed: 618.6s)
+[2m2025-12-21T15:13:23.261222Z[0m [32m INFO[0m File [23/5737] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-08-Calling_All_The_People.mp3
+[2m2025-12-21T15:13:30.740070Z[0m [32m INFO[0m File [23/5737] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-08-Calling_All_The_People.mp3 - 1 passages in 7.48s (elapsed: 626.1s)
+[2m2025-12-21T15:13:30.740124Z[0m [32m INFO[0m File [24/5737] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-09-Dear_Mr._President.mp3
+[2m2025-12-21T15:13:41.259639Z[0m [32m INFO[0m File [24/5737] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-09-Dear_Mr._President.mp3 - 1 passages in 10.52s (elapsed: 636.6s)
+[2m2025-12-21T15:13:41.259699Z[0m [32m INFO[0m File [25/5737] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-10-Drifting.mp3
+[2m2025-12-21T15:13:49.261343Z[0m [32m INFO[0m File [25/5737] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-10-Drifting.mp3 - 1 passages in 8.00s (elapsed: 644.6s)
+[2m2025-12-21T15:13:49.261403Z[0m [32m INFO[0m File [26/5737] STARTING: (4_Non_Blondes)Bigger,_Better,_Faster,_More-11-No_Place_Like_Home.mp3
+[2m2025-12-21T15:13:56.837226Z[0m [32m INFO[0m File [26/5737] COMPLETED: (4_Non_Blondes)Bigger,_Better,_Faster,_More-11-No_Place_Like_Home.mp3 - 1 passages in 7.58s (elapsed: 652.2s)
+[2m2025-12-21T15:13:56.837285Z[0m [32m INFO[0m File [27/5737] STARTING: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-01-Coldhearted_(Quiverin'_12-).mp3
+[2m2025-12-21T15:14:09.445529Z[0m [32m INFO[0m File [27/5737] COMPLETED: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-01-Coldhearted_(Quiverin'_12-).mp3 - 1 passages in 12.61s (elapsed: 664.8s)
+[2m2025-12-21T15:14:09.445588Z[0m [32m INFO[0m File [28/5737] STARTING: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-02-Straight_up_(Ultimix_Mix).mp3
+[2m2025-12-21T15:14:25.990198Z[0m [32m INFO[0m File [28/5737] COMPLETED: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-02-Straight_up_(Ultimix_Mix).mp3 - 1 passages in 16.54s (elapsed: 681.4s)
+[2m2025-12-21T15:14:25.990262Z[0m [32m INFO[0m File [29/5737] STARTING: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-03-One_or_the_other_(1990_Mix).mp3
+[2m2025-12-21T15:14:42.195047Z[0m [32m INFO[0m File [29/5737] COMPLETED: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-03-One_or_the_other_(1990_Mix).mp3 - 1 passages in 16.20s (elapsed: 697.6s)
+[2m2025-12-21T15:14:42.195129Z[0m [32m INFO[0m File [30/5737] STARTING: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-04-Forever_your_Girl_(Frankie_Foncett_Mix).mp3
+[2m2025-12-21T15:14:56.877241Z[0m [32m INFO[0m File [30/5737] COMPLETED: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-04-Forever_your_Girl_(Frankie_Foncett_Mix).mp3 - 1 passages in 14.68s (elapsed: 712.3s)
+[2m2025-12-21T15:14:56.877296Z[0m [32m INFO[0m PROGRESS: 30/5737 files (0.5%) - 0.04 files/sec - ETA: 2258.2min
+[2m2025-12-21T15:14:56.877309Z[0m [32m INFO[0m File [31/5737] STARTING: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-05-Knocked_out_(Pettibone_12-).mp3
+[2m2025-12-21T15:15:12.152012Z[0m [32m INFO[0m File [31/5737] COMPLETED: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-05-Knocked_out_(Pettibone_12-).mp3 - 1 passages in 15.27s (elapsed: 727.5s)
+[2m2025-12-21T15:15:12.152067Z[0m [32m INFO[0m File [32/5737] STARTING: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-06-The_Way_that_you_love_me_(HouseAFire_Mix).mp3
+[2m2025-12-21T15:15:23.568151Z[0m [32m INFO[0m File [32/5737] COMPLETED: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-06-The_Way_that_you_love_me_(HouseAFire_Mix).mp3 - 1 passages in 11.42s (elapsed: 738.9s)
+[2m2025-12-21T15:15:23.568223Z[0m [32m INFO[0m File [33/5737] STARTING: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-07-Opposites_attract_(1990_Mix).mp3
+[2m2025-12-21T15:16:03.596973Z[0m [32m INFO[0m File [33/5737] COMPLETED: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-07-Opposites_attract_(1990_Mix).mp3 - 1 passages in 40.03s (elapsed: 779.0s)
+[2m2025-12-21T15:16:03.597098Z[0m [32m INFO[0m File [34/5737] STARTING: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-08-1990_Medley_Mix.mp3
+[2m2025-12-21T15:16:53.948881Z[0m [32m INFO[0m File [34/5737] COMPLETED: (Paula_Abdul)Shut_up_and_dance_(The_Dance_Mixes)-08-1990_Medley_Mix.mp3 - 1 passages in 50.35s (elapsed: 829.3s)
+[2m2025-12-21T15:16:53.949006Z[0m [32m INFO[0m File [35/5737] STARTING: Disc 1 - 1 - Hells Bells.mp3
+[2m2025-12-21T15:17:29.818291Z[0m [32m INFO[0m File [35/5737] COMPLETED: Disc 1 - 1 - Hells Bells.mp3 - 1 passages in 35.87s (elapsed: 865.2s)
+[2m2025-12-21T15:17:29.818447Z[0m [32m INFO[0m File [36/5737] STARTING: Disc 1 - 10 - Rock and Roll Ain't Noise Pollution.mp3
+[2m2025-12-21T15:18:00.259093Z[0m [32m INFO[0m File [36/5737] COMPLETED: Disc 1 - 10 - Rock and Roll Ain't Noise Pollution.mp3 - 1 passages in 30.44s (elapsed: 895.6s)
+[2m2025-12-21T15:18:00.259284Z[0m [32m INFO[0m File [37/5737] STARTING: Disc 1 - 2 - Shoot to Thrill.mp3
+[2m2025-12-21T15:18:36.742344Z[0m [32m INFO[0m File [37/5737] COMPLETED: Disc 1 - 2 - Shoot to Thrill.mp3 - 1 passages in 36.48s (elapsed: 932.1s)
+[2m2025-12-21T15:18:36.742506Z[0m [32m INFO[0m File [38/5737] STARTING: Disc 1 - 3 - What Do You Do for Money Honey.mp3
+[2m2025-12-21T15:19:01.541695Z[0m [32m INFO[0m File [38/5737] COMPLETED: Disc 1 - 3 - What Do You Do for Money Honey.mp3 - 1 passages in 24.80s (elapsed: 956.9s)
+[2m2025-12-21T15:19:01.541847Z[0m [32m INFO[0m File [39/5737] STARTING: Disc 1 - 4 - Givin the Dog a Bone.mp3
+[2m2025-12-21T15:19:26.064773Z[0m [32m INFO[0m File [39/5737] COMPLETED: Disc 1 - 4 - Givin the Dog a Bone.mp3 - 1 passages in 24.52s (elapsed: 981.4s)
+[2m2025-12-21T15:19:26.064861Z[0m [32m INFO[0m File [40/5737] STARTING: Disc 1 - 5 - Let Me Put My Love Into You.mp3
+[2m2025-12-21T15:19:55.763229Z[0m [32m INFO[0m File [40/5737] COMPLETED: Disc 1 - 5 - Let Me Put My Love Into You.mp3 - 1 passages in 29.70s (elapsed: 1011.1s)
+[2m2025-12-21T15:19:55.763347Z[0m [32m INFO[0m PROGRESS: 40/5737 files (0.7%) - 0.04 files/sec - ETA: 2400.2min
+[2m2025-12-21T15:19:55.763387Z[0m [32m INFO[0m File [41/5737] STARTING: Disc 1 - 6 - Back in Black.mp3
+[2m2025-12-21T15:20:25.176105Z[0m [32m INFO[0m File [41/5737] COMPLETED: Disc 1 - 6 - Back in Black.mp3 - 1 passages in 29.41s (elapsed: 1040.5s)
+[2m2025-12-21T15:20:25.176228Z[0m [32m INFO[0m File [42/5737] STARTING: Disc 1 - 7 - You Shook Me All Night Long.mp3
+[2m2025-12-21T15:20:49.560243Z[0m [32m INFO[0m File [42/5737] COMPLETED: Disc 1 - 7 - You Shook Me All Night Long.mp3 - 1 passages in 24.38s (elapsed: 1064.9s)
+[2m2025-12-21T15:20:49.560377Z[0m [32m INFO[0m File [43/5737] STARTING: Disc 1 - 8 - Have a Drink on Me.mp3
+[2m2025-12-21T15:21:16.939009Z[0m [32m INFO[0m File [43/5737] COMPLETED: Disc 1 - 8 - Have a Drink on Me.mp3 - 1 passages in 27.38s (elapsed: 1092.3s)
+[2m2025-12-21T15:21:16.939121Z[0m [32m INFO[0m File [44/5737] STARTING: Disc 1 - 9 - Shake a Leg.mp3
+[2m2025-12-21T15:21:45.048709Z[0m [32m INFO[0m File [44/5737] COMPLETED: Disc 1 - 9 - Shake a Leg.mp3 - 1 passages in 28.11s (elapsed: 1120.4s)
+[2m2025-12-21T15:21:45.048860Z[0m [32m INFO[0m File [45/5737] STARTING: HappyNation.mp3
+[2m2025-12-21T15:28:38.232846Z[0m [33m WARN[0m No MusicBrainz candidates found
+[2m2025-12-21T15:28:38.272908Z[0m [33m WARN[0m Album matching failed: No match found (0.0% confidence)
+[2m2025-12-21T15:28:38.272997Z[0m [33m WARN[0m Falling back to single-song processing: No match found (0.0% confidence)
+[2m2025-12-21T15:35:15.207746Z[0m [33m WARN[0m Passage boundary (0-5890348800 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.208315Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.208378Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.208627Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.208823Z[0m [33m WARN[0m Passage boundary (6039936000-12370579200 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.209092Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.209137Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.209365Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.209501Z[0m [33m WARN[0m Passage boundary (12539923200-19070956800 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.209752Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.209796Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.210006Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.210150Z[0m [33m WARN[0m Passage boundary (19231833600-24487142400 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.210397Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.210439Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.210646Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.210783Z[0m [33m WARN[0m Passage boundary (24633907200-30761337600 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.211030Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.211072Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.211274Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.211425Z[0m [33m WARN[0m Passage boundary (30941971200-36456940800 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.211670Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.211712Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.211917Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.212054Z[0m [33m WARN[0m Passage boundary (36595238400-43687929600 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.212296Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.212336Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.212582Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.212764Z[0m [33m WARN[0m Passage boundary (43809292800-50142758400 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.213229Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.214850Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.215372Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.215618Z[0m [33m WARN[0m Passage boundary (50351616000-56727417600 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.216113Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.216337Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.216857Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.217105Z[0m [33m WARN[0m Passage boundary (56896761600-63930182400 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.218106Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.218206Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.218580Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.218800Z[0m [33m WARN[0m Passage boundary (64043078400-70455571200 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.219172Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.219236Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.219549Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.219761Z[0m [33m WARN[0m Passage boundary (70658784000-76763635200 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.220139Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.220202Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.220512Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.220703Z[0m [33m WARN[0m Passage boundary (76899110400-83678515200 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.221053Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.221114Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.221418Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.221622Z[0m [33m WARN[0m Passage boundary (83994624000-91149408000 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.221977Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.222038Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.222358Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.222548Z[0m [33m WARN[0m Passage boundary (91256659200-97550611200 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.222895Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.222957Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.223256Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.223465Z[0m [33m WARN[0m Passage boundary (97657862400-103496417280 ticks) extends beyond available audio (0 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T15:35:15.224175Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.225500Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T15:35:15.225864Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No genre tag found
+[2m2025-12-21T15:35:15.226129Z[0m [32m INFO[0m File [45/5737] COMPLETED: HappyNation.mp3 - 16 passages in 810.18s (elapsed: 1930.6s)
+[2m2025-12-21T15:35:15.226316Z[0m [32m INFO[0m File [46/5737] STARTING: (Aerosmith)Single-03-Angel.mp3
+[2m2025-12-21T15:35:51.014385Z[0m [32m INFO[0m File [46/5737] COMPLETED: (Aerosmith)Single-03-Angel.mp3 - 1 passages in 35.79s (elapsed: 1966.4s)
+[2m2025-12-21T15:35:51.014484Z[0m [32m INFO[0m File [47/5737] STARTING: Pump.mp3
+[2m2025-12-21T15:41:13.315683Z[0m [32m INFO[0m File [47/5737] COMPLETED: Pump.mp3 - 10 passages in 322.30s (elapsed: 2288.7s)
+[2m2025-12-21T15:41:13.315836Z[0m [32m INFO[0m File [48/5737] STARTING: (Aerosmith)Toys_In_The_Attic-01-Toys_In_The_Attic.mp3
+[2m2025-12-21T15:41:34.673127Z[0m [32m INFO[0m File [48/5737] COMPLETED: (Aerosmith)Toys_In_The_Attic-01-Toys_In_The_Attic.mp3 - 1 passages in 21.36s (elapsed: 2310.0s)
+[2m2025-12-21T15:41:34.673244Z[0m [32m INFO[0m File [49/5737] STARTING: (Aerosmith)Toys_In_The_Attic-02-Uncle_Salty.mp3
+[2m2025-12-21T15:42:03.300476Z[0m [32m INFO[0m File [49/5737] COMPLETED: (Aerosmith)Toys_In_The_Attic-02-Uncle_Salty.mp3 - 1 passages in 28.63s (elapsed: 2338.7s)
+[2m2025-12-21T15:42:03.300589Z[0m [32m INFO[0m File [50/5737] STARTING: (Aerosmith)Toys_In_The_Attic-03-Adam's_Apple.mp3
+[2m2025-12-21T15:42:34.915970Z[0m [32m INFO[0m File [50/5737] COMPLETED: (Aerosmith)Toys_In_The_Attic-03-Adam's_Apple.mp3 - 1 passages in 31.62s (elapsed: 2370.3s)
+[2m2025-12-21T15:42:34.916086Z[0m [32m INFO[0m PROGRESS: 50/5737 files (0.9%) - 0.02 files/sec - ETA: 4493.3min
+[2m2025-12-21T15:42:34.916123Z[0m [32m INFO[0m File [51/5737] STARTING: (Aerosmith)Toys_In_The_Attic-04-Walk_This_Way.mp3
+[2m2025-12-21T15:42:58.880711Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSSM10024249/USSM10207883
+[2m2025-12-21T15:43:00.443788Z[0m [32m INFO[0m File [51/5737] COMPLETED: (Aerosmith)Toys_In_The_Attic-04-Walk_This_Way.mp3 - 1 passages in 25.53s (elapsed: 2395.8s)
+[2m2025-12-21T15:43:00.443907Z[0m [32m INFO[0m File [52/5737] STARTING: (Aerosmith)Toys_In_The_Attic-05-Big_Ten_Inch_Record.mp3
+[2m2025-12-21T15:43:14.802561Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSSM10207885/USSM19700518
+[2m2025-12-21T15:43:15.726465Z[0m [32m INFO[0m File [52/5737] COMPLETED: (Aerosmith)Toys_In_The_Attic-05-Big_Ten_Inch_Record.mp3 - 1 passages in 15.28s (elapsed: 2411.1s)
+[2m2025-12-21T15:43:15.726600Z[0m [32m INFO[0m File [53/5737] STARTING: (Aerosmith)Toys_In_The_Attic-06-Sweet_Emotion.mp3
+[2m2025-12-21T15:43:45.446505Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSSM10207884/USSM17500151
+[2m2025-12-21T15:43:47.380427Z[0m [32m INFO[0m File [53/5737] COMPLETED: (Aerosmith)Toys_In_The_Attic-06-Sweet_Emotion.mp3 - 1 passages in 31.65s (elapsed: 2442.8s)
+[2m2025-12-21T15:43:47.380594Z[0m [32m INFO[0m File [54/5737] STARTING: (Aerosmith)Toys_In_The_Attic-07-No_More_No_More.mp3
+[2m2025-12-21T15:44:19.000364Z[0m [32m INFO[0m File [54/5737] COMPLETED: (Aerosmith)Toys_In_The_Attic-07-No_More_No_More.mp3 - 1 passages in 31.62s (elapsed: 2474.4s)
+[2m2025-12-21T15:44:19.000487Z[0m [32m INFO[0m File [55/5737] STARTING: (Aerosmith)Toys_In_The_Attic-08-Round_And_Round.mp3
+[2m2025-12-21T15:44:53.981448Z[0m [32m INFO[0m File [55/5737] COMPLETED: (Aerosmith)Toys_In_The_Attic-08-Round_And_Round.mp3 - 1 passages in 34.98s (elapsed: 2509.4s)
+[2m2025-12-21T15:44:53.981562Z[0m [32m INFO[0m File [56/5737] STARTING: (Aerosmith)Toys_In_The_Attic-09-You_See_Me_Crying.mp3
+[2m2025-12-21T15:45:29.563567Z[0m [32m INFO[0m File [56/5737] COMPLETED: (Aerosmith)Toys_In_The_Attic-09-You_See_Me_Crying.mp3 - 1 passages in 35.58s (elapsed: 2544.9s)
+[2m2025-12-21T15:45:29.563690Z[0m [32m INFO[0m File [57/5737] STARTING: AliceInChainsGreatestHits.mp3
+[2m2025-12-21T15:50:32.315097Z[0m [32m INFO[0m File [57/5737] COMPLETED: AliceInChainsGreatestHits.mp3 - 10 passages in 302.75s (elapsed: 2847.7s)
+[2m2025-12-21T15:50:32.315234Z[0m [32m INFO[0m File [58/5737] STARTING: AtFillmoreEast.mp3
+[2m2025-12-21T16:05:33.278134Z[0m [32m INFO[0m File [58/5737] COMPLETED: AtFillmoreEast.mp3 - 13 passages in 900.96s (elapsed: 3748.7s)
+[2m2025-12-21T16:05:33.278350Z[0m [32m INFO[0m File [59/5737] STARTING: EatAPeach.mp3
+[2m2025-12-21T16:21:55.479227Z[0m [32m INFO[0m File [59/5737] COMPLETED: EatAPeach.mp3 - 27 passages in 982.20s (elapsed: 4730.9s)
+[2m2025-12-21T16:21:55.479429Z[0m [32m INFO[0m File [60/5737] STARTING: TheEssentialsAmbrosia.mp3
+[2m2025-12-21T16:28:37.296219Z[0m [32m INFO[0m File [60/5737] COMPLETED: TheEssentialsAmbrosia.mp3 - 12 passages in 401.82s (elapsed: 5132.7s)
+[2m2025-12-21T16:28:37.296330Z[0m [32m INFO[0m PROGRESS: 60/5737 files (1.0%) - 0.01 files/sec - ETA: 8093.9min
+[2m2025-12-21T16:28:37.296357Z[0m [32m INFO[0m File [61/5737] STARTING: 01 - A Horse With No Name.mp3
+[2m2025-12-21T16:29:04.139459Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSWB10303105/USWB10603240/USWB19901792
+[2m2025-12-21T16:29:05.896034Z[0m [32m INFO[0m File [61/5737] COMPLETED: 01 - A Horse With No Name.mp3 - 1 passages in 28.60s (elapsed: 5161.3s)
+[2m2025-12-21T16:29:05.896147Z[0m [32m INFO[0m File [62/5737] STARTING: 02 - I Need You.mp3
+[2m2025-12-21T16:29:25.835229Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSWB10603241/USWB19901793
+[2m2025-12-21T16:29:27.153832Z[0m [32m INFO[0m File [62/5737] COMPLETED: 02 - I Need You.mp3 - 1 passages in 21.26s (elapsed: 5182.5s)
+[2m2025-12-21T16:29:27.153988Z[0m [32m INFO[0m File [63/5737] STARTING: 03 - Sandman.mp3
+[2m2025-12-21T16:29:56.413684Z[0m [32m INFO[0m File [63/5737] COMPLETED: 03 - Sandman.mp3 - 1 passages in 29.26s (elapsed: 5211.8s)
+[2m2025-12-21T16:29:56.413803Z[0m [32m INFO[0m File [64/5737] STARTING: 04 - Ventura Highway.mp3
+[2m2025-12-21T16:30:19.786055Z[0m [32m INFO[0m File [64/5737] COMPLETED: 04 - Ventura Highway.mp3 - 1 passages in 23.37s (elapsed: 5235.2s)
+[2m2025-12-21T16:30:19.786213Z[0m [32m INFO[0m File [65/5737] STARTING: 05 - Don’t Cross the River.mp3
+[2m2025-12-21T16:30:37.298991Z[0m [32m INFO[0m File [65/5737] COMPLETED: 05 - Don’t Cross the River.mp3 - 1 passages in 17.51s (elapsed: 5252.7s)
+[2m2025-12-21T16:30:37.299119Z[0m [32m INFO[0m File [66/5737] STARTING: 06 - Only in Your Heart.mp3
+[2m2025-12-21T16:30:59.268320Z[0m [33m WARN[0m Passage boundary (3804595200-5435228160 ticks) extends beyond available audio (8492544 samples). File may have had decode errors. Returning empty buffer.
+[2m2025-12-21T16:30:59.270115Z[0m [33m WARN[0m Chromaprint extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T16:30:59.270218Z[0m [33m WARN[0m Audio-derived extraction failed: Internal error: No audio samples provided
+[2m2025-12-21T16:30:59.275384Z[0m [32m INFO[0m File [66/5737] COMPLETED: 06 - Only in Your Heart.mp3 - 2 passages in 21.98s (elapsed: 5274.6s)
+[2m2025-12-21T16:30:59.275679Z[0m [32m INFO[0m File [67/5737] STARTING: 07 - Muskrat Love.mp3
+[2m2025-12-21T16:31:20.593966Z[0m [32m INFO[0m File [67/5737] COMPLETED: 07 - Muskrat Love.mp3 - 1 passages in 21.32s (elapsed: 5296.0s)
+[2m2025-12-21T16:31:20.594091Z[0m [32m INFO[0m File [68/5737] STARTING: 08 - Tin Man.mp3
+[2m2025-12-21T16:31:44.540280Z[0m [32m INFO[0m File [68/5737] COMPLETED: 08 - Tin Man.mp3 - 1 passages in 23.95s (elapsed: 5319.9s)
+[2m2025-12-21T16:31:44.540391Z[0m [32m INFO[0m File [69/5737] STARTING: 09 - Lonely People.mp3
+[2m2025-12-21T16:32:01.669140Z[0m [32m INFO[0m File [69/5737] COMPLETED: 09 - Lonely People.mp3 - 1 passages in 17.13s (elapsed: 5337.0s)
+[2m2025-12-21T16:32:01.669257Z[0m [32m INFO[0m File [70/5737] STARTING: 10 - Sister Golden Hair.mp3
+[2m2025-12-21T16:32:23.243388Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSWB10603260/USWB19901801
+[2m2025-12-21T16:32:24.643428Z[0m [32m INFO[0m File [70/5737] COMPLETED: 10 - Sister Golden Hair.mp3 - 1 passages in 22.97s (elapsed: 5360.0s)
+[2m2025-12-21T16:32:24.643543Z[0m [32m INFO[0m PROGRESS: 70/5737 files (1.2%) - 0.01 files/sec - ETA: 7232.2min
+[2m2025-12-21T16:32:24.643582Z[0m [32m INFO[0m File [71/5737] STARTING: 11 - Daisy Jane.mp3
+[2m2025-12-21T16:32:46.340191Z[0m [32m INFO[0m File [71/5737] COMPLETED: 11 - Daisy Jane.mp3 - 1 passages in 21.70s (elapsed: 5381.7s)
+[2m2025-12-21T16:32:46.340309Z[0m [32m INFO[0m File [72/5737] STARTING: 12 - Woman Tonight.mp3
+[2m2025-12-21T16:33:02.709064Z[0m [32m INFO[0m File [72/5737] COMPLETED: 12 - Woman Tonight.mp3 - 1 passages in 16.37s (elapsed: 5398.1s)
+[2m2025-12-21T16:33:02.709188Z[0m [32m INFO[0m File [73/5737] STARTING: 01-Spark.mp3
+[2m2025-12-21T16:33:30.022130Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSAT29800180/USATL0200523
+[2m2025-12-21T16:33:31.791970Z[0m [32m INFO[0m File [73/5737] COMPLETED: 01-Spark.mp3 - 1 passages in 29.08s (elapsed: 5427.2s)
+[2m2025-12-21T16:33:31.792142Z[0m [32m INFO[0m File [74/5737] STARTING: 02-Cruel.mp3
+[2m2025-12-21T16:34:00.124463Z[0m [32m INFO[0m File [74/5737] COMPLETED: 02-Cruel.mp3 - 1 passages in 28.33s (elapsed: 5455.5s)
+[2m2025-12-21T16:34:00.124599Z[0m [32m INFO[0m File [75/5737] STARTING: 03-Black-Dove_(January).mp3
+[2m2025-12-21T16:34:13.670913Z[0m [32m INFO[0m File [75/5737] COMPLETED: 03-Black-Dove_(January).mp3 - 1 passages in 13.55s (elapsed: 5469.0s)
+[2m2025-12-21T16:34:13.670968Z[0m [32m INFO[0m File [76/5737] STARTING: 04-Raspberry_Swirl.mp3
+[2m2025-12-21T16:34:23.166883Z[0m [32m INFO[0m File [76/5737] COMPLETED: 04-Raspberry_Swirl.mp3 - 1 passages in 9.50s (elapsed: 5478.5s)
+[2m2025-12-21T16:34:23.166938Z[0m [32m INFO[0m File [77/5737] STARTING: 05-Jackie's_Strength.mp3
+[2m2025-12-21T16:34:33.864595Z[0m [32m INFO[0m File [77/5737] COMPLETED: 05-Jackie's_Strength.mp3 - 1 passages in 10.70s (elapsed: 5489.2s)
+[2m2025-12-21T16:34:33.864652Z[0m [32m INFO[0m File [78/5737] STARTING: 06-i_i_e_e_e.mp3
+[2m2025-12-21T16:34:43.929437Z[0m [32m INFO[0m File [78/5737] COMPLETED: 06-i_i_e_e_e.mp3 - 1 passages in 10.06s (elapsed: 5499.3s)
+[2m2025-12-21T16:34:43.929497Z[0m [32m INFO[0m File [79/5737] STARTING: 07-Liquid_Diamonds.mp3
+[2m2025-12-21T16:34:59.369766Z[0m [32m INFO[0m File [79/5737] COMPLETED: 07-Liquid_Diamonds.mp3 - 1 passages in 15.44s (elapsed: 5514.7s)
+[2m2025-12-21T16:34:59.369818Z[0m [32m INFO[0m File [80/5737] STARTING: 08-She's_Your_Cocaine.mp3
+[2m2025-12-21T16:35:08.140737Z[0m [32m INFO[0m File [80/5737] COMPLETED: 08-She's_Your_Cocaine.mp3 - 1 passages in 8.77s (elapsed: 5523.5s)
+[2m2025-12-21T16:35:08.140786Z[0m [32m INFO[0m PROGRESS: 80/5737 files (1.4%) - 0.01 files/sec - ETA: 6509.7min
+[2m2025-12-21T16:35:08.140801Z[0m [32m INFO[0m File [81/5737] STARTING: 09-Northern_Lad.mp3
+[2m2025-12-21T16:35:18.317235Z[0m [32m INFO[0m File [81/5737] COMPLETED: 09-Northern_Lad.mp3 - 1 passages in 10.18s (elapsed: 5533.7s)
+[2m2025-12-21T16:35:18.317304Z[0m [32m INFO[0m File [82/5737] STARTING: 10-Hotel.mp3
+[2m2025-12-21T16:35:30.868713Z[0m [32m INFO[0m File [82/5737] COMPLETED: 10-Hotel.mp3 - 1 passages in 12.55s (elapsed: 5546.2s)
+[2m2025-12-21T16:35:30.868770Z[0m [32m INFO[0m File [83/5737] STARTING: 11-Playboy_Mommy.mp3
+[2m2025-12-21T16:35:40.578986Z[0m [32m INFO[0m File [83/5737] COMPLETED: 11-Playboy_Mommy.mp3 - 1 passages in 9.71s (elapsed: 5556.0s)
+[2m2025-12-21T16:35:40.579065Z[0m [32m INFO[0m File [84/5737] STARTING: 12-Pandora's_Aquarium.mp3
+[2m2025-12-21T16:35:51.676007Z[0m [32m INFO[0m File [84/5737] COMPLETED: 12-Pandora's_Aquarium.mp3 - 1 passages in 11.10s (elapsed: 5567.0s)
+[2m2025-12-21T16:35:51.676068Z[0m [32m INFO[0m File [85/5737] STARTING: (Fiona_Apple)Tidal-01-Sleep_to_Dream.mp3
+[2m2025-12-21T16:36:01.269500Z[0m [32m INFO[0m File [85/5737] COMPLETED: (Fiona_Apple)Tidal-01-Sleep_to_Dream.mp3 - 1 passages in 9.59s (elapsed: 5576.6s)
+[2m2025-12-21T16:36:01.269559Z[0m [32m INFO[0m File [86/5737] STARTING: (Fiona_Apple)Tidal-02-Sullen_Girl.mp3
+[2m2025-12-21T16:36:10.363996Z[0m [32m INFO[0m File [86/5737] COMPLETED: (Fiona_Apple)Tidal-02-Sullen_Girl.mp3 - 1 passages in 9.09s (elapsed: 5585.7s)
+[2m2025-12-21T16:36:10.364054Z[0m [32m INFO[0m File [87/5737] STARTING: (Fiona_Apple)Tidal-03-Shadowboxer.mp3
+[2m2025-12-21T16:36:22.924360Z[0m [32m INFO[0m File [87/5737] COMPLETED: (Fiona_Apple)Tidal-03-Shadowboxer.mp3 - 1 passages in 12.56s (elapsed: 5598.3s)
+[2m2025-12-21T16:36:22.924417Z[0m [32m INFO[0m File [88/5737] STARTING: (Fiona_Apple)Tidal-04-Criminal.mp3
+[2m2025-12-21T16:36:35.185251Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSSM19600947/USSM19606029
+[2m2025-12-21T16:36:36.225089Z[0m [32m INFO[0m File [88/5737] COMPLETED: (Fiona_Apple)Tidal-04-Criminal.mp3 - 1 passages in 13.30s (elapsed: 5611.6s)
+[2m2025-12-21T16:36:36.225144Z[0m [32m INFO[0m File [89/5737] STARTING: (Fiona_Apple)Tidal-05-Slow_Like_Honey.mp3
+[2m2025-12-21T16:36:50.151730Z[0m [32m INFO[0m File [89/5737] COMPLETED: (Fiona_Apple)Tidal-05-Slow_Like_Honey.mp3 - 1 passages in 13.93s (elapsed: 5625.5s)
+[2m2025-12-21T16:36:50.151784Z[0m [32m INFO[0m File [90/5737] STARTING: (Fiona_Apple)Tidal-06-The_First_Taste.mp3
+[2m2025-12-21T16:37:01.161283Z[0m [32m INFO[0m File [90/5737] COMPLETED: (Fiona_Apple)Tidal-06-The_First_Taste.mp3 - 1 passages in 11.01s (elapsed: 5636.5s)
+[2m2025-12-21T16:37:01.161344Z[0m [32m INFO[0m PROGRESS: 90/5737 files (1.6%) - 0.02 files/sec - ETA: 5894.4min
+[2m2025-12-21T16:37:01.161358Z[0m [32m INFO[0m File [91/5737] STARTING: (Fiona_Apple)Tidal-07-Never_Is_a_Promise.mp3
+[2m2025-12-21T16:37:14.741168Z[0m [32m INFO[0m File [91/5737] COMPLETED: (Fiona_Apple)Tidal-07-Never_Is_a_Promise.mp3 - 1 passages in 13.58s (elapsed: 5650.1s)
+[2m2025-12-21T16:37:14.741224Z[0m [32m INFO[0m File [92/5737] STARTING: (Fiona_Apple)Tidal-08-The_Child_Is_Gone.mp3
+[2m2025-12-21T16:37:24.584467Z[0m [32m INFO[0m File [92/5737] COMPLETED: (Fiona_Apple)Tidal-08-The_Child_Is_Gone.mp3 - 1 passages in 9.84s (elapsed: 5660.0s)
+[2m2025-12-21T16:37:24.584520Z[0m [32m INFO[0m File [93/5737] STARTING: (Fiona_Apple)Tidal-09-Pale_September.mp3
+[2m2025-12-21T16:37:38.171540Z[0m [32m INFO[0m File [93/5737] COMPLETED: (Fiona_Apple)Tidal-09-Pale_September.mp3 - 1 passages in 13.59s (elapsed: 5673.5s)
+[2m2025-12-21T16:37:38.171594Z[0m [32m INFO[0m File [94/5737] STARTING: (Fiona_Apple)Tidal-10-Carrion.mp3
+[2m2025-12-21T16:37:51.433753Z[0m [32m INFO[0m File [94/5737] COMPLETED: (Fiona_Apple)Tidal-10-Carrion.mp3 - 1 passages in 13.26s (elapsed: 5686.8s)
+[2m2025-12-21T16:37:51.433811Z[0m [32m INFO[0m File [95/5737] STARTING: 01 - United Together (single version).mp3
+[2m2025-12-21T16:38:01.109511Z[0m [32m INFO[0m File [95/5737] COMPLETED: 01 - United Together (single version).mp3 - 1 passages in 9.68s (elapsed: 5696.5s)
+[2m2025-12-21T16:38:01.109562Z[0m [32m INFO[0m File [96/5737] STARTING: 02 - Love All the Hurt Away.mp3
+[2m2025-12-21T16:38:09.868627Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSAR10000418/USAR10300839/USAR19800063/USRH11500339/USWB19901847
+[2m2025-12-21T16:38:10.617732Z[0m [32m INFO[0m File [96/5737] COMPLETED: 02 - Love All the Hurt Away.mp3 - 1 passages in 9.51s (elapsed: 5706.0s)
+[2m2025-12-21T16:38:10.617805Z[0m [32m INFO[0m File [97/5737] STARTING: 03 - Jump to It (original radio mix).mp3
+[2m2025-12-21T16:38:19.683550Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSAR10000078/USAR10600364/USAR11200058
+[2m2025-12-21T16:38:20.457159Z[0m [32m INFO[0m File [97/5737] COMPLETED: 03 - Jump to It (original radio mix).mp3 - 1 passages in 9.84s (elapsed: 5715.8s)
+[2m2025-12-21T16:38:20.457214Z[0m [32m INFO[0m File [98/5737] STARTING: 04 - Get It Right.mp3
+[2m2025-12-21T16:38:30.419630Z[0m [32m INFO[0m File [98/5737] COMPLETED: 04 - Get It Right.mp3 - 1 passages in 9.96s (elapsed: 5725.8s)
+[2m2025-12-21T16:38:30.419683Z[0m [32m INFO[0m File [99/5737] STARTING: 05 - Freeway of Love (single version).mp3
+[2m2025-12-21T16:38:40.829434Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSAR10200592/USAR18500023
+[2m2025-12-21T16:38:42.540873Z[0m [32m INFO[0m File [99/5737] COMPLETED: 05 - Freeway of Love (single version).mp3 - 1 passages in 12.12s (elapsed: 5737.9s)
+[2m2025-12-21T16:38:42.541003Z[0m [32m INFO[0m File [100/5737] STARTING: 06 - Who's Zoomin' Who (single version).mp3
+[2m2025-12-21T16:38:54.007507Z[0m [32m INFO[0m File [100/5737] COMPLETED: 06 - Who's Zoomin' Who (single version).mp3 - 1 passages in 11.47s (elapsed: 5749.4s)
+[2m2025-12-21T16:38:54.007562Z[0m [32m INFO[0m PROGRESS: 100/5737 files (1.7%) - 0.02 files/sec - ETA: 5401.5min
+[2m2025-12-21T16:38:54.007575Z[0m [32m INFO[0m File [101/5737] STARTING: 07 - Sisters Are Doin' It for Themselves.mp3
+[2m2025-12-21T16:39:04.583504Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mGBARL0300619/GBARL0500913/GBARL8500014
+[2m2025-12-21T16:39:05.489615Z[0m [32m INFO[0m File [101/5737] COMPLETED: 07 - Sisters Are Doin' It for Themselves.mp3 - 1 passages in 11.48s (elapsed: 5760.9s)
+[2m2025-12-21T16:39:05.489678Z[0m [32m INFO[0m File [102/5737] STARTING: 08 - Another Night (single mix).mp3
+[2m2025-12-21T16:39:15.068879Z[0m [32m INFO[0m File [102/5737] COMPLETED: 08 - Another Night (single mix).mp3 - 1 passages in 9.58s (elapsed: 5770.4s)
+[2m2025-12-21T16:39:15.068933Z[0m [32m INFO[0m File [103/5737] STARTING: 09 - Jumpin' Jack Flash (single version).mp3
+[2m2025-12-21T16:39:25.546782Z[0m [32m INFO[0m File [103/5737] COMPLETED: 09 - Jumpin' Jack Flash (single version).mp3 - 1 passages in 10.48s (elapsed: 5780.9s)
+[2m2025-12-21T16:39:25.546839Z[0m [32m INFO[0m File [104/5737] STARTING: 10 - Jimmy Lee (single version).mp3
+[2m2025-12-21T16:39:36.186199Z[0m [32m INFO[0m File [104/5737] COMPLETED: 10 - Jimmy Lee (single version).mp3 - 1 passages in 10.64s (elapsed: 5791.6s)
+[2m2025-12-21T16:39:36.186252Z[0m [32m INFO[0m File [105/5737] STARTING: 11 - I Knew You Were Waiting (For Me).mp3
+[2m2025-12-21T16:39:44.963618Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mGBBBM8602006/USAR18600111/USAR19800123
+[2m2025-12-21T16:39:45.708449Z[0m [32m INFO[0m File [105/5737] COMPLETED: 11 - I Knew You Were Waiting (For Me).mp3 - 1 passages in 9.52s (elapsed: 5801.1s)
+[2m2025-12-21T16:39:45.708512Z[0m [32m INFO[0m File [106/5737] STARTING: 12 - Through the Storm.mp3
+[2m2025-12-21T16:40:13.520040Z[0m [32m INFO[0m File [106/5737] COMPLETED: 12 - Through the Storm.mp3 - 1 passages in 27.81s (elapsed: 5828.9s)
+[2m2025-12-21T16:40:13.520151Z[0m [32m INFO[0m File [107/5737] STARTING: 13 - It Isn't, It Wasn't, It Ain't Never Gonna Be (single version).mp3
+[2m2025-12-21T16:40:42.560832Z[0m [32m INFO[0m File [107/5737] COMPLETED: 13 - It Isn't, It Wasn't, It Ain't Never Gonna Be (single version).mp3 - 1 passages in 29.04s (elapsed: 5857.9s)
+[2m2025-12-21T16:40:42.560953Z[0m [32m INFO[0m File [108/5737] STARTING: 14 - Ever Changing Times (single edit).mp3
+[2m2025-12-21T16:41:13.227331Z[0m [32m INFO[0m File [108/5737] COMPLETED: 14 - Ever Changing Times (single edit).mp3 - 1 passages in 30.67s (elapsed: 5888.6s)
+[2m2025-12-21T16:41:13.227463Z[0m [32m INFO[0m File [109/5737] STARTING: 15 - Willing to Forgive.mp3
+[2m2025-12-21T16:41:42.820309Z[0m [32m INFO[0m File [109/5737] COMPLETED: 15 - Willing to Forgive.mp3 - 1 passages in 29.59s (elapsed: 5918.2s)
+[2m2025-12-21T16:41:42.820433Z[0m [32m INFO[0m File [110/5737] STARTING: 16 - A Rose Is Still a Rose (original radio edit).mp3
+[2m2025-12-21T16:42:08.178574Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSAR19800301/USAR19901248
+[2m2025-12-21T16:42:09.794087Z[0m [32m INFO[0m File [110/5737] COMPLETED: 16 - A Rose Is Still a Rose (original radio edit).mp3 - 1 passages in 26.97s (elapsed: 5945.2s)
+[2m2025-12-21T16:42:09.794199Z[0m [32m INFO[0m PROGRESS: 110/5737 files (1.9%) - 0.02 files/sec - ETA: 5068.7min
+[2m2025-12-21T16:42:09.794237Z[0m [32m INFO[0m File [111/5737] STARTING: 101 - I Never Loved a Man (The Way I Love You).mp3
+[2m2025-12-21T16:42:29.433404Z[0m [32m INFO[0m File [111/5737] COMPLETED: 101 - I Never Loved a Man (The Way I Love You).mp3 - 1 passages in 19.64s (elapsed: 5964.8s)
+[2m2025-12-21T16:42:29.433514Z[0m [32m INFO[0m File [112/5737] STARTING: 102 - Do Right Woman – Do Right Man.mp3
+[2m2025-12-21T16:42:52.015537Z[0m [32m INFO[0m File [112/5737] COMPLETED: 102 - Do Right Woman – Do Right Man.mp3 - 1 passages in 22.58s (elapsed: 5987.4s)
+[2m2025-12-21T16:42:52.015680Z[0m [32m INFO[0m File [113/5737] STARTING: 103 - Respect (mono version).mp3
+[2m2025-12-21T16:43:08.751424Z[0m [32m INFO[0m File [113/5737] COMPLETED: 103 - Respect (mono version).mp3 - 1 passages in 16.74s (elapsed: 6004.1s)
+[2m2025-12-21T16:43:08.751534Z[0m [32m INFO[0m File [114/5737] STARTING: 104 - Dr. Feelgood (Love Is Serious Business).mp3
+[2m2025-12-21T16:43:32.608559Z[0m [32m INFO[0m File [114/5737] COMPLETED: 104 - Dr. Feelgood (Love Is Serious Business).mp3 - 1 passages in 23.86s (elapsed: 6028.0s)
+[2m2025-12-21T16:43:32.608693Z[0m [32m INFO[0m File [115/5737] STARTING: 105 - Baby I Love You.mp3
+[2m2025-12-21T16:43:51.367564Z[0m [32m INFO[0m File [115/5737] COMPLETED: 105 - Baby I Love You.mp3 - 1 passages in 18.76s (elapsed: 6046.7s)
+[2m2025-12-21T16:43:51.367680Z[0m [32m INFO[0m File [116/5737] STARTING: 106 - Going Down Slow.mp3
+[2m2025-12-21T16:44:23.156295Z[0m [32m INFO[0m File [116/5737] COMPLETED: 106 - Going Down Slow.mp3 - 1 passages in 31.79s (elapsed: 6078.5s)
+[2m2025-12-21T16:44:23.156431Z[0m [32m INFO[0m File [117/5737] STARTING: 107 - A Natural Woman (You Make Me Feel Like).mp3
+[2m2025-12-21T16:44:42.195277Z[0m [32m INFO[0m File [117/5737] COMPLETED: 107 - A Natural Woman (You Make Me Feel Like).mp3 - 1 passages in 19.04s (elapsed: 6097.6s)
+[2m2025-12-21T16:44:42.195464Z[0m [32m INFO[0m File [118/5737] STARTING: 108 - Baby, Baby, Baby.mp3
+[2m2025-12-21T16:45:02.128154Z[0m [32m INFO[0m File [118/5737] COMPLETED: 108 - Baby, Baby, Baby.mp3 - 1 passages in 19.93s (elapsed: 6117.5s)
+[2m2025-12-21T16:45:02.128275Z[0m [32m INFO[0m File [119/5737] STARTING: 109 - Chain of Fools.mp3
+[2m2025-12-21T16:45:19.893068Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSAT20902285/USRH11801646
+[2m2025-12-21T16:45:21.040733Z[0m [32m INFO[0m File [119/5737] COMPLETED: 109 - Chain of Fools.mp3 - 1 passages in 18.91s (elapsed: 6136.4s)
+[2m2025-12-21T16:45:21.040861Z[0m [32m INFO[0m File [120/5737] STARTING: 110 - Prove It (mono version).mp3
+[2m2025-12-21T16:45:41.416203Z[0m [32m INFO[0m File [120/5737] COMPLETED: 110 - Prove It (mono version).mp3 - 1 passages in 20.38s (elapsed: 6156.8s)
+[2m2025-12-21T16:45:41.416354Z[0m [32m INFO[0m PROGRESS: 120/5737 files (2.1%) - 0.02 files/sec - ETA: 4803.2min
+[2m2025-12-21T16:45:41.416404Z[0m [32m INFO[0m File [121/5737] STARTING: 111 - (Sweet Sweet Baby) Since You’ve Been Gone.mp3
+[2m2025-12-21T16:45:58.733338Z[0m [32m INFO[0m File [121/5737] COMPLETED: 111 - (Sweet Sweet Baby) Since You’ve Been Gone.mp3 - 1 passages in 17.32s (elapsed: 6174.1s)
+[2m2025-12-21T16:45:58.733456Z[0m [32m INFO[0m File [122/5737] STARTING: 112 - Ain’t No Way.mp3
+[2m2025-12-21T16:46:27.267873Z[0m [32m INFO[0m File [122/5737] COMPLETED: 112 - Ain’t No Way.mp3 - 1 passages in 28.53s (elapsed: 6202.6s)
+[2m2025-12-21T16:46:27.268015Z[0m [32m INFO[0m File [123/5737] STARTING: 113 - Think.mp3
+[2m2025-12-21T16:46:42.925859Z[0m [32m INFO[0m File [123/5737] COMPLETED: 113 - Think.mp3 - 1 passages in 15.66s (elapsed: 6218.3s)
+[2m2025-12-21T16:46:42.925974Z[0m [32m INFO[0m File [124/5737] STARTING: 114 - You Send Me.mp3
+[2m2025-12-21T16:46:59.773484Z[0m [32m INFO[0m File [124/5737] COMPLETED: 114 - You Send Me.mp3 - 1 passages in 16.85s (elapsed: 6235.1s)
+[2m2025-12-21T16:46:59.773599Z[0m [32m INFO[0m File [125/5737] STARTING: 115 - The House That Jack Built (mono version).mp3
+[2m2025-12-21T16:47:15.580688Z[0m [32m INFO[0m File [125/5737] COMPLETED: 115 - The House That Jack Built (mono version).mp3 - 1 passages in 15.81s (elapsed: 6251.0s)
+[2m2025-12-21T16:47:15.580835Z[0m [32m INFO[0m File [126/5737] STARTING: 116 - I Say a Little Prayer.mp3
+[2m2025-12-21T16:47:32.959286Z[0m [33m WARN[0m Invalid ISRC format in ID3 tags [3misrc[0m[2m=[0mUSAT20702961/USRH11801653
+[2m2025-12-21T16:47:34.121902Z[0m [32m INFO[0m File [126/5737] COMPLETED: 116 - I Say a Little Prayer.mp3 - 1 passages in 18.54s (elapsed: 6269.5s)
+[2m2025-12-21T16:47:34.122039Z[0m [32m INFO[0m File [127/5737] STARTING: 117 - See Saw.mp3
+[2m2025-12-21T16:47:52.889195Z[0m [32m INFO[0m File [127/5737] COMPLETED: 117 - See Saw.mp3 - 1 passages in 18.77s (elapsed: 6288.3s)
+[2m2025-12-21T16:47:52.889313Z[0m [32m INFO[0m File [128/5737] STARTING: 118 - My Song.mp3
+[2m2025-12-21T16:48:16.547574Z[0m [32m INFO[0m File [128/5737] COMPLETED: 118 - My Song.mp3 - 1 passages in 23.66s (elapsed: 6311.9s)
+[2m2025-12-21T16:48:16.547694Z[0m [32m INFO[0m File [129/5737] STARTING: 201 - The Weight.mp3
+[2m2025-12-21T16:48:36.043866Z[0m [32m INFO[0m File [129/5737] COMPLETED: 201 - The Weight.mp3 - 1 passages in 19.50s (elapsed: 6331.4s)
+[2m2025-12-21T16:48:36.043987Z[0m [32m INFO[0m File [130/5737] STARTING: 202 - Tracks of My Tears.mp3
+[2m2025-12-21T16:48:55.796212Z[0m [32m INFO[0m File [130/5737] COMPLETED: 202 - Tracks of My Tears.mp3 - 1 passages in 19.75s (elapsed: 6351.2s)
+[2m2025-12-21T16:48:55.796342Z[0m [32m INFO[0m PROGRESS: 130/5737 files (2.3%) - 0.02 files/sec - ETA: 4565.5min
+[2m2025-12-21T16:48:55.796385Z[0m [32m INFO[0m File [131/5737] STARTING: 203 - I Can’t See Myself Leaving You.mp3
+[2m2025-12-21T16:49:16.282726Z[0m [32m INFO[0m File [131/5737] COMPLETED: 203 - I Can’t See Myself Leaving You.mp3 - 1 passages in 20.49s (elapsed: 6371.7s)
+[2m2025-12-21T16:49:16.282849Z[0m [32m INFO[0m File [132/5737] STARTING: 204 - Gentle on My Mind.mp3
+[2m2025-12-21T16:49:32.886507Z[0m [32m INFO[0m File [132/5737] COMPLETED: 204 - Gentle on My Mind.mp3 - 1 passages in 16.60s (elapsed: 6388.3s)
+[2m2025-12-21T16:49:32.886623Z[0m [32m INFO[0m File [133/5737] STARTING: 205 - Share Your Love With Me.mp3
+[2m2025-12-21T16:49:55.279107Z[0m [32m INFO[0m File [133/5737] COMPLETED: 205 - Share Your Love With Me.mp3 - 1 passages in 22.39s (elapsed: 6410.7s)
+[2m2025-12-21T16:49:55.279240Z[0m [32m INFO[0m File [134/5737] STARTING: 206 - Pledging My Love - The Clock.mp3
+[2m2025-12-21T16:50:23.567756Z[0m [32m INFO[0m File [134/5737] COMPLETED: 206 - Pledging My Love - The Clock.mp3 - 1 passages in 28.29s (elapsed: 6438.9s)
+[2m2025-12-21T16:50:23.567895Z[0m [32m INFO[0m File [135/5737] STARTING: 207 - Eleanor Rigby.mp3
+[2m2025-12-21T16:50:41.192456Z[0m [32m INFO[0m File [135/5737] COMPLETED: 207 - Eleanor Rigby.mp3 - 1 passages in 17.62s (elapsed: 6456.6s)
+[2m2025-12-21T16:50:41.192594Z[0m [32m INFO[0m File [136/5737] STARTING: 208 - It Ain’t Fair.mp3
+[2m2025-12-21T16:51:03.834523Z[0m [32m INFO[0m File [136/5737] COMPLETED: 208 - It Ain’t Fair.mp3 - 1 passages in 22.64s (elapsed: 6479.2s)
+[2m2025-12-21T16:51:03.834648Z[0m [32m INFO[0m File [137/5737] STARTING: 209 - Call Me.mp3
+[2m2025-12-21T16:51:25.862614Z[0m [32m INFO[0m File [137/5737] COMPLETED: 209 - Call Me.mp3 - 1 passages in 22.03s (elapsed: 6501.2s)
+[2m2025-12-21T16:51:25.862735Z[0m [32m INFO[0m File [138/5737] STARTING: 210 - Son of a Preacher Man.mp3
+[2m2025-12-21T16:51:46.686700Z[0m [32m INFO[0m File [138/5737] COMPLETED: 210 - Son of a Preacher Man.mp3 - 1 passages in 20.82s (elapsed: 6522.1s)
+[2m2025-12-21T16:51:46.686868Z[0m [32m INFO[0m File [139/5737] STARTING: 211 - Spirit in the Dark.mp3
+[2m2025-12-21T16:52:06.557190Z[0m [32m INFO[0m File [139/5737] COMPLETED: 211 - Spirit in the Dark.mp3 - 1 passages in 19.87s (elapsed: 6541.9s)
+[2m2025-12-21T16:52:06.557309Z[0m [32m INFO[0m File [140/5737] STARTING: 212 - The Thrill Is Gone.mp3
+[2m2025-12-21T16:52:24.639685Z[0m [32m INFO[0m File [140/5737] COMPLETED: 212 - The Thrill Is Gone.mp3 - 1 passages in 18.08s (elapsed: 6560.0s)
+[2m2025-12-21T16:52:24.639871Z[0m [32m INFO[0m PROGRESS: 140/5737 files (2.4%) - 0.02 files/sec - ETA: 4371.0min
+[2m2025-12-21T16:52:24.639920Z[0m [32m INFO[0m File [141/5737] STARTING: 213 - Don’t Play That Song.mp3
+[2m2025-12-21T16:52:45.094333Z[0m [32m INFO[0m File [141/5737] COMPLETED: 213 - Don’t Play That Song.mp3 - 1 passages in 20.45s (elapsed: 6580.5s)
+[2m2025-12-21T16:52:45.094455Z[0m [32m INFO[0m File [142/5737] STARTING: 214 - Let It Be.mp3
+[2m2025-12-21T16:52:56.985487Z[0m [32m INFO[0m File [142/5737] COMPLETED: 214 - Let It Be.mp3 - 1 passages in 11.89s (elapsed: 6592.4s)
+[2m2025-12-21T16:52:56.985545Z[0m [32m INFO[0m File [143/5737] STARTING: 215 - Border Song (Holy Moses).mp3
+[2m2025-12-21T16:53:05.124690Z[0m [32m INFO[0m File [143/5737] COMPLETED: 215 - Border Song (Holy Moses).mp3 - 1 passages in 8.14s (elapsed: 6600.5s)
+[2m2025-12-21T16:53:05.124745Z[0m [32m INFO[0m File [144/5737] STARTING: 216 - You and Me.mp3
+[2m2025-12-21T16:53:13.463926Z[0m [32m INFO[0m File [144/5737] COMPLETED: 216 - You and Me.mp3 - 1 passages in 8.34s (elapsed: 6608.8s)
+[2m2025-12-21T16:53:13.463982Z[0m [32m INFO[0m File [145/5737] STARTING: GoldAsia.mp3

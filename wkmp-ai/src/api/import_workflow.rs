@@ -10,7 +10,13 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{error::{ApiError, ApiResult}, models::{ImportParameters, ImportSession, ImportState}, AppState};
+use std::sync::Arc;
+
+use crate::{
+    error::{ApiError, ApiResult},
+    models::{ImportParameters, ImportSession, ImportState},
+    AppState,
+};
 
 /// **[AIA-SEC-030]** POST /import/validate-acoustid request
 #[derive(Debug, Deserialize)]
@@ -109,7 +115,7 @@ pub async fn validate_acoustid(
             }))
         }
         Err(err) => {
-            tracing::debug!(error = %err, "AcoustID API key validation failed");
+            tracing::debug!(error = ?err, "AcoustID API key validation failed");
             Ok(Json(ValidateAcoustIDResponse {
                 valid: false,
                 message: err,
@@ -182,7 +188,9 @@ pub async fn start_import(
             "Background import workflow task started"
         );
 
-        if let Err(e) = execute_import_workflow(state_clone, session_clone, cancel_token_clone).await {
+        if let Err(e) =
+            execute_import_workflow(state_clone, session_clone, cancel_token_clone).await
+        {
             tracing::error!(
                 session_id = %session_id_for_logging,
                 error = ?e,
@@ -209,9 +217,7 @@ pub async fn get_import_status(
     // **[AIA-WF-020]** Load session from database
     let session = crate::db::sessions::load_session(&state.db, session_id)
         .await?
-        .ok_or_else(|| {
-            ApiError::NotFound(format!("Import session not found: {}", session_id))
-        })?;
+        .ok_or_else(|| ApiError::NotFound(format!("Import session not found: {}", session_id)))?;
 
     tracing::debug!(session_id = %session_id, state = ?session.state, "Status query");
 
@@ -268,9 +274,7 @@ pub async fn cancel_import(
     // **[AIA-WF-020]** Load session from database
     let mut session = crate::db::sessions::load_session(&state.db, session_id)
         .await?
-        .ok_or_else(|| {
-            ApiError::NotFound(format!("Import session not found: {}", session_id))
-        })?;
+        .ok_or_else(|| ApiError::NotFound(format!("Import session not found: {}", session_id)))?;
 
     // Check if session is already terminal
     if session.is_terminal() {
@@ -295,7 +299,13 @@ pub async fn cancel_import(
                 "No cancellation token found - background task may have already completed"
             );
         }
+        // **[PLAN031 Task 2.1]** Opportunistic cleanup of other stale tokens
+        // (This session's token was already removed above, but this cleans up any other stale tokens)
+        drop(tokens); // Release lock before calling cleanup
     }
+
+    // **[PLAN031 Task 2.1]** Clean up any stale tokens while we're here
+    state.cleanup_completed_import(session_id).await;
 
     // Transition to cancelled state
     session.transition_to(ImportState::Cancelled);
@@ -309,7 +319,10 @@ pub async fn cancel_import(
         session_id: session.session_id,
         state: session.state,
         files_processed: session.progress.current,
-        files_skipped: session.progress.total.saturating_sub(session.progress.current),
+        files_skipped: session
+            .progress
+            .total
+            .saturating_sub(session.progress.current),
         cancelled_at: session.ended_at.unwrap_or_else(chrono::Utc::now),
     };
 
@@ -344,16 +357,21 @@ async fn execute_import_workflow(
         tracing::warn!("Configure key at: http://localhost:5723/settings");
     }
 
-    // Create workflow orchestrator with event bus for SSE broadcasting
-    let orchestrator = WorkflowOrchestrator::new(
+    // **[PLAN034]** Wrap in Arc so tokio::spawn'd tasks can reference the orchestrator
+    let orchestrator = Arc::new(WorkflowOrchestrator::new(
         state.db.clone(),
         state.event_bus.clone(),
         acoustid_api_key,
-    );
+        state.memory_usage_threshold_bytes,
+        state.processing_thread_count,
+    ));
 
     // Execute workflow with error handling
     // **[PLAN024]** Use new 3-tier hybrid fusion pipeline
-    match orchestrator.execute_import_plan024(session, cancel_token).await {
+    match orchestrator
+        .execute_import_plan024(session, cancel_token)
+        .await
+    {
         Ok(final_session) => {
             tracing::info!(
                 session_id = %session_id,
@@ -361,9 +379,8 @@ async fn execute_import_workflow(
                 "Import workflow completed"
             );
 
-            // Clean up cancellation token (if still present)
-            let mut tokens = state.cancellation_tokens.write().await;
-            tokens.remove(&session_id);
+            // **[PLAN031 Task 2.1]** Clean up cancellation token to prevent memory leak
+            state.cleanup_completed_import(session_id).await;
 
             Ok(())
         }
@@ -391,7 +408,7 @@ async fn execute_import_workflow(
                                SET state = '"FAILED"',
                                    ended_at = ?,
                                    current_operation = ?
-                               WHERE session_id = ?"#
+                               WHERE session_id = ?"#,
                         )
                         .bind(chrono::Utc::now().to_rfc3339())
                         .bind(format!("Import failed: {}", e))
@@ -419,7 +436,7 @@ async fn execute_import_workflow(
                            SET state = '"FAILED"',
                                ended_at = ?,
                                current_operation = ?
-                           WHERE session_id = ?"#
+                           WHERE session_id = ?"#,
                     )
                     .bind(chrono::Utc::now().to_rfc3339())
                     .bind(format!("Import failed: {}", e))
@@ -429,26 +446,11 @@ async fn execute_import_workflow(
                 }
             }
 
-            // Clean up cancellation token (if still present)
-            let mut tokens = state.cancellation_tokens.write().await;
-            tokens.remove(&session_id);
+            // **[PLAN031 Task 2.1]** Clean up cancellation token to prevent memory leak
+            state.cleanup_completed_import(session_id).await;
 
             Err(e)
         }
-    }
-}
-
-/// Format bytes for human-readable display
-#[allow(dead_code)]
-fn format_bytes(bytes: u64) -> String {
-    if bytes < 1024 {
-        format!("{} B", bytes)
-    } else if bytes < 1024 * 1024 {
-        format!("{:.1} KB", bytes as f64 / 1024.0)
-    } else if bytes < 1024 * 1024 * 1024 {
-        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
-    } else {
-        format!("{:.2} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
     }
 }
 
@@ -507,7 +509,7 @@ pub async fn update_acoustid_key(
         Err(err) => {
             tracing::warn!(
                 session_id = %request.session_id,
-                error = %err,
+                error = ?err,
                 "AcoustID API key validation failed"
             );
             Ok(Json(UpdateAcoustIDKeyResponse {

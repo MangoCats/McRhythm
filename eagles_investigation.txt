@@ -1,0 +1,23 @@
+================================================================================
+Album: The Long Run
+Artist: Eagles
+Match: 70.0%
+Current MBID: bb2fd7d1-d207-4fa6-a4e4-07f0f0774380
+Baseline MBID: 59870c2f-e9e0-42bf-9399-2ef13896127c
+
+Track Details (AFTER Stage 6):
+#   Track Name                                 Expected   Detected      Error OK 
+-------------------------------------------------------------------------------------
+1   Unknown                                        0.00s       0.00s      +0.00s Y  
+2   Unknown                                        0.00s       0.00s      +0.00s Y  
+3   Unknown                                        0.00s       0.00s      +0.00s Y  
+4   Unknown                                        0.00s       0.00s      +0.00s Y  
+5   Unknown                                        0.00s       0.00s      +0.00s N  
+6   Unknown                                        0.00s       0.00s      +0.00s Y  
+7   Unknown                                        0.00s       0.00s      +0.00s Y  
+8   Unknown                                        0.00s       0.00s      +0.00s N  
+9   Unknown                                        0.00s       0.00s      +0.00s Y  
+10  Unknown                                        0.00s       0.00s      +0.00s N  
+
+Tracks within tolerance: 10/10
+Match percentage: 70.0%

@@ -140,7 +140,7 @@ pub trait SourceExtractor: Send + Sync {
 ///
 /// Each field is optional - extractors return only what they can provide.
 /// All outputs include confidence scores for downstream fusion.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ExtractionResult {
     /// Metadata extraction (title, artist, album, etc.)
     pub metadata: Option<MetadataExtraction>,
@@ -151,7 +151,7 @@ pub struct ExtractionResult {
 }
 
 /// Metadata extraction result
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MetadataExtraction {
     /// Track title with confidence
     pub title: Option<ConfidenceValue<String>>,
@@ -161,12 +161,14 @@ pub struct MetadataExtraction {
     pub album: Option<ConfidenceValue<String>>,
     /// MusicBrainz Recording MBID with confidence
     pub recording_mbid: Option<ConfidenceValue<String>>,
+    /// International Standard Recording Code (ISRC) with confidence
+    pub isrc: Option<ConfidenceValue<String>>,
     /// Additional metadata fields (e.g., "year", "genre")
     pub additional: HashMap<String, ConfidenceValue<String>>,
 }
 
 /// Identity resolution result (MusicBrainz Recording MBID)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdentityExtraction {
     /// MusicBrainz Recording MBID
     pub recording_mbid: String,
@@ -177,7 +179,7 @@ pub struct IdentityExtraction {
 }
 
 /// Musical flavor extraction result
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlavorExtraction {
     /// Musical flavor characteristics (e.g., "danceability": 0.7)
     pub characteristics: HashMap<String, f32>,
@@ -322,6 +324,8 @@ pub struct FusedIdentity {
     pub confidence: f32,
     /// Bayesian posterior probability
     pub posterior_probability: f32,
+    /// Confidence tier indicating the source of identification
+    pub confidence_tier: crate::matching::ConfidenceTier,
     /// List of conflicting identifications
     pub conflicts: Vec<String>,
 }
@@ -415,8 +419,7 @@ pub trait Validation: Send + Sync {
     ///
     /// # Errors
     /// Returns `ValidationError` if validation fails
-    async fn validate(&self, input: &Self::Input)
-        -> Result<ValidationResult, ValidationError>;
+    async fn validate(&self, input: &Self::Input) -> Result<ValidationResult, ValidationError>;
 }
 
 /// Validation result
