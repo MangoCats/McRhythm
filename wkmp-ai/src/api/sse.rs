@@ -15,7 +15,7 @@ use axum::{
 use futures::stream::Stream;
 use std::convert::Infallible;
 use std::time::Duration;
-use tracing::{debug, info, warn};
+use tracing::{trace, debug, info, warn};
 use wkmp_common::events::WkmpEvent;
 
 /// GET /events - SSE event stream for general connection status
@@ -71,7 +71,7 @@ pub async fn import_event_stream(
                             }
                         }
                     } else {
-                        debug!("SSE: Sending heartbeat");
+                        trace!("SSE: Sending heartbeat");
                         yield Ok(Event::default().comment("heartbeat"));
                     }
                 }

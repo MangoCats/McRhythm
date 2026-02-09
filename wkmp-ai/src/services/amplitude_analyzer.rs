@@ -195,9 +195,54 @@ impl AmplitudeAnalyzer {
             "Passage sample extraction complete"
         );
 
-        // Calculate RMS profile (now based on PASSAGE samples only)
+        self.analyze_passage_samples(&all_samples, sample_rate)
+    }
+
+    /// Analyze amplitude from pre-decoded samples (avoids re-decoding)
+    ///
+    /// `all_samples` is the full-file mono f32 PCM at `sample_rate`.
+    /// `start_time`/`end_time` define the passage range in seconds.
+    /// Produces identical results to `analyze_file`.
+    pub fn analyze_from_samples(
+        &self,
+        all_samples: &[f32],
+        sample_rate: u32,
+        start_time: f64,
+        end_time: f64,
+    ) -> Result<AmplitudeAnalysisResult, AnalysisError> {
+        let start_sample = (start_time * sample_rate as f64) as usize;
+        let end_sample = ((end_time * sample_rate as f64) as usize).min(all_samples.len());
+
+        if start_sample >= end_sample || start_sample >= all_samples.len() {
+            return Err(AnalysisError::AnalysisFailed(format!(
+                "Invalid sample range: {}..{} (total {})",
+                start_sample, end_sample, all_samples.len()
+            )));
+        }
+
+        let passage_samples = &all_samples[start_sample..end_sample];
+
+        tracing::debug!(
+            start_sample,
+            end_sample,
+            passage_samples = passage_samples.len(),
+            "Analyzing passage from pre-decoded samples"
+        );
+
+        self.analyze_passage_samples(passage_samples, sample_rate)
+    }
+
+    /// Shared analysis logic: RMS profiling, lead-in/lead-out detection
+    ///
+    /// Used by both `analyze_file` (disk decode) and `analyze_from_samples` (pre-decoded).
+    fn analyze_passage_samples(
+        &self,
+        passage_samples: &[f32],
+        sample_rate: u32,
+    ) -> Result<AmplitudeAnalysisResult, AnalysisError> {
+        // Calculate RMS profile (based on PASSAGE samples only)
         let window_size = (sample_rate as f64 * 0.1) as usize; // 100ms windows
-        let rms_profile = self.calculate_rms_profile(&all_samples, window_size);
+        let rms_profile = self.calculate_rms_profile(passage_samples, window_size);
 
         // **[ORIGINAL SPEC]** Detect peak and apply threshold from parameters
         let peak_rms = rms_profile.iter().cloned().fold(0.0f32, f32::max) as f64;

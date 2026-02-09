@@ -344,6 +344,229 @@ impl PassageAmplitudeAnalyzer {
             stats,
         })
     }
+
+    /// Analyze passages using pre-decoded audio (avoids re-decoding per passage)
+    ///
+    /// Identical results to `analyze_passages`, but slices from in-memory samples
+    /// instead of re-opening and decoding the audio file for each passage.
+    pub async fn analyze_passages_with_audio(
+        &self,
+        decoded_samples: &[f32],
+        sample_rate: u32,
+        passages: &[PassageRecord],
+    ) -> Result<AmplitudeResult> {
+        tracing::debug!(
+            total_samples = decoded_samples.len(),
+            sample_rate,
+            passage_count = passages.len(),
+            "Analyzing passage amplitudes from pre-decoded audio"
+        );
+
+        let mut results = Vec::new();
+        let mut total_lead_in = 0.0;
+        let mut total_lead_out = 0.0;
+
+        for passage_record in passages {
+            // **[PHASE 1]** Get passage boundaries from database, then RELEASE connection
+            let (start_ticks, end_ticks): (i64, i64) = {
+                sqlx::query_as(
+                    "SELECT start_time_ticks, end_time_ticks FROM passages WHERE guid = ?",
+                )
+                .bind(passage_record.passage_id.to_string())
+                .fetch_one(&self.db)
+                .await?
+            };
+
+            let start_seconds = start_ticks as f64 / TICKS_PER_SECOND as f64;
+            let end_seconds = end_ticks as f64 / TICKS_PER_SECOND as f64;
+            let duration_seconds = end_seconds - start_seconds;
+
+            // **[PLAN031 Fix 3]** Skip amplitude analysis for tiny passages (<10 seconds)
+            if duration_seconds < MIN_PASSAGE_DURATION_SECONDS {
+                tracing::debug!(
+                    passage_id = %passage_record.passage_id,
+                    duration_seconds,
+                    "Skipping amplitude analysis: passage too short (<10s)"
+                );
+                results.push(PassageAmplitudeResult {
+                    passage_id: passage_record.passage_id,
+                    lead_in_start_ticks: None,
+                    lead_out_start_ticks: None,
+                });
+                continue;
+            }
+
+            tracing::debug!(
+                passage_id = %passage_record.passage_id,
+                start_seconds,
+                end_seconds,
+                duration_seconds,
+                "Analyzing passage amplitude (from pre-decoded samples)"
+            );
+
+            // Analyze from pre-decoded samples (no file I/O)
+            let analyzer = self.analyzer.clone();
+            let samples = decoded_samples.to_vec();
+            let analysis = tokio::task::spawn_blocking(move || {
+                analyzer.analyze_from_samples(&samples, sample_rate, start_seconds, end_seconds)
+            })
+            .await
+            .map_err(|e| Error::Internal(format!("Amplitude task failed: {}", e)))?
+            .map_err(|e| Error::Internal(format!("Amplitude analysis failed: {}", e)))?;
+
+            // Post-analysis processing (identical to analyze_passages)
+            let passage_duration_ticks = end_ticks - start_ticks;
+            let lead_in_duration_ticks =
+                (analysis.lead_in_duration * TICKS_PER_SECOND as f64) as i64;
+            let lead_out_duration_ticks =
+                (analysis.lead_out_duration * TICKS_PER_SECOND as f64) as i64;
+
+            if lead_in_duration_ticks + lead_out_duration_ticks > passage_duration_ticks {
+                tracing::warn!(
+                    passage_id = %passage_record.passage_id,
+                    passage_duration_ticks,
+                    lead_in_duration_ticks,
+                    lead_out_duration_ticks,
+                    combined_duration = lead_in_duration_ticks + lead_out_duration_ticks,
+                    "Lead-in + lead-out exceed passage duration - setting both to NULL (passage too short for amplitude analysis)"
+                );
+
+                let max_wait_ms: i64 = sqlx::query_scalar(
+                    "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
+                )
+                .fetch_optional(&self.db)
+                .await?
+                .unwrap_or(5000);
+
+                let db_ref = &self.db;
+                let passage_id_str = passage_record.passage_id.to_string();
+                retry_on_lock("passage amplitude update", max_wait_ms as u64, || async {
+                    sqlx::query(
+                        r#"
+                            UPDATE passages
+                            SET lead_in_start_ticks = NULL,
+                                lead_out_start_ticks = NULL,
+                                status = 'INGEST COMPLETE',
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE guid = ?
+                            "#,
+                    )
+                    .bind(&passage_id_str)
+                    .execute(db_ref)
+                    .await
+                    .map_err(|e| Error::Database(e))
+                })
+                .await?;
+
+                results.push(PassageAmplitudeResult {
+                    passage_id: passage_record.passage_id,
+                    lead_in_start_ticks: None,
+                    lead_out_start_ticks: None,
+                });
+
+                continue;
+            }
+
+            let lead_in_start_ticks =
+                (start_ticks + lead_in_duration_ticks).clamp(start_ticks, end_ticks);
+            let lead_out_start_ticks =
+                (end_ticks - lead_out_duration_ticks).clamp(start_ticks, end_ticks);
+
+            tracing::debug!(
+                passage_id = %passage_record.passage_id,
+                lead_in_seconds = analysis.lead_in_duration,
+                lead_out_seconds = analysis.lead_out_duration,
+                start_ticks,
+                end_ticks,
+                lead_in_start_ticks,
+                lead_out_start_ticks,
+                lead_in_valid = lead_in_start_ticks >= start_ticks && lead_in_start_ticks <= end_ticks,
+                lead_out_valid = lead_out_start_ticks >= start_ticks && lead_out_start_ticks <= end_ticks,
+                ordering_valid = lead_in_start_ticks <= lead_out_start_ticks,
+                "Amplitude analysis complete - computed absolute positions"
+            );
+
+            let max_wait_ms: i64 = sqlx::query_scalar(
+                "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
+            )
+            .fetch_optional(&self.db)
+            .await?
+            .unwrap_or(5000);
+
+            let db_ref = &self.db;
+            let passage_id_str = passage_record.passage_id.to_string();
+            if let Err(e) =
+                retry_on_lock("passage amplitude update", max_wait_ms as u64, || async {
+                    sqlx::query(
+                        r#"
+                        UPDATE passages
+                        SET lead_in_start_ticks = ?,
+                            lead_out_start_ticks = ?,
+                            status = 'INGEST COMPLETE',
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE guid = ?
+                        "#,
+                    )
+                    .bind(lead_in_start_ticks)
+                    .bind(lead_out_start_ticks)
+                    .bind(&passage_id_str)
+                    .execute(db_ref)
+                    .await
+                    .map_err(|e| Error::Database(e))
+                })
+                .await
+            {
+                tracing::error!(
+                    passage_id = %passage_record.passage_id,
+                    start_ticks,
+                    end_ticks,
+                    lead_in_start_ticks,
+                    lead_out_start_ticks,
+                    lead_in_duration_seconds = analysis.lead_in_duration,
+                    lead_out_duration_seconds = analysis.lead_out_duration,
+                    passage_duration_ticks = end_ticks - start_ticks,
+                    error = ?e,
+                    "Database update failed with CHECK constraint - dumping all values"
+                );
+                return Err(e);
+            }
+
+            results.push(PassageAmplitudeResult {
+                passage_id: passage_record.passage_id,
+                lead_in_start_ticks: Some(lead_in_start_ticks),
+                lead_out_start_ticks: Some(lead_out_start_ticks),
+            });
+
+            total_lead_in += analysis.lead_in_duration;
+            total_lead_out += analysis.lead_out_duration;
+        }
+
+        let stats = AmplitudeStats {
+            passages_analyzed: results.len(),
+            avg_lead_in_seconds: if results.is_empty() {
+                0.0
+            } else {
+                total_lead_in / results.len() as f64
+            },
+            avg_lead_out_seconds: if results.is_empty() {
+                0.0
+            } else {
+                total_lead_out / results.len() as f64
+            },
+        };
+
+        tracing::info!(
+            passages_analyzed = stats.passages_analyzed,
+            avg_lead_in = stats.avg_lead_in_seconds,
+            avg_lead_out = stats.avg_lead_out_seconds,
+            "Amplitude analysis complete (from pre-decoded audio)"
+        );
+
+        Ok(AmplitudeResult {
+            passages: results,
+            stats,
+        })
+    }
 }
 
 /// Get lead-in threshold from settings (default: 45.0 dB)

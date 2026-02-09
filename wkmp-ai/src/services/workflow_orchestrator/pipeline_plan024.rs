@@ -289,7 +289,7 @@ impl WorkflowOrchestrator {
         // Decode audio file to mono f32 PCM
         tracing::debug!(file = ?file_path, "Decoding audio (first and only decode)");
         let decode_start = std::time::Instant::now();
-        let decoded = tokio::task::spawn_blocking({
+        let mut decoded = tokio::task::spawn_blocking({
             let file_path = file_path.to_path_buf();
             move || crate::utils::decode_audio_file(&file_path)
         })
@@ -621,8 +621,15 @@ impl WorkflowOrchestrator {
         let passage_amplitude_analyzer =
             crate::services::PassageAmplitudeAnalyzer::new(self.db.clone()).await?;
         let amplitude_result = passage_amplitude_analyzer
-            .analyze_passages(file_path, &recording_result.passages)
+            .analyze_passages_with_audio(
+                &decoded.samples,
+                decoded.sample_rate,
+                &recording_result.passages,
+            )
             .await?;
+
+        // Release decoded audio memory (~500MB for 50-minute album)
+        decoded.clear();
 
         tracing::info!(
             phase = "Amplitude Analysis",
