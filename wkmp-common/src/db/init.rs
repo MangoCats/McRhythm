@@ -42,6 +42,7 @@ pub async fn init_database_schema(pool: &SqlitePool) -> Result<()> {
     create_queue_table(&pool).await?;
     create_acoustid_cache_table(&pool).await?;
     create_acousticbrainz_cache_table(&pool).await?;
+    create_release_cache_tables(&pool).await?;
 
     // MusicBrainz entity tables (used by wkmp-ai, wkmp-pd)
     create_songs_table(&pool).await?;
@@ -632,6 +633,52 @@ async fn create_acousticbrainz_cache_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_acousticbrainz_cache_availability ON acousticbrainz_cache(has_tonal, has_rhythm) WHERE has_tonal = 1 AND has_rhythm = 1")
         .execute(pool)
         .await?;
+
+    Ok(())
+}
+
+async fn create_release_cache_tables(pool: &SqlitePool) -> Result<()> {
+    // Release search cache (artist+album → candidate MBIDs)
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS release_search_cache (
+            artist_normalized TEXT NOT NULL,
+            album_normalized TEXT NOT NULL,
+            release_ids_json TEXT NOT NULL,
+            cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+            expires_at TEXT NOT NULL,
+            UNIQUE(artist_normalized, album_normalized)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_release_search_lookup ON release_search_cache(artist_normalized, album_normalized)",
+    )
+    .execute(pool)
+    .await?;
+
+    // Release details cache (release MBID → full track listing)
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS release_details_cache (
+            mbid TEXT PRIMARY KEY,
+            details_json TEXT NOT NULL,
+            cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+            expires_at TEXT NOT NULL
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_release_details_expires ON release_details_cache(expires_at)",
+    )
+    .execute(pool)
+    .await?;
 
     Ok(())
 }

@@ -371,7 +371,10 @@ impl WorkflowOrchestrator {
 
         // **[SPEC-EMBID-001]** Album Edition Matching (Stage 1)
         // AlbumMatcher resolves per-passage MBIDs from MusicBrainz album editions.
+        // When matched, AlbumMatcher's track boundaries OVERRIDE Phase 4 passages
+        // (AlbumMatcher has multi-stage silence detection; Phase 4 may find fewer boundaries).
         // Falls back to AcoustID (Stage 2) only if album matching fails.
+        let mut passages = passages; // Make mutable for AlbumMatcher boundary override
         let preresolved: Vec<Option<crate::services::passage_song_matcher::MbidResolution>> = {
             use crate::matching::{AlbumMatcher, AlbumMatcherConfig, ConfidenceTier};
 
@@ -398,15 +401,35 @@ impl WorkflowOrchestrator {
             };
 
             match album_result {
-                Ok(ref result) if result.matched && result.tracks.len() == passages.len() => {
+                Ok(ref result) if result.matched => {
+                    // Derive passage boundaries from AlbumMatcher's detected track durations
+                    const TICKS_PER_SECOND: f64 = 28_224_000.0;
+                    let mut album_passages = Vec::with_capacity(result.tracks.len());
+                    let mut cursor_ticks: i64 = 0;
+                    for track in &result.tracks {
+                        let duration_ticks = (track.detected_duration * TICKS_PER_SECOND) as i64;
+                        album_passages.push(
+                            crate::services::PassageBoundary::new(
+                                cursor_ticks,
+                                cursor_ticks + duration_ticks,
+                            ),
+                        );
+                        cursor_ticks += duration_ticks;
+                    }
+
                     tracing::info!(
                         release_mbid = ?result.release_mbid,
                         artist = ?result.matched_artist,
                         album = ?result.matched_album,
                         match_pct = result.match_percentage,
                         tracks = result.tracks.len(),
-                        "AlbumMatcher: matched — using edition MBIDs"
+                        phase4_passages = passages.len(),
+                        "AlbumMatcher: matched — using edition MBIDs and track boundaries"
                     );
+
+                    // Override Phase 4 passages with AlbumMatcher boundaries
+                    passages = album_passages;
+
                     result
                         .tracks
                         .iter()
@@ -419,14 +442,6 @@ impl WorkflowOrchestrator {
                             })
                         })
                         .collect()
-                }
-                Ok(ref result) if result.matched => {
-                    tracing::warn!(
-                        album_tracks = result.tracks.len(),
-                        detected_passages = passages.len(),
-                        "AlbumMatcher: track count mismatch — falling back to AcoustID"
-                    );
-                    vec![None; passages.len()]
                 }
                 Ok(_) => {
                     tracing::info!("AlbumMatcher: no match — falling back to AcoustID");
