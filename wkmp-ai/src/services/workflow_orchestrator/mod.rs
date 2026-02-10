@@ -885,6 +885,9 @@ impl WorkflowOrchestrator {
             }
         };
 
+        // Clear worker phase tracking unconditionally (covers early exits, errors, timeouts)
+        self.clear_worker_phase(idx).await;
+
         // **[File Processing Status]** Record final state and processing time
         let elapsed = start_time.elapsed().as_secs_f64();
         {

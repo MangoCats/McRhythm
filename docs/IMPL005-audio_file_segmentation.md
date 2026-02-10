@@ -89,8 +89,7 @@ The process is a guided, step-by-step workflow within the WKMP UI (Full version 
 1.  **Passage Creation:** For each segment, a new Passage is created in the WKMP database, linked to the source audio file and with the correct start/end times.
 2.  **Song Association:** The appropriate Song record (including Recording, Artist, and Work) is associated with each new Passage.
 3.  **Album Passage:** A single overarching Passage, encompassing the entire audio file, is also created. This allows the user to play the entire album side as a single unit if desired.
-4.  **AcousticBrainz Lookup:** The system then queries the AcousticBrainz database for each new Recording ID to fetch the high-level characterization data (Musical Flavor).
-5.  **Local Analysis:** If no AcousticBrainz data is available for a Recording, a local analysis job using Essentia is queued to compute the Musical Flavor locally.
+4.  **Essentia Analysis:** Each passage's audio is analyzed individually via local Essentia (native binary or Docker container) to compute its Musical Flavor vector. For album files, passage audio is extracted to a temporary WAV file before analysis, ensuring each passage gets a distinct flavor vector.
 
 ----
 End of document - Audio File Segmentation

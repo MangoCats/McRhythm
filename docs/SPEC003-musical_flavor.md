@@ -12,9 +12,11 @@
 
 > **Entity Definitions:** See [REQ002-entity_definitions.md](REQ002-entity_definitions.md) for complete definitions of Passage, Song, and Recording entities referenced in this specification. See [§ 2.0 Entity Relationship Overview](REQ002-entity_definitions.md#20-entity-relationship-overview) for entity relationships.
 
-[MFL-DEF-020] Musical flavor is a quantitative definition of a passage's musical characteristics in many dimensions. It is derived from
-the [AcousticBrainz high level](https://acousticbrainz.org/data#highlevel-data) characterization of [recording(s)](https://musicbrainz.org/doc/Recording)
+[MFL-DEF-020] Musical flavor is a quantitative definition of a passage's musical characteristics in many dimensions. It uses the
+[AcousticBrainz high level](https://acousticbrainz.org/data#highlevel-data) vector format for [recording(s)](https://musicbrainz.org/doc/Recording)
 contained in a [passage](REQ002-entity_definitions.md#entities).  See: [Sample AcousticBrainz highlevel json object](sample_highlevel.json).
+
+[MFL-DEF-021] Flavor vectors are computed via local Essentia analysis (native binary or Docker container). AcousticBrainz was shut down in 2024; Essentia produces compatible output in the same vector format. For album files containing multiple passages, each passage is analyzed individually to produce a distinct flavor vector.
 
 [MFL-DEF-030] These characteristic values break down into two categories:
 - [MFL-DEF-031] binary characteristics with two dimensions whose values add up to 1.0 such as: 

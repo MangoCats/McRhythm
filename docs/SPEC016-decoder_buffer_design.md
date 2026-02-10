@@ -654,12 +654,14 @@ This requirement addresses a recurring defect where buffer filling rotated throu
 
 **[DBD-DEC-090]** Decoders MUST support streaming/incremental operation to minimize latency and enable cooperative multitasking between priority levels.
 
-**[DBD-DEC-100]** All-at-once decoding (decoding an entire file into memory before writing to buffer) is PROHIBITED. This mode creates:
+**[DBD-DEC-100]** All-at-once decoding (decoding an entire file into memory before writing to buffer) is PROHIBITED for **playback decoders** (wkmp-ap). This mode creates:
 - Unacceptable startup delays (10+ seconds for long files)
 - Memory pressure (entire file in RAM simultaneously)
 - Priority inversion (low priority 30-minute decode blocks high priority work)
 - Poor user experience (buffer fill displays 0% then jumps to 99%)
 - Violation of decode_work_period cooperative scheduling requirements
+
+**Note:** This prohibition does not apply to the wkmp-ai import pipeline, which decodes entire files to memory in Phase 4 for reuse across Phases 5-9 (amplitude analysis, Essentia flavoring). Import has different latency/priority tradeoffs and the memory is released explicitly after analysis completes.
 
 **[DBD-DEC-110]** Chunk-based decoding process - Each decoder processes audio in chunks of approximately **1 second duration** or less:
 

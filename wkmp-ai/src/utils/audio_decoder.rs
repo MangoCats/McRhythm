@@ -362,6 +362,49 @@ fn convert_to_mono_f32(decoded: &AudioBufferRef) -> Vec<f32> {
     }
 }
 
+/// Write mono f32 samples to a WAV file
+///
+/// Used to create temporary WAV files for per-passage Essentia analysis.
+/// Essentia requires a file path on disk, so album passage samples must be
+/// extracted to temp files before analysis.
+///
+/// # Arguments
+/// * `samples` - Mono f32 PCM samples (range [-1.0, 1.0])
+/// * `sample_rate` - Sample rate in Hz
+/// * `output_path` - Destination WAV file path
+pub fn write_samples_to_wav(
+    samples: &[f32],
+    sample_rate: u32,
+    output_path: &Path,
+) -> Result<()> {
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate,
+        bits_per_sample: 32,
+        sample_format: hound::SampleFormat::Float,
+    };
+
+    let mut writer = hound::WavWriter::create(output_path, spec)
+        .with_context(|| format!("Failed to create WAV file: {}", output_path.display()))?;
+
+    for &sample in samples {
+        writer.write_sample(sample)
+            .with_context(|| format!("Failed to write sample to: {}", output_path.display()))?;
+    }
+
+    writer.finalize()
+        .with_context(|| format!("Failed to finalize WAV file: {}", output_path.display()))?;
+
+    tracing::trace!(
+        path = %output_path.display(),
+        samples = samples.len(),
+        sample_rate = sample_rate,
+        "WAV file written"
+    );
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

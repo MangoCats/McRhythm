@@ -237,14 +237,14 @@ impl WorkflowOrchestrator {
         phase_number: u8,
         phase_name: &str,
     ) {
-        let thread_id = format!("{:?}", std::thread::current().id());
+        let worker_key = file_index.to_string();
         let relative_path = file_path
             .strip_prefix(root_folder)
             .map(|p| p.display().to_string())
             .unwrap_or_else(|_| file_path.display().to_string());
 
         tracing::trace!(
-            worker_id = %thread_id,
+            worker_id = %worker_key,
             file_index = file_index,
             phase_number = phase_number,
             phase_name = phase_name,
@@ -252,7 +252,7 @@ impl WorkflowOrchestrator {
         );
 
         let activity = WorkerActivity {
-            worker_id: thread_id.clone(),
+            worker_id: worker_key.clone(),
             file_path: Some(relative_path.clone()),
             file_index: Some(file_index),
             phase_number: Some(phase_number),
@@ -267,7 +267,7 @@ impl WorkflowOrchestrator {
         self.worker_activities
             .write()
             .await
-            .insert(thread_id, activity);
+            .insert(worker_key, activity);
     }
 
     /// **[AIA-UI-010]** Update worker activity with passage timing (for passage-level phases)
@@ -283,14 +283,14 @@ impl WorkflowOrchestrator {
         passage_start_seconds: f64,
         passage_end_seconds: f64,
     ) {
-        let thread_id = format!("{:?}", std::thread::current().id());
+        let worker_key = file_index.to_string();
         let relative_path = file_path
             .strip_prefix(root_folder)
             .map(|p| p.display().to_string())
             .unwrap_or_else(|_| file_path.display().to_string());
 
         tracing::trace!(
-            worker_id = %thread_id,
+            worker_id = %worker_key,
             file_index = file_index,
             phase_number = phase_number,
             phase_name = phase_name,
@@ -300,7 +300,7 @@ impl WorkflowOrchestrator {
         );
 
         let activity = WorkerActivity {
-            worker_id: thread_id.clone(),
+            worker_id: worker_key.clone(),
             file_path: Some(relative_path.clone()),
             file_index: Some(file_index),
             phase_number: Some(phase_number),
@@ -315,14 +315,14 @@ impl WorkflowOrchestrator {
         self.worker_activities
             .write()
             .await
-            .insert(thread_id, activity);
+            .insert(worker_key, activity);
     }
 
     /// **[AIA-UI-010]** Clear worker activity (worker now idle)
     /// **[PLAN031 Task 2.5]** Made async for tokio::sync::RwLock
-    pub(super) async fn clear_worker_phase(&self) {
-        let thread_id = format!("{:?}", std::thread::current().id());
+    pub(super) async fn clear_worker_phase(&self, file_index: usize) {
+        let worker_key = file_index.to_string();
         // **[PLAN031 Task 2.5]** Use async write lock
-        self.worker_activities.write().await.remove(&thread_id);
+        self.worker_activities.write().await.remove(&worker_key);
     }
 }

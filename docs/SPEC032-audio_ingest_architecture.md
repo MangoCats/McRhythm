@@ -711,21 +711,23 @@ let thread_count = match read_setting("ai_processing_thread_count") {
 
 ### Worker Activity Tracking
 
-**[AIA-UI-010]** The PROCESSING phase (Section 6) displays **real-time worker thread activity** showing exactly what each parallel worker is doing:
+**[AIA-UI-010]** The PROCESSING phase (Section 6) displays **real-time worker activity** showing exactly what each parallel worker is doing:
 
 **Display Format:**
 ```
-Worker {worker_id}: {phase_name} - {file_path}[passage_timing] Started {elapsed} seconds ago
+Worker {file_index}: {phase_name} - {file_path}[passage_timing] Started {elapsed} seconds ago
 ```
 
 **Example Output:**
 ```
 Processing 42 of 1000 (58 started) ingest_max_concurrent_jobs 8
 
-Worker thread-1: Phase 5 Fingerprinting - Artist/Album/Track.mp3 [2:15-5:30] Started 3.2 seconds ago
-Worker thread-2: Phase 8 Amplitude - Another/Song.flac Started 1.8 seconds ago
-Worker thread-3: Phase 6 Song Matching - Third/File.mp3 [0:00-3:45] Started 0.5 seconds ago
+Worker 42: Phase 5 Fingerprinting - Artist/Album/Track.mp3 [2:15-5:30] Started 3.2 seconds ago
+Worker 105: Phase 8 Amplitude - Another/Song.flac Started 1.8 seconds ago
+Worker 7: Phase 6 Song Matching - Third/File.mp3 [0:00-3:45] Started 0.5 seconds ago
 ```
+
+**Tracking Key:** Worker activities are keyed by `file_index` (the file's position in the import batch), not by thread ID. This prevents ghost entries caused by Tokio async task migration between worker threads at `.await` points.
 
 **Live Updates:**
 - Client-side elapsed time calculation updates every 100ms (independent of SSE throttle)
@@ -737,7 +739,7 @@ Worker thread-3: Phase 6 Song Matching - Third/File.mp3 [0:00-3:45] Started 0.5 
 
 ```json
 {
-  "worker_id": "thread-1",
+  "worker_id": "42",
   "file_path": "Artist/Album/Track.mp3",
   "file_index": 42,
   "phase_name": "Phase 5 Fingerprinting",
@@ -754,8 +756,8 @@ Worker thread-3: Phase 6 Song Matching - Third/File.mp3 [0:00-3:45] Started 0.5 
 - Displays passage-level granularity (passage timing shown for phases 4-8)
 
 **Implementation:**
-- Server: `wkmp-ai/src/services/workflow_orchestrator/mod.rs:2291-2371` (set_worker_phase functions)
-- Client: `import-progress.js:452-497` (worker list rendering), `startWorkerLiveUpdates:726-757` (100ms update interval)
+- Server: `wkmp-ai/src/services/workflow_orchestrator/progress.rs` (set_worker_phase, clear_worker_phase functions)
+- Client: `import-progress.js` (worker list rendering, 100ms elapsed time updates)
 
 ---
 
@@ -1062,7 +1064,7 @@ wkmp-ai/
 | **confidence_assessor** | Combine metadata + fingerprint evidence | Phase 6 | Metadata + fingerprint scores | MBID with confidence (High/Medium/Low/None) per passage |
 | **musicbrainz_client** | Query MusicBrainz API for recording details | Phase 6 | Recording MBID | Recording, artist, work, album metadata |
 | **amplitude_analyzer** | Detect lead-in/lead-out points | Phase 8 | Audio PCM, thresholds from settings | Lead-in/lead-out absolute positions (ticks), fade fields NULL |
-| **essentia_client** | Compute musical flavor via Essentia (native or Docker) | Phase 9 | Audio file path | Musical flavor vector (JSON) |
+| **essentia_client** | Compute musical flavor via Essentia (native or Docker) | Phase 9 | Audio file path (single-track) or temp WAV per passage (album) | Musical flavor vector (JSON) |
 | **settings_manager** | Read/write database settings table with defaults | All phases | Setting key | Setting value (with auto-initialization) |
 | **workflow_orchestrator** | Coordinate 10-phase pipeline per file | Step 4 | File list, settings | Import results per file |
 
@@ -1345,9 +1347,11 @@ For each file, execute in order (10-phase pipeline):
     └─ Output: Title, artist, album, duration, merged metadata JSON
 
   Phase 4: SEGMENTING
-    └─ Decode audio PCM, detect silence using thresholds from settings table:
+    └─ Decode audio to mono f32 PCM (DecodedAudio), detect silence using thresholds from settings table:
        - silence_threshold_dB (default: 60dB RMS, empirically optimized)
        - silence_min_duration_ticks (default: 56448000 ticks = 2000ms = 2.0s, empirically optimized)
+       - **Memory:** Decoded audio retained in memory through Phase 8 (amplitude) and Phase 9 (flavoring)
+         to avoid re-decoding. Released via `decoded.clear()` after Phase 9 completes.
     └─ Identify potential passage boundaries (audio segments between silence)
     └─ Calculate total non-silence duration across all potential passages
     └─ NO AUDIO detection (file-level check):
@@ -1415,8 +1419,15 @@ For each file, execute in order (10-phase pipeline):
        └─ If true: Skip flavor retrieval (increment 'pre-existing' counter), continue to Phase 10
     └─ Otherwise: Compute musical flavor via Essentia (native binary or Docker container)
        - **[PLAN035]** AcousticBrainz shut down; Essentia-only flavoring
+       - **Per-passage analysis (album files):** Each passage's audio is extracted from the
+         pre-decoded samples (held since Phase 4) to a temporary WAV file under
+         `music_root/.wkmp_temp/`, then analyzed individually by Essentia. Temp files are
+         cleaned up after each analysis. This ensures each passage gets a distinct flavor
+         vector rather than all passages sharing the whole-album average.
+       - **Single-track files:** Entire file path passed directly to Essentia (no extraction needed)
+    └─ Release decoded audio memory (`decoded.clear()`) after all passages analyzed
     └─ Mark songs.status = 'FLAVOR READY' or 'FLAVORING FAILED'
-    └─ Output: Musical flavor vector (JSON) or failure status
+    └─ Output: Per-passage musical flavor vector (JSON) or failure status
 
   Phase 10: PASSAGES COMPLETE
     └─ Mark files.status = 'INGEST COMPLETE'
@@ -1677,7 +1688,7 @@ loop {
       "max_workers": 8,
       "workers": [
         {
-          "worker_id": "thread-1",
+          "worker_id": "250",
           "file_path": "Artist/Album/Track.mp3",
           "file_index": 250,
           "phase_name": "Phase 5 Fingerprinting",

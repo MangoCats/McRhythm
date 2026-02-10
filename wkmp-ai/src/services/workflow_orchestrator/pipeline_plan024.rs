@@ -628,8 +628,7 @@ impl WorkflowOrchestrator {
             )
             .await?;
 
-        // Release decoded audio memory (~500MB for 50-minute album)
-        decoded.clear();
+        // Note: decoded audio kept alive for Phase 9 (per-passage Essentia analysis)
 
         tracing::info!(
             phase = "Amplitude Analysis",
@@ -697,8 +696,17 @@ impl WorkflowOrchestrator {
         );
         let passage_flavor_fetcher = crate::services::PassageFlavorFetcher::new(self.db.clone())?;
         let flavor_result = passage_flavor_fetcher
-            .fetch_flavors(file_path, &recording_result.passages, self.essentia_client.as_ref())
+            .fetch_flavors_with_audio(
+                &decoded.samples,
+                decoded.sample_rate,
+                &recording_result.passages,
+                self.essentia_client.as_ref(),
+                root_folder,
+            )
             .await?;
+
+        // Release decoded audio memory (~500MB for 50-minute album)
+        decoded.clear();
 
         // **[PLAN032]** Emit FlavorLookup analysis log events for each song
         let passage_total = flavor_result.songs.len() as u32;
@@ -830,9 +838,6 @@ impl WorkflowOrchestrator {
                 finalization_result.errors
             );
         }
-
-        // Clear worker phase tracking when done (whether success or failure)
-        self.clear_worker_phase().await;
 
         Ok(())
     }
@@ -1237,9 +1242,6 @@ impl WorkflowOrchestrator {
                 finalization_result.errors
             );
         }
-
-        // Clear worker phase tracking
-        self.clear_worker_phase().await;
 
         Ok(())
     }
